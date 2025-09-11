@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"name": "renoxpert-client",
+			"path": "."
+		},
+		{
+			"name": "client-app",
+			"path": "apps/client-app"
+		},
+		{
+			"name": "client-owner",
+			"path": "apps/client-owner"
+		},
+		{
+			"path": "packages/ui"
+		}
+	],
+	"settings": {}
+}
