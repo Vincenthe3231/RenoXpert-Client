@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  client-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: client-app
+    ports:
+      - "3000:3000"
