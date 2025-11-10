@@ -147,6 +147,40 @@ pnpm --filter client-app serve
 pnpm --filter client-owner serve
 ```
 
+## 🐳 Docker
+
+### Build Images
+
+```bash
+# Build client-app image
+docker build -t renoxpert/client-app -f apps/client-app/Dockerfile .
+
+# Build client-owner image
+docker build -t renoxpert/client-owner -f apps/client-owner/Dockerfile .
+```
+
+### Run Containers
+
+```bash
+# Run client-app (serves on container port 80)
+docker run --rm -p 3000:80 --env-file apps/client-app/.env renoxpert/client-app
+
+# Run client-owner (serves on container port 80)
+docker run --rm -p 3001:80 --env-file apps/client-owner/.env renoxpert/client-owner
+```
+
+### Environment Variables
+
+Both apps read `VITE_API_URL` at build time. To override without an `.env` file, pass `-e`:
+
+```bash
+docker run --rm -p 3000:80 -e VITE_API_URL=http://localhost:8000 renoxpert/client-app
+```
+
+Notes:
+- Images are multi-stage builds: dependencies and build happen in Node; final images use `nginx` and only contain static assets.
+- If you change dependencies, Docker will re-run `pnpm install` due to cached layers.
+
 ## 🎨 UI Components
 
 The `@repo/ui` package provides a comprehensive set of UI components built with:

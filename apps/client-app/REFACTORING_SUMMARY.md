@@ -55,29 +55,29 @@
 #### Before (125 lines, complex)
 ```tsx
 const DashboardContent = () => {
-  const [user, setUser] = useState<LaravelUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        if (laravelAuth.isAuthenticated()) {
-          const storedUser = laravelAuth.getUser();
+        if (AuthService.isAuthenticated()) {
+          const storedUser = AuthService.getUser();
           if (storedUser) {
             setUser(storedUser);
           } else {
             try {
-              const currentUser = await laravelAuth.getCurrentUser();
+              const currentUser = await AuthService.getCurrentUser();
               setUser(currentUser);
             } catch (error) {
               console.error('Failed to get current user:', error);
-              laravelAuth.clearAuth();
+              AuthService.clearAuth();
             }
           }
         }
       } catch (error) {
         console.error('Authentication check failed:', error);
-        laravelAuth.clearAuth();
+        AuthService.clearAuth();
       } finally {
         setIsLoading(false);
       }
@@ -97,7 +97,7 @@ const DashboardContent = () => {
 
   // Manual logout logic
   const handleLogout = async () => {
-    await laravelAuth.logout();
+    await AuthService.logout();
     window.location.href = '/login';
   };
 

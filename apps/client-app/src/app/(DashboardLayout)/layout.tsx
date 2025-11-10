@@ -1,7 +1,7 @@
 "use client";
 import React, { useContext } from "react";
-import Sidebar from "./layout/vertical/sidebar/Sidebar";
-import Header from "./layout/vertical/header/Header";
+import Sidebar from "./layout/sidebar/Sidebar";
+import Header from "./layout/header/Header";
 import { Customizer } from "./layout/shared/customizer/Customizer";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 
@@ -15,19 +15,15 @@ export default function Layout({
     <div className="flex w-full min-h-screen">
       <div className="page-wrapper flex w-full">
         {/* Header/sidebar */}
-        {activeLayout == "vertical" ? <Sidebar /> : null}
+        <Sidebar />
         <div className="body-wrapper w-full bg-white dark:bg-dark">
           {/* Top Header  */}
-          {activeLayout == "horizontal" ? (
-            <Header layoutType="horizontal" />
-          ) : (
-            <Header layoutType="vertical" />
-          )}
+          <Header layoutType="vertical" />
 
           {/* Body Content  */}
           <div
             className={` ${isLayout == "full"
-              ? "w-full py-[30px] md:px-[30px] px-5"
+              ? "w-full py-[15px] md:px-[30px] px-5"
               : "container mx-auto  py-[30px]"
               } ${activeLayout == "horizontal" ? 'xl:mt-3' : ''}
             `}

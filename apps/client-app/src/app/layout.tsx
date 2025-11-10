@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import {Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./css/globals.css";
 import { ThemeModeScript, ThemeProvider } from 'flowbite-react';
 import customTheme from "@/utils/theme/custom-theme";
@@ -32,7 +32,7 @@ export default function RootLayout({
         <ThemeModeScript />
       </head>
       <body className={`${plus_jakarta_sans.className}`}>
-      <NextTopLoader />
+        <NextTopLoader />
         <ThemeProvider theme={customTheme}>
           <UserProvider>
             <CustomizerContextProvider>
@@ -40,7 +40,7 @@ export default function RootLayout({
             </CustomizerContextProvider>
           </UserProvider>
         </ThemeProvider>
-        <Toaster/>
+        <Toaster />
       </body>
     </html>
 

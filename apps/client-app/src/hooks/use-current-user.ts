@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { laravelAuth } from '@/lib/laravel-auth';
+import { AuthService } from '@/lib/auth/login.auth';
 
 export function useCurrentUser() {
   const currentUserQuery = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => laravelAuth.getCurrentUser(),
+    queryFn: () => AuthService.getCurrentUser(),
   });
 
   return { 

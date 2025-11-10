@@ -4,7 +4,7 @@ import { Badge, Breadcrumb } from "flowbite-react";
 import CardBox from "@/app/components/shared/CardBox";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
-import breadcrumbBg from "/public/images/breadcrumb/ChatBc.png"
+import breadcrumbBg from "@/public/images/breadcrumb/ChatBc.png"
 
 interface BreadCrumbType {
   subtitle?: string;

@@ -15,11 +15,10 @@ const TitleCard: React.FC<MyAppProps> = ({ children, className, title }) => {
     useContext(CustomizerContext);
   return (
     <Card
-      className={`card no-inset no-ring ${className} ${
-        isCardShadow
+      className={`card no-inset no-ring ${className} ${isCardShadow
           ? "dark:shadow-dark-md shadow-md p-0"
           : "shadow-none border border-ld p-0"
-      } `}
+        } `}
       style={{
         borderRadius: `${isBorderRadius}px`,
       }}

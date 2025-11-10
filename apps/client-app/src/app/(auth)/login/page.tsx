@@ -3,7 +3,6 @@ import React from "react";
 import SocialButtons from "./authforms/SocialButtons";
 import AuthLogin from "./authforms/AuthLogin";
 import LeftSidebarPart from "./LeftSidebarPart";
-import EnvChecker from "@/app/components/EnvChecker";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Side Login Authentication",

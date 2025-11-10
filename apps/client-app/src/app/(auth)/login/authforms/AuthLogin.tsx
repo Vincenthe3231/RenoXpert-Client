@@ -2,7 +2,7 @@
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import Link from "next/link";
 import React, { useState } from "react";
-import { laravelAuth } from "@/lib/laravel-auth";
+import { AuthService } from "@/lib/auth/login.auth";
 
 const AuthLogin = () => {
   const [formData, setFormData] = useState({
@@ -27,16 +27,25 @@ const AuthLogin = () => {
     setError('');
 
     try {
-      const response = await laravelAuth.login({
-        email: formData.email,
-        password: formData.password,
-        remember: formData.remember
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          remember: formData.remember
+        }),
       });
 
+      const data = await response.json();
+
+
       // Store the token and user data
-      laravelAuth.setToken(response.token);
-      laravelAuth.setUser(response.user);
-      
+      AuthService.setToken(data.token);
+      AuthService.setUser(data.user);
+
       // Redirect to dashboard
       window.location.href = '/';
     } catch (error) {
@@ -87,12 +96,12 @@ const AuthLogin = () => {
         </div>
         <div className="flex justify-between my-5">
           <div className="flex items-center gap-2">
-            <Checkbox 
-              id="remember" 
+            <Checkbox
+              id="remember"
               name="remember"
               checked={formData.remember}
               onChange={handleInputChange}
-              className="checkbox" 
+              className="checkbox"
             />
             <Label
               htmlFor="remember"
@@ -105,9 +114,9 @@ const AuthLogin = () => {
             Forgot Password ?
           </Link> */}
         </div>
-        <Button 
+        <Button
           type="submit"
-          color={"primary"} 
+          color={"primary"}
           disabled={isLoading}
           className="w-full rounded-md"
         >

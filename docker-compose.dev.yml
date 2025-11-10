@@ -1,0 +1,19 @@
+# Development docker-compose with volume mounts for hot reloading
+# Usage: docker-compose -f docker-compose.dev.yml up
+
+services:
+  client-app-dev:
+    image: node:20-alpine
+    container_name: renoxpert-client-app-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/client-app/node_modules
+    ports:
+      - "3000:3000"
+    command: sh -c "corepack enable && corepack prepare pnpm@8.15.6 --activate && pnpm install && pnpm --filter client-app dev"
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+

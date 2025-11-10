@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { laravelAuth } from "../../../../lib/laravel-auth";
+import { AuthService } from "../../../../lib/auth/login.auth";
 
 function LarkSuiteCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -25,8 +25,8 @@ function LarkSuiteCallbackContent() {
           const userData = JSON.parse(user);
           
           // Store the token and user data
-          laravelAuth.setToken(token);
-          laravelAuth.setUser(userData);
+          AuthService.setToken(token);
+          AuthService.setUser(userData);
           
           setStatus('success');
           setMessage('Login successful! Redirecting...');

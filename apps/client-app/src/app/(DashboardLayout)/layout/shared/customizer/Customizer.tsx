@@ -159,7 +159,7 @@ export const Customizer = () => {
             </div>
 
             {/* Theme direction */}
-            <h4 className="text-base mb-2">Theme Direction</h4>
+            {/* <h4 className="text-base mb-2">Theme Direction</h4>
             <div className="flex gap-4 mb-7">
               <Button
                 color={"primary"}
@@ -197,7 +197,7 @@ export const Customizer = () => {
                   RTL
                 </span>
               </Button>
-            </div>
+            </div> */}
 
             {/* Theme Colors */}
             <h4 className="text-base mb-2">Theme Colors</h4>
@@ -230,7 +230,7 @@ export const Customizer = () => {
             </div>
 
             {/* Theme layout */}
-            <h4 className="text-base mb-2">Layout Type</h4>
+            {/* <h4 className="text-base mb-2">Layout Type</h4>
             <div className="flex flex-wrap  gap-4 mb-7">
               <Button
                 color={"primary"}
@@ -264,9 +264,9 @@ export const Customizer = () => {
                   Horizontal
                 </span>
               </Button>
-            </div>
+            </div> */}
 
-            {/* Sidebar Type */}
+            {/* Container Option */}
             <h4 className="text-base mb-2">Container Option</h4>
             <div className="flex flex-wrap  gap-4 mb-7">
               <Button
@@ -304,7 +304,7 @@ export const Customizer = () => {
             </div>
 
             {/* Sidebar Type */}
-            <h4 className="text-base mb-2">Sidebar Type</h4>
+            {/* <h4 className="text-base mb-2">Sidebar Type</h4>
             <div className="flex flex-wrap  gap-4 mb-7">
               <Button
                 color={"primary"}
@@ -338,10 +338,10 @@ export const Customizer = () => {
                   Collapse
                 </span>
               </Button>
-            </div>
+            </div> */}
 
             {/* Card  With */}
-            <h4 className="text-base mb-2">Card With</h4>
+            {/* <h4 className="text-base mb-2">Card With</h4>
             <div className="flex flex-wrap  gap-4 mb-7">
               <Button
                 color={"primary"}
@@ -373,10 +373,10 @@ export const Customizer = () => {
                   Shadow
                 </span>
               </Button>
-            </div>
+            </div> */}
 
-            {/* Card  With */}
-            <h4 className="text-base mb-2">Theme Border Radius</h4>
+            {/* Theme Border Radius */}
+            {/* <h4 className="text-base mb-2">Theme Border Radius</h4>
             <RangeSlider
               id="default-range"
               value={isBorderRadius}
@@ -384,7 +384,7 @@ export const Customizer = () => {
               max={24}
               onChange={(event: any) => setIsBorderRadius(event.target.value)}
             />
-            <div>Current Value: {isBorderRadius}</div>
+            <div>Current Value: {isBorderRadius}</div> */}
           </div>
         </SimpleBar>
       </Drawer>

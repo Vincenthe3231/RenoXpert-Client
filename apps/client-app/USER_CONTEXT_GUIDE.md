@@ -235,7 +235,7 @@ const LoginForm = () => {
 ### Before (Old System)
 ```tsx
 const DashboardContent = () => {
-  const [user, setUser] = useState<LaravelUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -267,7 +267,7 @@ const DashboardContent = () => {
 
 ## Best Practices
 
-1. **Always use the useUser hook** instead of direct LaravelAuth calls
+1. **Always use the useUser hook** instead of direct Auth calls
 2. **Use AuthGuard for protected routes** instead of manual checks
 3. **Use provided loading and error components** for consistency
 4. **Handle errors gracefully** with the provided error components
@@ -282,7 +282,7 @@ const DashboardContent = () => {
 
 2. **User data not persisting**
    - Check if localStorage is available in your environment
-   - Verify LaravelAuth configuration
+   - Verify Auth configuration
 
 3. **Authentication not working**
    - Check Laravel backend configuration

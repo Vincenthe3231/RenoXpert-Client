@@ -1,10 +1,10 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { laravelAuth, LaravelUser } from '@/lib/laravel-auth';
+import { AuthService, User } from '@/lib/auth/login.auth';
 
 // Define the shape of the user context state
 interface UserContextState {
-  user: LaravelUser | null;
+  user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
@@ -24,7 +24,7 @@ interface UserProviderProps {
 
 // Create the provider component
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<LaravelUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,23 +38,26 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         setIsLoading(true);
         setError(null);
 
+        // Sync existing token from localStorage to cookie (for middleware access)
+        AuthService.syncTokenToCookie();
+
         // Check if user is authenticated
-        if (laravelAuth.isAuthenticated()) {
+        if (AuthService.isAuthenticated()) {
           // Get user from localStorage first (fast)
-          const storedUser = laravelAuth.getUser();
+          const storedUser = AuthService.getUser();
           if (storedUser) {
             setUser(storedUser);
           } else {
             // If no stored user, try to get from API
             try {
-              const currentUser = await laravelAuth.getCurrentUser();
+              const currentUser = await AuthService.getCurrentUser();
               setUser(currentUser);
               // Store the user data for future use
-              laravelAuth.setUser(currentUser);
+              AuthService.setUser(currentUser);
             } catch (error) {
               console.error('Failed to get current user:', error);
               // Clear invalid auth data
-              laravelAuth.clearAuth();
+              AuthService.clearAuth();
               setUser(null);
             }
           }
@@ -62,7 +65,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Authentication initialization failed:', error);
         setError('Failed to initialize authentication');
-        laravelAuth.clearAuth();
+        AuthService.clearAuth();
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -78,10 +81,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setIsLoading(true);
       setError(null);
 
-      const response = await laravelAuth.login(credentials);
+      const response = await AuthService.login(credentials);
       setUser(response.user);
-      laravelAuth.setToken(response.token);
-      laravelAuth.setUser(response.user);
+      AuthService.setToken(response.token);
+      AuthService.setUser(response.user);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       setError(errorMessage);
@@ -96,14 +99,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      await laravelAuth.logout();
+
+      await AuthService.logout();
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
       // Clear local state even if server logout fails
       setUser(null);
     } finally {
+      // Clear local state and remove localstorage/cookies
+      AuthService.clearAuth();
       setIsLoading(false);
     }
   };
@@ -112,17 +117,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const refreshUser = async () => {
     try {
       setError(null);
-      
-      if (laravelAuth.isAuthenticated()) {
-        const currentUser = await laravelAuth.getCurrentUser();
+
+      if (AuthService.isAuthenticated()) {
+        const currentUser = await AuthService.getCurrentUser();
         setUser(currentUser);
-        laravelAuth.setUser(currentUser);
+        AuthService.setUser(currentUser);
       }
     } catch (error) {
       console.error('Failed to refresh user:', error);
       setError('Failed to refresh user data');
       // If refresh fails, clear auth and user
-      laravelAuth.clearAuth();
+      AuthService.clearAuth();
       setUser(null);
     }
   };
