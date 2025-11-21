@@ -10,6 +10,7 @@ import NextTopLoader from 'nextjs-toploader';
 import { Toaster } from "./components/shadcn-ui/Default-Ui/toaster";
 import { CustomizerContextProvider } from "./context/CustomizerContext";
 import { UserProvider } from "./context/UserContext";
+import Providers from "./providers";
 
 const plus_jakarta_sans = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
@@ -32,15 +33,17 @@ export default function RootLayout({
         <ThemeModeScript />
       </head>
       <body className={`${plus_jakarta_sans.className}`}>
-        <NextTopLoader />
-        <ThemeProvider theme={customTheme}>
-          <UserProvider>
-            <CustomizerContextProvider>
-              {children}
-            </CustomizerContextProvider>
-          </UserProvider>
-        </ThemeProvider>
-        <Toaster />
+        <Providers>
+          <NextTopLoader />
+          <ThemeProvider theme={customTheme}>
+            <UserProvider>
+              <CustomizerContextProvider>
+                {children}
+              </CustomizerContextProvider>
+            </UserProvider>
+          </ThemeProvider>
+          <Toaster />
+        </Providers>
       </body>
     </html>
 

@@ -1,10 +1,13 @@
 "use client"
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { AuthService, User } from '@/lib/auth/login.auth';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AuthService } from '@/lib/auth/login.auth';
+import { staffSchema } from '@/lib/schemas';
+import z from 'zod';
 
 // Define the shape of the user context state
 interface UserContextState {
-  user: User | null;
+  user: z.infer<typeof staffSchema> | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
@@ -24,127 +27,120 @@ interface UserProviderProps {
 
 // Create the provider component
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Fetch user data with React Query
+  const {
+    data: user = null,
+    isLoading,
+    error: queryError,
+    refetch: refreshUser,
+  } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      // Sync token to cookie first
+      AuthService.syncTokenToCookie();
+
+      // Check if authenticated
+      if (!AuthService.isAuthenticated()) {
+        return null;
+      }
+
+      // Try to get user from localStorage first (fast)
+      const storedUser = AuthService.getUser();
+      if (storedUser) {
+        return storedUser;
+      }
+
+      // If no stored user, fetch from API
+      try {
+        const currentUser = await AuthService.getCurrentUser();
+        AuthService.setUser(currentUser);
+        return currentUser;
+      } catch (error) {
+        console.error('Failed to get current user:', error);
+        AuthService.clearAuth();
+        return null;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false,
+  });
+
+  // Login mutation
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { email: string; password: string; remember?: boolean }) => {
+      const response = await AuthService.login(credentials);
+      return response;
+    },
+    onSuccess: (response) => {
+      AuthService.setToken(response.token);
+      AuthService.setUser(response.user);
+      // Update the user query cache
+      queryClient.setQueryData(['currentUser'], response.user);
+    },
+    onError: (error) => {
+      console.error('Login error:', error);
+    },
+  });
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await AuthService.logout();
+    },
+    onSettled: () => {
+      // Clear auth regardless of success/failure
+      AuthService.clearAuth();
+      // Clear the user query cache
+      queryClient.setQueryData(['currentUser'], null);
+      // Invalidate all queries to reset app state
+      queryClient.invalidateQueries();
+    },
+  });
+
+  // Wrapper functions to match original API
+  const login = async (credentials: { email: string; password: string; remember?: boolean }) => {
+    await loginMutation.mutateAsync(credentials);
+  };
+
+  const logout = async () => {
+    await logoutMutation.mutateAsync();
+  };
+
+  const refreshUserWrapper = async () => {
+    await refreshUser();
+  };
+
+  const clearError = () => {
+    loginMutation.reset();
+    logoutMutation.reset();
+  };
 
   // Computed values
   const isAuthenticated = !!user;
 
-  // Initialize user state on mount
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // Combine errors from query and mutations
+  const error =
+    queryError?.message ||
+    loginMutation.error?.message ||
+    logoutMutation.error?.message ||
+    null;
 
-        // Sync existing token from localStorage to cookie (for middleware access)
-        AuthService.syncTokenToCookie();
-
-        // Check if user is authenticated
-        if (AuthService.isAuthenticated()) {
-          // Get user from localStorage first (fast)
-          const storedUser = AuthService.getUser();
-          if (storedUser) {
-            setUser(storedUser);
-          } else {
-            // If no stored user, try to get from API
-            try {
-              const currentUser = await AuthService.getCurrentUser();
-              setUser(currentUser);
-              // Store the user data for future use
-              AuthService.setUser(currentUser);
-            } catch (error) {
-              console.error('Failed to get current user:', error);
-              // Clear invalid auth data
-              AuthService.clearAuth();
-              setUser(null);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Authentication initialization failed:', error);
-        setError('Failed to initialize authentication');
-        AuthService.clearAuth();
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeUser();
-  }, []);
-
-  // Login function
-  const login = async (credentials: { email: string; password: string; remember?: boolean }) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await AuthService.login(credentials);
-      setUser(response.user);
-      AuthService.setToken(response.token);
-      AuthService.setUser(response.user);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      setError(errorMessage);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Logout function
-  const logout = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      await AuthService.logout();
-      setUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Clear local state even if server logout fails
-      setUser(null);
-    } finally {
-      // Clear local state and remove localstorage/cookies
-      AuthService.clearAuth();
-      setIsLoading(false);
-    }
-  };
-
-  // Refresh user data
-  const refreshUser = async () => {
-    try {
-      setError(null);
-
-      if (AuthService.isAuthenticated()) {
-        const currentUser = await AuthService.getCurrentUser();
-        setUser(currentUser);
-        AuthService.setUser(currentUser);
-      }
-    } catch (error) {
-      console.error('Failed to refresh user:', error);
-      setError('Failed to refresh user data');
-      // If refresh fails, clear auth and user
-      AuthService.clearAuth();
-      setUser(null);
-    }
-  };
-
-  // Clear error function
-  const clearError = () => {
-    setError(null);
-  };
+  // Combined loading state
+  const combinedIsLoading =
+    isLoading ||
+    loginMutation.isPending ||
+    logoutMutation.isPending;
 
   const value: UserContextState = {
     user,
-    isLoading,
+    isLoading: combinedIsLoading,
     isAuthenticated,
     error,
     login,
     logout,
-    refreshUser,
+    refreshUser: refreshUserWrapper,
     clearError,
   };
 

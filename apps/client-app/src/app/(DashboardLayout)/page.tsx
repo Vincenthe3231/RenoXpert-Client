@@ -33,14 +33,14 @@ const page = () => {
           <div className="space-y-2">
             <p><strong>Email:</strong> {user.email}</p>
             <p><strong>User ID:</strong> {user.id}</p>
-            {user.larksuite_open_id && (
-              <p><strong>LarkSuite Open ID:</strong> {user.larksuite_open_id}</p>
+            {user.profile.larksuiteOpenId && (
+              <p><strong>LarkSuite Open ID:</strong> {user.profile.larksuiteOpenId}</p>
             )}
-            {user.larksuite_union_id && (
-              <p><strong>LarkSuite Union ID:</strong> {user.larksuite_union_id}</p>
+            {user.profile.larksuiteUnionId && (
+              <p><strong>LarkSuite Union ID:</strong> {user.profile.larksuiteUnionId}</p>
             )}
-            {user.email_verified_at && (
-              <p><strong>Email Verified:</strong> {new Date(user.email_verified_at).toLocaleDateString()}</p>
+            {user.emailVerifiedAt && (
+              <p><strong>Email Verified:</strong> {new Date(user.emailVerifiedAt).toLocaleDateString()}</p>
             )}
           </div>
           <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">

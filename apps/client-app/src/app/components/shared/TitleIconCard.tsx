@@ -36,30 +36,32 @@ const TitleIconCard: React.FC<TitleCardProps> = ({
       <div className="flex justify-between items-center border-b border-ld px-6 py-4">
         <h5 className="text-xl font-semibold">{title}</h5>
 
-        {onDownload && (
-          <Button
-            className="flex items-center"
-            size="sm"
-            color="primary"
-            onClick={onDownload}
-          >
-            <Icon
-              icon="tabler:download"
-              width={20}
-              height={20}
-            />
-          </Button>
-        )}
-        {onSetting && (
-          <Button
-            className="flex items-center"
-            size="sm"
-            color="primary"
-            onClick={onSetting}
-          >
-            <Icon icon="tabler:settings" width={20} height={20} />
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {onDownload && (
+            <Button
+              className="flex items-center"
+              size="sm"
+              color="primary"
+              onClick={onDownload}
+            >
+              <Icon
+                icon="tabler:download"
+                width={20}
+                height={20}
+              />
+            </Button>
+          )}
+          {onSetting && (
+            <Button
+              className="flex items-center"
+              size="sm"
+              color="primary"
+              onClick={onSetting}
+            >
+              <Icon icon="tabler:settings" width={20} height={20} />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="pt-4 p-6">{children}</div>
     </Card>

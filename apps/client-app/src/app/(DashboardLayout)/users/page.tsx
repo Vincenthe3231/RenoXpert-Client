@@ -7,70 +7,121 @@ import { UserErrorState } from "@/app/components/UserErrorState";
 import { Button } from "flowbite-react";
 import UserTable from "./tables/UserTable";
 import CardBox from "@/app/components/shared/CardBox";
-import TitleBorderCard from "@/app/components/shared/TitleBorderCard";
 import OutlineCard from "@/app/components/shared/OutlineCard";
+import { useQuery } from "@tanstack/react-query";
+import { Staff } from "@/lib/schemas";
+import Link from "next/link";
+
+interface PaginatedResponse {
+    current_page: number;
+    data: Staff[];
+    first_page_url: string;
+    from: number;
+    last_page: number;
+    last_page_url: string;
+    links: Array<{
+        url: string | null;
+        label: string;
+        page: number;
+        active: boolean;
+    }>;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number;
+    total: number;
+}
 
 const page = () => {
-    const { user, isLoading, error, logout, refreshUser, clearError } = useUser();
+    // const { user, isLoading, error, logout, refreshUser, clearError } = useUser();
 
-    if (isLoading) {
-        return <UserLoadingState message="Loading dashboard..." />;
-    }
+    // if (isLoading) {
+    //     return <UserLoadingState message="Loading dashboard..." />;
+    // }
 
-    if (error) {
-        return (
-            <UserErrorState
-                error={error}
-                onRetry={refreshUser}
-                onClearError={clearError}
-            />
-        );
-    }
+    // if (error) {
+    //     return (
+    //         <UserErrorState
+    //             error={error}
+    //             onRetry={refreshUser}
+    //             onClearError={clearError}
+    //         />
+    //     );
+    // }
+
+    const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<PaginatedResponse>({
+        queryKey: ['staffList'],
+        queryFn: async () => {
+            const response = await fetch('/api/staff');
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || error.error || 'Failed to fetch users');
+            }
+
+            return response.json();
+        },
+        staleTime: 60 * 1000, // 1 minute - data is fresh for 1 minute
+        refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    });
 
     return (
         <div className="flex flex-col h-[calc(100vh-170px)] space-y-2">
             <div className="flex justify-between flex-shrink-0">
                 <h1 className="text-3xl font-bold mb-6">User Management</h1>
-                <div className="flex">
+                <div className="flex gap-2">
                     <Button color={"primary"} className="inline-block rounded-md">Add User</Button>
+                    <Button
+                        color={"info"}
+                        className="inline-block rounded-md items-center"
+                        as={Link}
+                        href="/users/onboarding"
+                    >
+                        Onboarding Management
+                    </Button>
                 </div>
             </div>
             <div className="flex w-full gap-3 flex-1 min-h-0">
                 <div className="flex flex-col gap-3 flex-[5] min-h-0">
-                    <div className="flex gap-3 flex-shrink-0">
-                        <CardBox className={`shadow-none bg-info dark:bg-darkinfo w-full`}>
-                            <div className="text-center">
-                                <div className="flex flex-col justify-center">
-                                    <p className={`font-semibold text-white mb-1`}>
-                                        Owners
-                                    </p>
-                                    <h5 className={`text-lg font-semibold text-white mb-0`}>125</h5>
-                                </div>
+                    <div className="grid grid-cols-12 gap-6">
+                        <div className="lg:col-span-4 md:col-span-6  col-span-12">
+                            <div
+                                className="p-[30px] bg-lightprimary dark:bg-lightprimary text-center rounded-md cursor-pointer"
+                            // onClick={() => setFilter('total_tickets')}
+                            >
+                                <h3 className="text-primary text-2xl">{staffList?.total || "-"}</h3>
+                                <h6 className="text-base text-primary">Owners</h6>
                             </div>
-                        </CardBox>
-                        <CardBox className={`shadow-none bg-orange-400 dark:bg-orange-300 w-full`}>
-                            <div className="text-center">
-                                <div className="flex flex-col justify-center">
-                                    <p className={`font-semibold text-white mb-1`}>
-                                        Internal
-                                    </p>
-                                    <h5 className={`text-lg font-semibold text-white mb-0`}>23</h5>
-                                </div>
+                        </div>
+                        <div className="lg:col-span-4 md:col-span-6  col-span-12">
+                            <div
+                                className="p-[30px] bg-lightwarning dark:bg-lightwarning text-center rounded-md cursor-pointer"
+                            // onClick={() => setFilter('Pending')}
+                            >
+                                <h3 className="text-warning text-2xl">{staffList?.total || "-"}</h3>
+                                <h6 className="text-base text-warning">Internal Staff</h6>
                             </div>
-                        </CardBox>
-                        <CardBox className={`shadow-none bg-warning dark:bg-warning w-full`}>
-                            <div className="text-center">
-                                <div className="flex flex-col justify-center">
-                                    <p className={`font-semibold text-white mb-1`}>
-                                        Onboarding
-                                    </p>
-                                    <h5 className={`text-lg font-semibold text-white mb-0`}>6</h5>
-                                </div>
+                        </div>
+                        <div className="lg:col-span-4 md:col-span-6  col-span-12">
+                            <div
+                                className="p-[30px] bg-lightsuccess dark:bg-lightsuccess text-center rounded-md cursor-pointer"
+                            // onClick={() => setFilter('Open')}
+                            >
+                                <h3 className="text-success text-2xl">{staffList?.total || "-"}</h3>
+                                <h6 className="text-base text-success">Onboarding</h6>
                             </div>
-                        </CardBox>
+                        </div>
                     </div>
                     <div className="flex-1 min-h-0 overflow-hidden">
-                        <UserTable title="Users Table" className="h-full" />
+                        <UserTable
+                            title="Users Table"
+                            className="h-full"
+                            staffList={staffList}
+                            isStaffLoading={isStaffLoading}
+                            staffError={staffError}
+                            isStaffError={isStaffError}
+                        />
                     </div>
                 </div>
                 <div className="flex flex-col flex-[2]">
@@ -81,6 +132,7 @@ const page = () => {
                                 <p className="card-subtitle">Recent activity</p>
                             </div>
                             <div className="sm:mt-0 mt-4">
+
                             </div>
                         </div>
                     </OutlineCard>

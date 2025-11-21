@@ -8,9 +8,9 @@ export const USER_STATUSES = {
         value: 'inactive',
         label: 'Inactive',
     },
-    PENDING: {
-        value: 'pending',
-        label: 'Pending',
+    VERIFYING: {
+        value: 'verifying',
+        label: 'Verifying',
     },
     REJECTED: {
         value: 'rejected',

@@ -9,9 +9,11 @@ export function middleware(request: NextRequest) {
     // Define route categories
     const protectedPaths = ['/dashboard', '/users'];
     const authPaths = ['/login', '/signup'];
+    const statusPaths = ['/status/verifying', '/status/rejected'];
 
     const isProtected = protectedPaths.some(path => pathname.startsWith(path));
     const isAuthPath = authPaths.includes(pathname);
+    const isStatusPath = statusPaths.some(path => pathname.startsWith(path));
     const isRoot = pathname === '/';
 
     // 1. Unauthenticated + protected route → login
@@ -21,7 +23,7 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
     }
 
-    // 2. Authenticated + auth page → dashboard
+    // 2. Authenticated + auth page → dashboard (but status check happens in layout)
     if (token && isAuthPath) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
     }
@@ -35,7 +37,9 @@ export function middleware(request: NextRequest) {
         }
     }
 
-    // 4. Allow all other requests
+    // 4. Allow status pages and all other requests
+    // Note: Status-based redirects are handled in the DashboardLayout component
+    // because we need to fetch user data from the API to check status
     return NextResponse.next();
 }
 
@@ -45,6 +49,7 @@ export const config = {
         '/',
         '/dashboard/:path*',
         '/users/:path*',
+        '/status/:path*',
         '/login',
         '/signup',
     ],

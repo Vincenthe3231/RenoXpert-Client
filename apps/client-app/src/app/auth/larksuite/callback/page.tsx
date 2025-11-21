@@ -2,6 +2,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthService } from "../../../../lib/auth/login.auth";
+import { staffSchema, Staff } from "../../../../lib/schemas";
+import { keysToCamel } from "@/lib/transform";
 
 function LarkSuiteCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -16,21 +18,26 @@ function LarkSuiteCallbackContent() {
         const user = searchParams.get('user');
         const error = searchParams.get('error');
 
+        console.log(user);
+        
+
         if (error) {
           throw new Error(`OAuth error: ${error}`);
         }
 
         if (success === 'true' && token && user) {
-          // Parse user data
-          const userData = JSON.parse(user);
-          
+          // Parse and validate user data using staff schema
+          const parsedUser = JSON.parse(user);
+          const camelCaseUser = keysToCamel<Staff>(parsedUser);
+          const userData = staffSchema.parse(camelCaseUser);
+
           // Store the token and user data
           AuthService.setToken(token);
           AuthService.setUser(userData);
-          
+
           setStatus('success');
           setMessage('Login successful! Redirecting...');
-          
+
           // Redirect to dashboard
           setTimeout(() => {
             window.location.href = '/';
@@ -38,7 +45,7 @@ function LarkSuiteCallbackContent() {
         } else {
           throw new Error('Invalid callback parameters');
         }
-        
+
       } catch (error) {
         console.error('LarkSuite OAuth callback error:', error);
         setStatus('error');
@@ -60,7 +67,7 @@ function LarkSuiteCallbackContent() {
               <p className="text-gray-600 mt-2">Please wait while we complete your authentication.</p>
             </>
           )}
-          
+
           {status === 'success' && (
             <>
               <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -72,7 +79,7 @@ function LarkSuiteCallbackContent() {
               <p className="text-gray-600 mt-2">Redirecting to dashboard...</p>
             </>
           )}
-          
+
           {status === 'error' && (
             <>
               <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -82,7 +89,7 @@ function LarkSuiteCallbackContent() {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Authentication Failed</h2>
               <p className="text-gray-600 mt-2">{message}</p>
-              <button 
+              <button
                 onClick={() => window.location.href = '/login'}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >

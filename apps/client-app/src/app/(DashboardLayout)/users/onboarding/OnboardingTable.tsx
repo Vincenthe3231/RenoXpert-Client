@@ -13,6 +13,8 @@ import TitleSelectionCard from "@/app/components/shared/TitleSelectionCard";
 import { Staff } from "@/lib/schemas";
 import { Button } from "@/app/components/shadcn-ui/Default-Ui/button";
 import { useStaffType } from "@/hooks/use-staff-type";
+import TitleIconCard from "@/app/components/shared/TitleIconCard";
+import { toDate, toDateTime, toTime } from "@/utils/date-helpers";
 
 export interface TableTypeDense {
     avatar?: any;
@@ -22,6 +24,8 @@ export interface TableTypeDense {
     userRoles?: string[];
     status?: string;
     actions?: string;
+    createdDate?: string;
+    createdTime?: string;
 }
 
 interface PaginatedResponse {
@@ -47,28 +51,28 @@ interface PaginatedResponse {
 
 const columnHelper = createColumnHelper<TableTypeDense>();
 
-const userTypeOptions = [
-    { value: "staff", label: "Staff Users" },
-    { value: "owner", label: "Owner Users" },
+const listOptions = [
+    { value: "onboarding", label: "Onboarding" },
+    { value: "all", label: "All Staff" },
 ];
 
-interface UserTableProps {
+interface OnboardingTableProps {
     title: string;
     className: string;
-    staffList?: PaginatedResponse;
-    isStaffLoading: boolean;
-    staffError: Error | null;
-    isStaffError: boolean;
+    onboardingList?: PaginatedResponse;
+    isOnboardingLoading: boolean;
+    onboardingError: Error | null;
+    isOnboardingError: boolean;
 }
 
-const UserTable = ({ title, className, staffList, isStaffLoading, staffError, isStaffError }: UserTableProps) => {
+const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading, onboardingError, isOnboardingError }: OnboardingTableProps) => {
     const [data, setData] = React.useState<TableTypeDense[]>([]);
     const [density, setDensity] = React.useState("md");
-    const [selectedUserType, setSelectedUserType] = React.useState("staff");
-    const { isSuperAdmin } = useStaffType();
+    const [selectedUserType, setSelectedUserType] = React.useState("onboarding");
 
     const columns = [
         columnHelper.accessor("avatar", {
+            header: () => <span>User</span>,
             cell: (info) => {
                 const avatarUrl = info.getValue() || "/images/profile/user-1.jpg";
                 const userName = info.row.original.name || "User";
@@ -95,33 +99,7 @@ const UserTable = ({ title, className, staffList, isStaffLoading, staffError, is
                     </div>
                 );
             },
-            header: () => <span>User</span>,
         }),
-        columnHelper.accessor("userType", {
-            header: () => <span>User Type</span>,
-            cell: (info) => <Badge
-                color={getUserTypeBadge(info.getValue())}
-                className="capitalize"
-            >
-                {getUserTypeLabel(info.getValue())}
-            </Badge>,
-        }),
-        // columnHelper.accessor("teams", {
-        //     header: () => <span>Team</span>,
-        //     cell: (info) => (
-        //         <div className="flex">
-        //             {info.getValue().map((team) => (
-        //                 <div className="-ms-2" key={team.id}>
-        //                     <div
-        //                         className={`bg-${team.color} text-white border-2 border-white dark:border-darkborder h-10 w-10 flex justify-center items-center text-xl font-medium text-ld rounded-full`}
-        //                     >
-        //                         {team.text}
-        //                     </div>
-        //                 </div>
-        //             ))}
-        //         </div>
-        //     ),
-        // }),
         columnHelper.accessor("status", {
             header: () => <span>Status</span>,
             cell: (info) => (
@@ -133,34 +111,43 @@ const UserTable = ({ title, className, staffList, isStaffLoading, staffError, is
                 </Badge>
             ),
         }),
+        columnHelper.accessor("createdDate", {
+            header: () => <span>Onboarding Date</span>,
+            cell: (info) => (
+                <div className="flex flex-col">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{info.row.original.createdDate} - {info.row.original.createdTime}</p>
+                </div>
+            ),
+        }),
         columnHelper.accessor("actions", {
             header: () => <span>Actions</span>,
             cell: (info) => (
                 <div className="flex gap-2">
-                    {isSuperAdmin && (
-                        <Button variant="outline" size="xs" className="text-xs">Edit</Button>
-                    )}
+                    <Button variant="outlinesuccess" size="xs" className="text-xs">Approve</Button>
+                    <Button variant="error" size="xs" className="text-xs">Reject</Button>
                 </div>
             ),
         }),
     ];
 
     useEffect(() => {
-        if (staffList?.data) {
-            const mappedData: TableTypeDense[] = staffList.data.map((staff) => ({
-                avatar: staff.profile?.avatarUrl || staff.profile?.avatarBig || "/images/profile/user-1.jpg",
-                name: staff.name || '',
-                email: staff.email || '',
-                userType: staff.profile?.type || '',
-                status: staff.status || '',
+        if (onboardingList?.data) {
+            const mappedData: TableTypeDense[] = onboardingList.data.map((onboarding) => ({
+                avatar: onboarding.profile?.avatarUrl || onboarding.profile?.avatarBig || "/images/profile/user-1.jpg",
+                name: onboarding.name || '',
+                email: onboarding.email || '',
+                userType: onboarding.profile?.type || '',
+                status: onboarding.status || '',
+                createdDate: toDate(onboarding.createdAt || ''),
+                createdTime: toTime(onboarding.createdAt || ''),
             }));
             setData(mappedData);
         }
-    }, [staffList]);
+    }, [onboardingList]);
 
-    const error = isStaffError
-        ? (staffError instanceof Error
-            ? staffError.message
+    const error = isOnboardingError
+        ? (onboardingError instanceof Error
+            ? onboardingError.message
             : 'An unexpected error occurred')
         : null;
 
@@ -184,20 +171,20 @@ const UserTable = ({ title, className, staffList, isStaffLoading, staffError, is
     };
 
     return (
-        <TitleSelectionCard selectPlaceholder="Select a user type" selectOptions={userTypeOptions} selectDefaultValue="staff" >
-            {isStaffLoading && (
+        <TitleIconCard title="Onboarding List">
+            {isOnboardingLoading && (
                 <div className="text-center py-8">
                     <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
                 </div>
             )}
 
-            {staffError && (
+            {onboardingError && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
                     <p className="text-red-800 dark:text-red-200">Error: {error}</p>
                 </div>
             )}
 
-            {!isStaffLoading && !staffError && (
+            {!isOnboardingLoading && !onboardingError && (
                 <>
                     <div className="border border-ld rounded-md overflow-hidden">
                         <div className="overflow-x-auto">
@@ -250,15 +237,15 @@ const UserTable = ({ title, className, staffList, isStaffLoading, staffError, is
                         </div>
                     </div>
 
-                    {staffList && staffList.total > 0 && (
+                    {onboardingList && onboardingList.total > 0 && (
                         <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                            Showing {staffList.from} to {staffList.to} of {staffList.total} users
+                            Showing {onboardingList.from} to {onboardingList.to} of {onboardingList.total} users
                         </div>
                     )}
                 </>
             )}
-        </TitleSelectionCard>
+        </TitleIconCard>
     );
 };
 
-export default UserTable;
+export default OnboardingTable;

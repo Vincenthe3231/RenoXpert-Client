@@ -2,7 +2,9 @@
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import Link from "next/link";
 import React, { useState } from "react";
-import { AuthService } from "@/lib/auth/login.auth";
+import { AuthService, User } from "@/lib/auth/login.auth";
+import { keysToCamel } from "@/lib/transform";
+import { staffSchema } from "@/lib/schemas";
 
 const AuthLogin = () => {
   const [formData, setFormData] = useState({
@@ -40,11 +42,12 @@ const AuthLogin = () => {
       });
 
       const data = await response.json();
-
+      const camelCaseData = keysToCamel<User>(data.user);
+      const staffData = staffSchema.parse(camelCaseData);
 
       // Store the token and user data
       AuthService.setToken(data.token);
-      AuthService.setUser(data.user);
+      AuthService.setUser(staffData);
 
       // Redirect to dashboard
       window.location.href = '/';

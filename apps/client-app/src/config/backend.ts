@@ -19,6 +19,7 @@ export const BackendConfig = {
   // API endpoints
   endpoints: {
     users: '/api/v1/users',
+    staff: '/api/v1/staff',
     // Authentication endpoints
     login: '/api/v1/login',
     register: '/api/v1/register',
@@ -45,7 +46,7 @@ export const BackendConfig = {
   },
 
   // Token configuration
-  tokenKey: 'auth_token',
+  tokenKey: 'auth-token',
   userKey: 'user',
 
   // OAuth configuration
