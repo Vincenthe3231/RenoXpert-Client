@@ -34,12 +34,6 @@ export class ApiClient {
             }
         }
 
-
-        console.log('headers', headers);
-        console.log('body', body);
-        console.log('url', url);
-        console.log('options', options);
-
         const response = await fetch(url, {
             ...options,
             headers,

@@ -71,7 +71,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
     const [data, setData] = React.useState<TableTypeDense[]>([]);
     const [density, setDensity] = React.useState("md");
     const [approvalModalOpen, setApprovalModalOpen] = React.useState(false);
-    const [selectedUser, setSelectedUser] = React.useState<{ id?: number; name?: string; email?: string; userType?: string } | null>(null);
+    const [selectedOnboardStaff, setSelectedOnboardStaff] = React.useState<{ id?: number; name?: string; email?: string; userType?: string } | null>(null);
     const columns = [
         columnHelper.accessor("avatar", {
             header: () => <span>User</span>,
@@ -130,7 +130,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
                         size="xs"
                         className="text-xs"
                         onClick={() => {
-                            setSelectedUser({
+                            setSelectedOnboardStaff({
                                 id: info.row.original.id,
                                 name: info.row.original.name,
                                 email: info.row.original.email,
@@ -150,7 +150,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
         if (onboardingList?.data) {
             const mappedData: TableTypeDense[] = onboardingList.data.map((onboarding) => ({
                 avatar: onboarding.staff?.profile.avatarUrl || onboarding.staff?.profile.avatarBig || "/images/profile/user-1.jpg",
-                id: onboarding.staff?.id || undefined,
+                id: onboarding.id || undefined,
                 name: onboarding.staff?.name || '',
                 email: onboarding.staff?.email || '',
                 userType: onboarding.staff?.userType || '',
@@ -267,9 +267,9 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
             <ApprovalModal
                 isOpen={approvalModalOpen}
                 setIsOpen={setApprovalModalOpen}
-                id={selectedUser?.id}
-                name={selectedUser?.name}
-                email={selectedUser?.email}
+                id={selectedOnboardStaff?.id}
+                name={selectedOnboardStaff?.name}
+                email={selectedOnboardStaff?.email}
             />
         </>
     );

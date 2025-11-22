@@ -45,7 +45,7 @@ const page = () => {
     const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError } = useQuery<PaginatedResponse>({
         queryKey: ['onboardingList'],
         queryFn: async () => {
-            const response = await fetch('/api/onboarding');
+            const response = await fetch('/api/onboarding?status=pending');
 
             if (!response.ok) {
                 const error = await response.json();
