@@ -45,7 +45,7 @@ const page = () => {
     const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError } = useQuery<PaginatedResponse>({
         queryKey: ['onboardingList'],
         queryFn: async () => {
-            const response = await fetch('/api/onboarding?status=pending');
+            const response = await fetch('/api/onboarding?filter[status]=pending');
 
             if (!response.ok) {
                 const error = await response.json();
@@ -73,7 +73,7 @@ const page = () => {
                 <div className="flex flex-col gap-3 flex-[2] min-h-0">
                     <div className="p-[30px] bg-lightprimary dark:bg-lightprimary text-center rounded-md cursor-pointer">
                         <h3 className="text-primary text-2xl">{onboardingList?.total}</h3>
-                        <h6 className="text-base text-primary">Owners</h6>
+                        <h6 className="text-base text-primary">Onboardings</h6>
                     </div>
                     <OutlineCard className="h-full">
                         <div className="sm:flex items-center justify-between mb-6">
