@@ -8,14 +8,14 @@ import { Button } from "flowbite-react";
 import CardBox from "@/app/components/shared/CardBox";
 import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
-import { Staff } from "@/lib/schemas";
+import { Onboarding } from "@/lib/schemas";
 import OnboardingTable from "./OnboardingTable";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface PaginatedResponse {
     current_page: number;
-    data: Staff[];
+    data: Onboarding[];
     first_page_url: string;
     from: number;
     last_page: number;
@@ -45,11 +45,11 @@ const page = () => {
     const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError } = useQuery<PaginatedResponse>({
         queryKey: ['onboardingList'],
         queryFn: async () => {
-            const response = await fetch('/api/staff?filter[status]=verifying');
+            const response = await fetch('/api/onboarding');
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.message || error.error || 'Failed to fetch users');
+                throw new Error(error.message || error.error || 'Failed to fetch onboarding');
             }
 
             return response.json();

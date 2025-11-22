@@ -13,7 +13,7 @@ export class ApiClient {
         token?: string | null
     ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
-        
+
         // Use provided token, fallback to instance token, or null
         const authToken = token !== undefined ? token : this.token;
 
@@ -34,6 +34,12 @@ export class ApiClient {
             }
         }
 
+
+        console.log('headers', headers);
+        console.log('body', body);
+        console.log('url', url);
+        console.log('options', options);
+
         const response = await fetch(url, {
             ...options,
             headers,
@@ -44,7 +50,7 @@ export class ApiClient {
             // Try to get error message from response
             let errorMessage = `HTTP error! status: ${response.status}`;
             let errorData: any = null;
-            
+
             try {
                 errorData = await response.json();
                 errorMessage = errorData.message || errorData.error || errorMessage;

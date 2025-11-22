@@ -20,6 +20,7 @@ export const BackendConfig = {
   endpoints: {
     users: '/api/v1/users',
     staff: '/api/v1/staff',
+    onboarding: '/api/v1/onboarding',
     // Authentication endpoints
     login: '/api/v1/login',
     register: '/api/v1/register',

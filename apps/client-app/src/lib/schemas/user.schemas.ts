@@ -11,7 +11,7 @@ export const userSchema = z.object({
     countryCode: z.string().nullable(),
     phoneNo: z.string().nullable(),
     lastLoginAt: z.string().nullable(),
-    status: z.enum(USER_STATUS_VALUES as [string, ...string[]]),
+    status: z.enum(USER_STATUS_VALUES),
     createdAt: z.string().nullable(),
     updatedAt: z.string().nullable(),
 });
