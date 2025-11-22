@@ -1,8 +1,9 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import { useState, useEffect } from 'react'
-import { Label, Select, Spinner } from 'flowbite-react';
+import { useState } from 'react'
+import { Label, Select } from 'flowbite-react';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/shadcn-ui/Default-Ui/alert';
-import { Terminal } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface ApprovalModalProps {
     isOpen: boolean;
@@ -10,6 +11,7 @@ interface ApprovalModalProps {
     id: number | undefined;
     name?: string;
     email?: string;
+    refetchOnboardingList: () => void;
 }
 
 const staffTypeOptions = [
@@ -18,12 +20,14 @@ const staffTypeOptions = [
     { value: "staff", label: "Staff" },
 ];
 
-const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '' }: ApprovalModalProps) => {
+const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOnboardingList }: ApprovalModalProps) => {
     const [selectedUserType, setSelectedUserType] = useState('staff');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleApprove = async () => {
+
         setIsLoading(true);
+
         try {
             const response = await fetch(`/api/onboarding/${id}/approve`, {
                 method: 'POST',
@@ -38,13 +42,27 @@ const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '' }: Approva
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
-            const data = await response.json();
+            // Show success toast
+            toast({
+                title: <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-green-500">Onboarding Approved</span>
+                </div>,
+                description: "The onboarding has been approved.",
+            });
+
             setIsOpen(false);
-            // Optionally reload or update the parent component
-            window.location.reload();
+            refetchOnboardingList();
+
         } catch (error: any) {
             console.error('Error approving onboarding:', error);
-            alert(error.message || 'Failed to approve onboarding');
+            toast({
+                title: <div className="flex items-center gap-2">
+                    <XCircle className="w-4 h-4 text-red-500" />
+                    <span className="text-red-500">Failed to approve onboarding</span>
+                </div>,
+                description: "Something went wrong while approving the onboarding.",
+            });
         } finally {
             setIsLoading(false);
         }

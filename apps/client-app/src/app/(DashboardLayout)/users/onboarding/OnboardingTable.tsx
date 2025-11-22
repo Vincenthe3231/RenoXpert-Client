@@ -65,9 +65,10 @@ interface OnboardingTableProps {
     isOnboardingLoading: boolean;
     onboardingError: Error | null;
     isOnboardingError: boolean;
+    refetchOnboardingList: () => void;
 }
 
-const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading, onboardingError, isOnboardingError }: OnboardingTableProps) => {
+const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading, onboardingError, isOnboardingError, refetchOnboardingList }: OnboardingTableProps) => {
     const [data, setData] = React.useState<TableTypeDense[]>([]);
     const [density, setDensity] = React.useState("md");
     const [approvalModalOpen, setApprovalModalOpen] = React.useState(false);
@@ -270,6 +271,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
                 id={selectedOnboardStaff?.id}
                 name={selectedOnboardStaff?.name}
                 email={selectedOnboardStaff?.email}
+                refetchOnboardingList={refetchOnboardingList}
             />
         </>
     );

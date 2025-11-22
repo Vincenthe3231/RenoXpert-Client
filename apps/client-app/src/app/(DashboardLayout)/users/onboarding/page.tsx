@@ -10,8 +10,9 @@ import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
 import { Onboarding } from "@/lib/schemas";
 import OnboardingTable from "./OnboardingTable";
-import { ChevronLeft } from "lucide-react";
+import { CheckCircle, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 
 interface PaginatedResponse {
     current_page: number;
@@ -42,7 +43,7 @@ interface PaginatedResponse {
 
 const page = () => {
     const router = useRouter();
-    const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError } = useQuery<PaginatedResponse>({
+    const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError, refetch: refetchOnboardingList } = useQuery<PaginatedResponse>({
         queryKey: ['onboardingList'],
         queryFn: async () => {
             const response = await fetch('/api/onboarding?filter[status]=pending');
@@ -82,7 +83,6 @@ const page = () => {
                                 <p className="card-subtitle">Recent activity</p>
                             </div>
                             <div className="sm:mt-0 mt-4">
-
                             </div>
                         </div>
                     </OutlineCard>
@@ -95,6 +95,7 @@ const page = () => {
                         isOnboardingLoading={isOnboardingLoading}
                         onboardingError={onboardingError}
                         isOnboardingError={isOnboardingError}
+                        refetchOnboardingList={refetchOnboardingList}
                     />
                 </div>
             </div>
