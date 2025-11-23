@@ -16,6 +16,7 @@ import { useStaffType } from "@/hooks/use-staff-type";
 import TitleIconCard from "@/app/components/shared/TitleIconCard";
 import { toDate, toDateTime, toTime } from "@/utils/date-helpers";
 import ApprovalModal from "./Modal/ApprovalModal";
+import RejectModal from "./Modal/RejectModal";
 
 export interface TableTypeDense {
     avatar?: any;
@@ -72,6 +73,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
     const [data, setData] = React.useState<TableTypeDense[]>([]);
     const [density, setDensity] = React.useState("md");
     const [approvalModalOpen, setApprovalModalOpen] = React.useState(false);
+    const [rejectModalOpen, setRejectModalOpen] = React.useState(false);
     const [selectedOnboardStaff, setSelectedOnboardStaff] = React.useState<{ id?: number; name?: string; email?: string; userType?: string } | null>(null);
     const columns = [
         columnHelper.accessor("avatar", {
@@ -141,7 +143,21 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
                         }}>
                         Approve
                     </Button>
-                    <Button variant="error" size="xs" className="text-xs">Reject</Button>
+                    <Button
+                        variant="error"
+                        size="xs"
+                        className="text-xs"
+                        onClick={() => {
+                            setSelectedOnboardStaff({
+                                id: info.row.original.id,
+                                name: info.row.original.name,
+                                email: info.row.original.email,
+                                userType: info.row.original.userType,
+                            });
+                            setRejectModalOpen(true);
+                        }}>
+                        Reject
+                    </Button>
                 </div>
             ),
         }),
@@ -268,6 +284,14 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
             <ApprovalModal
                 isOpen={approvalModalOpen}
                 setIsOpen={setApprovalModalOpen}
+                id={selectedOnboardStaff?.id}
+                name={selectedOnboardStaff?.name}
+                email={selectedOnboardStaff?.email}
+                refetchOnboardingList={refetchOnboardingList}
+            />
+            <RejectModal
+                isOpen={rejectModalOpen}
+                setIsOpen={setRejectModalOpen}
                 id={selectedOnboardStaff?.id}
                 name={selectedOnboardStaff?.name}
                 email={selectedOnboardStaff?.email}

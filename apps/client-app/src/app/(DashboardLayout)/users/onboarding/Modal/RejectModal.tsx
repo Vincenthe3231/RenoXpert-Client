@@ -1,12 +1,13 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { useState } from 'react'
-import { Label, Select } from 'flowbite-react';
+import { Label} from 'flowbite-react';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/shadcn-ui/Default-Ui/alert';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Textarea } from '@/app/components/shadcn-ui/Default-Ui/textarea';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-interface ApprovalModalProps {
+interface RejectModalProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
     id: number | undefined;
@@ -15,24 +16,18 @@ interface ApprovalModalProps {
     refetchOnboardingList: () => void;
 }
 
-const staffTypeOptions = [
-    { value: "super_admin", label: "Super Admin" },
-    { value: "admin", label: "Admin" },
-    { value: "staff", label: "Staff" },
-];
-
-const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOnboardingList }: ApprovalModalProps) => {
-    const [selectedUserType, setSelectedUserType] = useState('staff');
+const RejectModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOnboardingList }: RejectModalProps) => {
+    const [rejectionReason, setRejectionReason] = useState('');
     const queryClient = useQueryClient();
 
-    const approveMutation = useMutation({
-        mutationFn: async (userType: string) => {
-            const response = await fetch(`/api/onboarding/${id}/approve`, {
+    const rejectMutation = useMutation({
+        mutationFn: async (rejectionReason: string) => {
+            const response = await fetch(`/api/onboarding/${id}/reject`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ userType }),
+                body: JSON.stringify({ rejectionReason: rejectionReason.trim() }),
             });
 
             if (!response.ok) {
@@ -47,30 +42,42 @@ const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOn
             toast({
                 title: <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-green-500">Onboarding Approved</span>
+                    <span className="text-green-500">Onboarding Rejected</span>
                 </div>,
-                description: "The onboarding has been approved.",
+                description: "The onboarding has been rejected.",
             });
 
             setIsOpen(false);
+            setRejectionReason('');
             // Invalidate and refetch onboarding list
             queryClient.invalidateQueries({ queryKey: ['onboardingList'] });
             refetchOnboardingList();
         },
         onError: (error: any) => {
-            console.error('Error approving onboarding:', error);
+            console.error('Error rejecting onboarding:', error);
             toast({
                 title: <div className="flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-red-500" />
-                    <span className="text-red-500">Failed to approve onboarding</span>
+                    <span className="text-red-500">Failed to reject onboarding</span>
                 </div>,
-                description: error.message || "Something went wrong while approving the onboarding.",
+                description: error.message || "Something went wrong while rejecting the onboarding.",
             });
         },
     });
 
-    const handleApprove = () => {
-        approveMutation.mutate(selectedUserType);
+    const handleReject = () => {
+        if (!rejectionReason.trim()) {
+            toast({
+                title: <div className="flex items-center gap-2">
+                    <XCircle className="w-4 h-4 text-red-500" />
+                    <span className="text-red-500">Validation Error</span>
+                </div>,
+                description: "Please provide a rejection reason.",
+            });
+            return;
+        }
+
+        rejectMutation.mutate(rejectionReason);
     }
 
     return (
@@ -85,14 +92,8 @@ const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOn
                         transition
                         className='w-full max-w-lg rounded-lg bg-white dark:bg-slate-600 p-6 shadow-md dark:dark-shadow-md '>
                         <DialogTitle as='h3' className='text-lg font-semibold text-ld'>
-                            Approve Onboarding
+                            Reject Onboarding
                         </DialogTitle>
-                        <Alert variant='lightinfo' className='mt-2'>
-                            <AlertTitle className='text-info'>Note</AlertTitle>
-                            <AlertDescription>
-                                Please review the user information before approving this onboarding request.
-                            </AlertDescription>
-                        </Alert>
                         <div className='mt-4 space-y-4'>
                             <div className='grid grid-cols-[100px_1fr] gap-4 items-center'>
                                 <Label htmlFor="name">Name</Label>
@@ -106,31 +107,32 @@ const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOn
                                     {email || 'N/A'}
                                 </p>
                             </div>
-                            <div className='grid grid-cols-[100px_1fr] gap-4 items-center'>
-                                <Label htmlFor="userType">User Type</Label>
-                                <Select
-                                    id="userType"
+                            <div className='grid grid-cols-[100px_1fr] gap-4 items-start'>
+                                <Label htmlFor="rejectionReason">Rejection Reason <span className="text-red-500">*</span></Label>
+                                <Textarea
+                                    id="rejectionReason"
                                     required
-                                    className="select-md"
-                                    value={selectedUserType}
-                                    onChange={(e) => setSelectedUserType(e.target.value)}
-                                >
-                                    {staffTypeOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </Select>
+                                    rows={4}
+                                    placeholder="Please provide a reason for rejecting this onboarding request..."
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    className="textarea"
+                                />
                             </div>
                         </div>
                         <div className='mt-8 flex justify-end gap-3'>
                             <button
-                                className='ui-button-small px-6 bg-success disabled:opacity-50 disabled:cursor-not-allowed'
-                                onClick={handleApprove}
-                                disabled={approveMutation.isPending}>
-                                {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                                className='ui-button-small px-6 bg-error disabled:opacity-50 disabled:cursor-not-allowed'
+                                onClick={handleReject}
+                                disabled={rejectMutation.isPending || !rejectionReason.trim()}>
+                                {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
                             </button>
                             <button
-                                onClick={() => setIsOpen(false)}
-                                className='ui-button-small bg-error px-6'>
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    setRejectionReason('');
+                                }}
+                                className='ui-button-small bg-gray-500 px-6'>
                                 Cancel
                             </button>
                         </div>
@@ -141,4 +143,5 @@ const ApprovalModal = ({ isOpen, setIsOpen, id, name = '', email = '', refetchOn
     )
 }
 
-export default ApprovalModal;
+export default RejectModal;
+

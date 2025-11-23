@@ -13,7 +13,7 @@ export class OnboardingService {
         return ApiClient.post<Onboarding>(`${this.basePath}/${id}/approve`, body, token);
     }
 
-    static async reject(id: string, token?: string | null): Promise<Onboarding> {
-        return ApiClient.post<Onboarding>(`${this.basePath}/${id}/reject`, {}, token);
+    static async reject(id: string, body: { rejectionReason: string }, token?: string | null): Promise<Onboarding> {
+        return ApiClient.post<Onboarding>(`${this.basePath}/${id}/reject`, body, token);
     }
 }
