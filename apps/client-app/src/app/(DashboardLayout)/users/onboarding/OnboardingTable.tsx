@@ -10,14 +10,17 @@ import { Badge } from "flowbite-react";
 import Image from "next/image";
 import { getUserTypeLabel, getUserTypeBadge, getUserStatusBadge } from "@/utils/user-helpers";
 import TitleSelectionCard from "@/app/components/shared/TitleSelectionCard";
-import { Staff } from "@/lib/schemas";
+import { Onboarding, Staff } from "@/lib/schemas";
 import { Button } from "@/app/components/shadcn-ui/Default-Ui/button";
 import { useStaffType } from "@/hooks/use-staff-type";
 import TitleIconCard from "@/app/components/shared/TitleIconCard";
 import { toDate, toDateTime, toTime } from "@/utils/date-helpers";
+import ApprovalModal from "./Modal/ApprovalModal";
+import RejectModal from "./Modal/RejectModal";
 
 export interface TableTypeDense {
     avatar?: any;
+    id?: number;
     name?: string;
     email?: string;
     userType?: string;
@@ -30,7 +33,7 @@ export interface TableTypeDense {
 
 interface PaginatedResponse {
     current_page: number;
-    data: Staff[];
+    data: Onboarding[];
     first_page_url: string;
     from: number;
     last_page: number;
@@ -63,13 +66,15 @@ interface OnboardingTableProps {
     isOnboardingLoading: boolean;
     onboardingError: Error | null;
     isOnboardingError: boolean;
+    refetchOnboardingList: () => void;
 }
 
-const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading, onboardingError, isOnboardingError }: OnboardingTableProps) => {
+const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading, onboardingError, isOnboardingError, refetchOnboardingList }: OnboardingTableProps) => {
     const [data, setData] = React.useState<TableTypeDense[]>([]);
     const [density, setDensity] = React.useState("md");
-    const [selectedUserType, setSelectedUserType] = React.useState("onboarding");
-
+    const [approvalModalOpen, setApprovalModalOpen] = React.useState(false);
+    const [rejectModalOpen, setRejectModalOpen] = React.useState(false);
+    const [selectedOnboardStaff, setSelectedOnboardStaff] = React.useState<{ id?: number; name?: string; email?: string; userType?: string } | null>(null);
     const columns = [
         columnHelper.accessor("avatar", {
             header: () => <span>User</span>,
@@ -123,8 +128,36 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
             header: () => <span>Actions</span>,
             cell: (info) => (
                 <div className="flex gap-2">
-                    <Button variant="outlinesuccess" size="xs" className="text-xs">Approve</Button>
-                    <Button variant="error" size="xs" className="text-xs">Reject</Button>
+                    <Button
+                        variant="outlinesuccess"
+                        size="xs"
+                        className="text-xs"
+                        onClick={() => {
+                            setSelectedOnboardStaff({
+                                id: info.row.original.id,
+                                name: info.row.original.name,
+                                email: info.row.original.email,
+                                userType: info.row.original.userType,
+                            });
+                            setApprovalModalOpen(true);
+                        }}>
+                        Approve
+                    </Button>
+                    <Button
+                        variant="error"
+                        size="xs"
+                        className="text-xs"
+                        onClick={() => {
+                            setSelectedOnboardStaff({
+                                id: info.row.original.id,
+                                name: info.row.original.name,
+                                email: info.row.original.email,
+                                userType: info.row.original.userType,
+                            });
+                            setRejectModalOpen(true);
+                        }}>
+                        Reject
+                    </Button>
                 </div>
             ),
         }),
@@ -133,13 +166,14 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
     useEffect(() => {
         if (onboardingList?.data) {
             const mappedData: TableTypeDense[] = onboardingList.data.map((onboarding) => ({
-                avatar: onboarding.profile?.avatarUrl || onboarding.profile?.avatarBig || "/images/profile/user-1.jpg",
-                name: onboarding.name || '',
-                email: onboarding.email || '',
-                userType: onboarding.profile?.type || '',
+                avatar: onboarding.staff?.profile.avatarUrl || onboarding.staff?.profile.avatarBig || "/images/profile/user-1.jpg",
+                id: onboarding.id || undefined,
+                name: onboarding.staff?.name || '',
+                email: onboarding.staff?.email || '',
+                userType: onboarding.staff?.userType || '',
                 status: onboarding.status || '',
-                createdDate: toDate(onboarding.createdAt || ''),
-                createdTime: toTime(onboarding.createdAt || ''),
+                createdDate: toDate(onboarding.staff?.createdAt || ''),
+                createdTime: toTime(onboarding.staff?.createdAt || ''),
             }));
             setData(mappedData);
         }
@@ -171,80 +205,99 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
     };
 
     return (
-        <TitleIconCard title="Onboarding List">
-            {isOnboardingLoading && (
-                <div className="text-center py-8">
-                    <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
-                </div>
-            )}
+        <>
+            <TitleIconCard title="Onboarding List">
+                {isOnboardingLoading && (
+                    <div className="text-center py-8">
+                        <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
+                    </div>
+                )}
 
-            {onboardingError && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-                    <p className="text-red-800 dark:text-red-200">Error: {error}</p>
-                </div>
-            )}
+                {onboardingError && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                        <p className="text-red-800 dark:text-red-200">Error: {error}</p>
+                    </div>
+                )}
 
-            {!isOnboardingLoading && !onboardingError && (
-                <>
-                    <div className="border border-ld rounded-md overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead>
-                                    {table.getHeaderGroups().map((headerGroup) => (
-                                        <tr key={headerGroup.id}>
-                                            {headerGroup.headers.map((header) => (
-                                                <th
-                                                    key={header.id}
-                                                    className={`text-base text-ld font-semibold text-left border-b  border-ld  transition-all duration-200 ${getPadding(density)}`}
-                                                >
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(
-                                                            header.column.columnDef.header,
-                                                            header.getContext()
-                                                        )}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    ))}
-                                </thead>
-                                <tbody className="divide-y divide-border dark:divide-darkborder">
-                                    {table.getRowModel().rows.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={columns.length} className="text-center py-8 text-gray-500">
-                                                No users found
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        table.getRowModel().rows.map((row) => (
-                                            <tr key={row.id}>
-                                                {row.getVisibleCells().map((cell) => (
-                                                    <td
-                                                        key={cell.id}
-                                                        className={`whitespace-nowrap transition-all duration-200 ${getPadding(density)} text-sm`}
+                {!isOnboardingLoading && !onboardingError && (
+                    <>
+                        <div className="border border-ld rounded-md overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead>
+                                        {table.getHeaderGroups().map((headerGroup) => (
+                                            <tr key={headerGroup.id}>
+                                                {headerGroup.headers.map((header) => (
+                                                    <th
+                                                        key={header.id}
+                                                        className={`text-base text-ld font-semibold text-left border-b  border-ld  transition-all duration-200 ${getPadding(density)}`}
                                                     >
-                                                        {flexRender(
-                                                            cell.column.columnDef.cell,
-                                                            cell.getContext()
-                                                        )}
-                                                    </td>
+                                                        {header.isPlaceholder
+                                                            ? null
+                                                            : flexRender(
+                                                                header.column.columnDef.header,
+                                                                header.getContext()
+                                                            )}
+                                                    </th>
                                                 ))}
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        ))}
+                                    </thead>
+                                    <tbody className="divide-y divide-border dark:divide-darkborder">
+                                        {table.getRowModel().rows.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={columns.length} className="text-center py-8 text-gray-500">
+                                                    No users found
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            table.getRowModel().rows.map((row) => (
+                                                <tr key={row.id}>
+                                                    {row.getVisibleCells().map((cell) => (
+                                                        <td
+                                                            key={cell.id}
+                                                            className={`whitespace-nowrap transition-all duration-200 ${getPadding(density)} text-sm`}
+                                                        >
+                                                            {flexRender(
+                                                                cell.column.columnDef.cell,
+                                                                cell.getContext()
+                                                            )}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
 
-                    {onboardingList && onboardingList.total > 0 && (
-                        <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                            Showing {onboardingList.from} to {onboardingList.to} of {onboardingList.total} users
-                        </div>
-                    )}
-                </>
-            )}
-        </TitleIconCard>
+                        {onboardingList && onboardingList.total > 0 && (
+                            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                                Showing {onboardingList.from} to {onboardingList.to} of {onboardingList.total} users
+                            </div>
+                        )}
+                    </>
+                )}
+            </TitleIconCard>
+
+            <ApprovalModal
+                isOpen={approvalModalOpen}
+                setIsOpen={setApprovalModalOpen}
+                id={selectedOnboardStaff?.id}
+                name={selectedOnboardStaff?.name}
+                email={selectedOnboardStaff?.email}
+                refetchOnboardingList={refetchOnboardingList}
+            />
+            <RejectModal
+                isOpen={rejectModalOpen}
+                setIsOpen={setRejectModalOpen}
+                id={selectedOnboardStaff?.id}
+                name={selectedOnboardStaff?.name}
+                email={selectedOnboardStaff?.email}
+                refetchOnboardingList={refetchOnboardingList}
+            />
+        </>
     );
 };
 
