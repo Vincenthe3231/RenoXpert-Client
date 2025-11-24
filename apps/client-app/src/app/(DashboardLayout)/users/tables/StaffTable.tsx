@@ -1,0 +1,239 @@
+"use client";
+import React, { useEffect } from "react";
+import {
+    createColumnHelper,
+    useReactTable,
+    getCoreRowModel,
+    flexRender,
+} from "@tanstack/react-table";
+import { Badge } from "flowbite-react";
+import Image from "next/image";
+import { getUserTypeLabel, getUserTypeBadge, getUserStatusBadge } from "@/utils/user-helpers";
+import { Staff } from "@/lib/schemas";
+import { Button } from "@/app/components/shadcn-ui/Default-Ui/button";
+import { useStaffType } from "@/hooks/use-staff-type";
+
+export interface StaffTableType {
+    avatar?: any;
+    name?: string;
+    email?: string;
+    userType?: string;
+    userRoles?: string[];
+    status?: string;
+    actions?: string;
+}
+
+interface StaffPaginatedResponse {
+    current_page: number;
+    data: Staff[];
+    first_page_url: string;
+    from: number;
+    last_page: number;
+    last_page_url: string;
+    links: Array<{
+        url: string | null;
+        label: string;
+        page: number;
+        active: boolean;
+    }>;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number;
+    total: number;
+}
+
+const columnHelper = createColumnHelper<StaffTableType>();
+
+interface StaffTableProps {
+    staffList?: StaffPaginatedResponse;
+    isStaffLoading: boolean;
+    staffError: Error | null;
+    isStaffError: boolean;
+}
+
+const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: StaffTableProps) => {
+    const [data, setData] = React.useState<StaffTableType[]>([]);
+    const [density, setDensity] = React.useState("md");
+    const { isSuperAdmin } = useStaffType();
+
+    const columns = [
+        columnHelper.accessor("avatar", {
+            cell: (info) => {
+                const avatarUrl = info.getValue() || "/images/profile/user-1.jpg";
+                const userName = info.row.original.name || "User";
+                const userEmail = info.row.original.email || "";
+
+                return (
+                    <div className="flex items-center space-x-2 p-1">
+                        <Image
+                            src={avatarUrl}
+                            alt={`${userName} Avatar`}
+                            height={40}
+                            width={40}
+                            className="h-10 w-10 rounded-full object-cover"
+                            unoptimized
+                            onError={(e) => {
+                                e.currentTarget.src = "/images/profile/user-1.jpg";
+                            }}
+                        />
+                        <div className="truncate">
+                            <h6 className="text-xs font-medium">{userName}</h6>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{userEmail}</p>
+                        </div>
+                    </div>
+                );
+            },
+            header: () => <span>User</span>,
+        }),
+        columnHelper.accessor("userType", {
+            header: () => <span>User Type</span>,
+            cell: (info) => <Badge
+                color={getUserTypeBadge(info.getValue())}
+                className="capitalize"
+            >
+                {getUserTypeLabel(info.getValue())}
+            </Badge>,
+        }),
+        columnHelper.accessor("status", {
+            header: () => <span>Status</span>,
+            cell: (info) => (
+                <Badge
+                    color={getUserStatusBadge(info.getValue())}
+                    className="capitalize"
+                >
+                    {info.getValue()}
+                </Badge>
+            ),
+        }),
+        columnHelper.accessor("actions", {
+            header: () => <span>Actions</span>,
+            cell: (info) => (
+                <div className="flex gap-2">
+                    {isSuperAdmin && (
+                        <Button variant="outline" size="xs" className="text-xs">Edit</Button>
+                    )}
+                </div>
+            ),
+        }),
+    ];
+
+    useEffect(() => {
+        if (staffList?.data) {
+            const mappedData: StaffTableType[] = staffList.data.map((staff) => ({
+                avatar: staff.profile?.avatarUrl || staff.profile?.avatarBig || "/images/profile/user-1.jpg",
+                name: staff.name || '',
+                email: staff.email || '',
+                userType: staff.profile?.type || '',
+                status: staff.status || '',
+            }));
+            setData(mappedData);
+        }
+    }, [staffList]);
+
+    const error = isStaffError
+        ? (staffError instanceof Error
+            ? staffError.message
+            : 'An unexpected error occurred')
+        : null;
+
+    const table = useReactTable({
+        data,
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+    });
+
+    const getPadding = (density: string) => {
+        switch (density) {
+            case "sm":
+                return "p-1";
+            case "md":
+                return "p-2";
+            case "lg":
+                return "p-4";
+            default:
+                return "p-2";
+        }
+    };
+
+    return (
+        <>
+            {isStaffLoading && (
+                <div className="text-center py-8">
+                    <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
+                </div>
+            )}
+
+            {staffError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                    <p className="text-red-800 dark:text-red-200">Error: {error}</p>
+                </div>
+            )}
+
+            {!isStaffLoading && !staffError && (
+                <>
+                    <div className="border border-ld rounded-md overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full">
+                                <thead>
+                                    {table.getHeaderGroups().map((headerGroup) => (
+                                        <tr key={headerGroup.id}>
+                                            {headerGroup.headers.map((header) => (
+                                                <th
+                                                    key={header.id}
+                                                    className={`text-sm text-ld font-semibold text-left border-b  border-ld  transition-all duration-200 ${getPadding(density)}`}
+                                                >
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext()
+                                                        )}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </thead>
+                                <tbody className="divide-y divide-border dark:divide-darkborder">
+                                    {table.getRowModel().rows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={columns.length} className="text-center py-8 text-gray-500">
+                                                No users found
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        table.getRowModel().rows.map((row) => (
+                                            <tr key={row.id}>
+                                                {row.getVisibleCells().map((cell) => (
+                                                    <td
+                                                        key={cell.id}
+                                                        className={`whitespace-nowrap transition-all duration-200 ${getPadding(density)} text-xs`}
+                                                    >
+                                                        {flexRender(
+                                                            cell.column.columnDef.cell,
+                                                            cell.getContext()
+                                                        )}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {staffList && staffList.total > 0 && (
+                        <div className="mt-4 text-xs text-gray-600 dark:text-gray-400">
+                            Showing {staffList.from} to {staffList.to} of {staffList.total} users
+                        </div>
+                    )}
+                </>
+            )}
+        </>
+    );
+};
+
+export default StaffTable;
+

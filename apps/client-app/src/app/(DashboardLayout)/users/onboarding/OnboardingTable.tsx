@@ -230,7 +230,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
                                                 {headerGroup.headers.map((header) => (
                                                     <th
                                                         key={header.id}
-                                                        className={`text-base text-ld font-semibold text-left border-b  border-ld  transition-all duration-200 ${getPadding(density)}`}
+                                                        className={`text-sm text-ld font-semibold text-left border-b  border-ld  transition-all duration-200 ${getPadding(density)}`}
                                                     >
                                                         {header.isPlaceholder
                                                             ? null

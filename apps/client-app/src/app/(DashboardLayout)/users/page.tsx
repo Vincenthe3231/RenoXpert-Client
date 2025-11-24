@@ -1,18 +1,14 @@
 
 "use client"
 import React from "react";
-import { useUser } from "@/app/context/UserContext";
-import { UserLoadingState } from "@/app/components/UserLoadingState";
-import { UserErrorState } from "@/app/components/UserErrorState";
 import { Button } from "flowbite-react";
 import UserTable from "./tables/UserTable";
-import CardBox from "@/app/components/shared/CardBox";
 import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
-import { Staff } from "@/lib/schemas";
+import { Owner, Staff, User } from "@/lib/schemas";
 import Link from "next/link";
 
-interface PaginatedResponse {
+interface StaffPaginatedResponse {
     current_page: number;
     data: Staff[];
     first_page_url: string;
@@ -33,24 +29,29 @@ interface PaginatedResponse {
     total: number;
 }
 
+interface OwnerPaginatedResponse {
+    current_page: number;
+    data: Owner[];
+    first_page_url: string;
+    from: number;
+    last_page: number;
+    last_page_url: string;
+    links: Array<{
+        url: string | null;
+        label: string;
+        page: number;
+        active: boolean;
+    }>;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number;
+    total: number;
+}
+
 const page = () => {
-    // const { user, isLoading, error, logout, refreshUser, clearError } = useUser();
-
-    // if (isLoading) {
-    //     return <UserLoadingState message="Loading dashboard..." />;
-    // }
-
-    // if (error) {
-    //     return (
-    //         <UserErrorState
-    //             error={error}
-    //             onRetry={refreshUser}
-    //             onClearError={clearError}
-    //         />
-    //     );
-    // }
-
-    const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<PaginatedResponse>({
+    const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<StaffPaginatedResponse>({
         queryKey: ['staffList'],
         queryFn: async () => {
             const response = await fetch('/api/staff');
@@ -62,8 +63,24 @@ const page = () => {
 
             return response.json();
         },
-        staleTime: 60 * 1000, // 1 minute - data is fresh for 1 minute
-        refetchOnWindowFocus: false, // Don't refetch when window regains focus
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
+
+    const { data: ownerList, isLoading: isOwnerLoading, error: ownerError, isError: isOwnerError } = useQuery<OwnerPaginatedResponse>({
+        queryKey: ['ownerList'],
+        queryFn: async () => {
+            const response = await fetch('/api/owners');
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || error.error || 'Failed to fetch owners');
+            }
+
+            return response.json();
+        },
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
     });
 
     return (
@@ -90,7 +107,7 @@ const page = () => {
                                 className="p-[30px] bg-lightprimary dark:bg-lightprimary text-center rounded-md cursor-pointer"
                             // onClick={() => setFilter('total_tickets')}
                             >
-                                <h3 className="text-primary text-2xl">{staffList?.total || "-"}</h3>
+                                <h3 className="text-primary text-2xl">{ownerList?.total || "-"}</h3>
                                 <h6 className="text-base text-primary">Owners</h6>
                             </div>
                         </div>
@@ -118,9 +135,13 @@ const page = () => {
                             title="Users Table"
                             className="h-full"
                             staffList={staffList}
+                            ownerList={ownerList}
                             isStaffLoading={isStaffLoading}
+                            isOwnerLoading={isOwnerLoading}
                             staffError={staffError}
+                            ownerError={ownerError}
                             isStaffError={isStaffError}
+                            isOwnerError={isOwnerError}
                         />
                     </div>
                 </div>

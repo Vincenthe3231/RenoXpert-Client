@@ -8,6 +8,8 @@ interface TitleCardProps {
     selectPlaceholder?: string;
     selectOptions: { value: string, label: string }[];
     selectDefaultValue?: string;
+    selectValue?: string;
+    onSelectChange?: (value: string) => void;
     children: React.ReactNode;
     className?: string;
 }
@@ -16,6 +18,8 @@ const TitleSelectionCard: React.FC<TitleCardProps> = ({
     selectPlaceholder,
     selectOptions,
     selectDefaultValue,
+    selectValue,
+    onSelectChange,
     children,
     className,
 }) => {
@@ -34,7 +38,11 @@ const TitleSelectionCard: React.FC<TitleCardProps> = ({
         >
             <div className="flex justify-between items-center border-b border-ld px-6 py-2">
                 <h5 className="text-xl font-semibold">
-                    <Select defaultValue={selectDefaultValue}>
+                    <Select 
+                        value={selectValue} 
+                        defaultValue={selectDefaultValue}
+                        onValueChange={onSelectChange}
+                    >
                         <SelectTrigger className="w-[180px] border-0">
                             <SelectValue placeholder={selectPlaceholder} />
                         </SelectTrigger>
