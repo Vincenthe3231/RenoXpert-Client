@@ -7,6 +7,7 @@ import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
 import { Owner, Staff, User } from "@/lib/schemas";
 import Link from "next/link";
+import { useStaffType } from "@/hooks/use-staff-type";
 
 interface StaffPaginatedResponse {
     current_page: number;
@@ -51,6 +52,8 @@ interface OwnerPaginatedResponse {
 }
 
 const page = () => {
+    const { isSuperAdmin } = useStaffType();
+
     const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<StaffPaginatedResponse>({
         queryKey: ['staffList'],
         queryFn: async () => {
@@ -83,20 +86,38 @@ const page = () => {
         refetchOnWindowFocus: false,
     });
 
+    const { data: verifyingStaffList } = useQuery<StaffPaginatedResponse>({
+        queryKey: ['staffList', 'verifying'],
+        queryFn: async () => {
+            const response = await fetch('/api/staff?filter[status]=verifying');
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || error.error || 'Failed to fetch verifying staff');
+            }
+
+            return response.json();
+        },
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
+
     return (
         <div className="flex flex-col h-[calc(100vh-170px)] space-y-2">
             <div className="flex justify-between flex-shrink-0">
                 <h1 className="text-3xl font-bold mb-6">User Management</h1>
                 <div className="flex gap-2">
                     <Button color={"primary"} className="inline-block rounded-md">Add User</Button>
-                    <Button
-                        color={"info"}
-                        className="inline-block rounded-md items-center"
-                        as={Link}
-                        href="/users/onboarding"
-                    >
-                        Onboarding Management
-                    </Button>
+                    {isSuperAdmin && (
+                        <Button
+                            color={"info"}
+                            className="inline-block rounded-md items-center"
+                            as={Link}
+                            href="/users/onboarding"
+                        >
+                            Onboarding Management
+                        </Button>
+                    )}
                 </div>
             </div>
             <div className="flex w-full gap-3 flex-1 min-h-0">
@@ -125,7 +146,7 @@ const page = () => {
                                 className="p-[30px] bg-lightsuccess dark:bg-lightsuccess text-center rounded-md cursor-pointer"
                             // onClick={() => setFilter('Open')}
                             >
-                                <h3 className="text-success text-2xl">{staffList?.total || "-"}</h3>
+                                <h3 className="text-success text-2xl">{verifyingStaffList?.total || "-"}</h3>
                                 <h6 className="text-base text-success">Onboarding</h6>
                             </div>
                         </div>
