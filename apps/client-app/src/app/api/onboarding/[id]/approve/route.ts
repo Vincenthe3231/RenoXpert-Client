@@ -1,4 +1,4 @@
-import { OnboardingService } from "@/lib/api/services/onboarding.service";
+import { OnboardingService } from "@/lib/api/services/onboarding.services";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(

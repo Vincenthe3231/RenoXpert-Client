@@ -95,13 +95,13 @@ export const Customizer = () => {
   return (
     <div>
       <div>
-        <Button
+        {/* <Button
           color={"primary"}
           className="h-14 w-14 flex justify-center items-center fixed bottom-6 end-6 z-20 rounded-full hover:bg-primaryemphasis"
           onClick={() => setIsOpen(true)}
         >
           <IconSettings className="shrink-0" />
-        </Button>
+        </Button> */}
       </div>
       <Drawer
         open={isOpen}

@@ -10,10 +10,12 @@ import { Badge } from "flowbite-react";
 import Image from "next/image";
 import { getUserStatusBadge } from "@/utils/user-helpers";
 import { User } from "@/lib/schemas";
-import { Button } from "@/app/components/shadcn-ui/Default-Ui/button";
+import { Button } from "flowbite-react";
 import { useStaffType } from "@/hooks/use-staff-type";
+import Link from "next/link";
 
 export interface OwnerTableType {
+    id?: number;
     avatar?: any;
     name?: string;
     email?: string;
@@ -55,7 +57,7 @@ const calculateProfileCompletion = (user: User): number => {
         user.countryCode,
         user.emailVerifiedAt,
     ];
-    
+
     const completedFields = fields.filter(field => field && field !== '').length;
     return Math.round((completedFields / fields.length) * 100);
 };
@@ -78,6 +80,7 @@ const OwnerTable = ({ ownerList, isOwnerLoading, ownerError, isOwnerError }: Own
                 const avatarUrl = info.getValue() || "/images/profile/user-1.jpg";
                 const userName = info.row.original.name || "User";
                 const userEmail = info.row.original.email || "";
+                const userId = info.row.original.id;
 
                 return (
                     <div className="flex items-center space-x-2 p-1">
@@ -92,10 +95,13 @@ const OwnerTable = ({ ownerList, isOwnerLoading, ownerError, isOwnerError }: Own
                                 e.currentTarget.src = "/images/profile/user-1.jpg";
                             }}
                         />
-                        <div className="truncate">
-                            <h6 className="text-xs font-medium">{userName}</h6>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{userEmail}</p>
-                        </div>
+                        <Link 
+                            href={`/users/${userId}`}
+                            className="truncate group"
+                        >
+                            <h6 className="text-xs font-medium group-hover:text-primary transition-colors">{userName}</h6>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors">{userEmail}</p>
+                        </Link>
                     </div>
                 );
             },
@@ -121,13 +127,12 @@ const OwnerTable = ({ ownerList, isOwnerLoading, ownerError, isOwnerError }: Own
                     <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div
-                                className={`h-2 rounded-full ${
-                                    completion >= 80
-                                        ? "bg-green-500"
-                                        : completion >= 50
+                                className={`h-2 rounded-full ${completion >= 80
+                                    ? "bg-green-500"
+                                    : completion >= 50
                                         ? "bg-yellow-500"
                                         : "bg-red-500"
-                                }`}
+                                    }`}
                                 style={{ width: `${completion}%` }}
                             />
                         </div>
@@ -151,9 +156,16 @@ const OwnerTable = ({ ownerList, isOwnerLoading, ownerError, isOwnerError }: Own
             header: () => <span>Actions</span>,
             cell: (info) => (
                 <div className="flex gap-2">
-                    {isSuperAdmin && (
-                        <Button variant="outline" size="xs" className="text-xs">Edit</Button>
-                    )}
+                    <Button
+                        size="xs"
+                        color='primary'
+                        className='border border-primary text-primary hover:bg-primary hover:text-white rounded-md'
+                        outline
+                        as={Link}
+                        href={`/users/${info.row.original.id}/edit`}
+                    >
+                        Edit
+                    </Button>
                 </div>
             ),
         }),
@@ -162,11 +174,12 @@ const OwnerTable = ({ ownerList, isOwnerLoading, ownerError, isOwnerError }: Own
     useEffect(() => {
         if (ownerList?.data) {
             const mappedData: OwnerTableType[] = ownerList.data.map((owner) => {
-                const phoneNumber = owner.countryCode && owner.phoneNo 
+                const phoneNumber = owner.countryCode && owner.phoneNo
                     ? `${owner.countryCode} ${owner.phoneNo}`
                     : owner.phoneNo || "";
-                
+
                 return {
+                    id: owner.id || undefined,
                     avatar: "/images/profile/user-1.jpg", // Owners might not have profile avatars
                     name: owner.name || '',
                     email: owner.email || '',

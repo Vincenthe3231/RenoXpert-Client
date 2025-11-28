@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import TitleSelectionCard from "@/app/components/shared/TitleSelectionCard";
 import StaffTable from "./StaffTable";
 import OwnerTable from "./OwnerTable";
@@ -77,14 +78,34 @@ const UserTable = ({
     isStaffError,
     isOwnerError
 }: UserTableProps) => {
-    const [selectedUserType, setSelectedUserType] = useState("staff");
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // Get table type from URL or default to "staff"
+    const tableTypeFromUrl = searchParams.get("table") || "staff";
+    const [selectedUserType, setSelectedUserType] = useState(tableTypeFromUrl);
+
+    // Sync state with URL when URL changes (e.g., browser back/forward)
+    useEffect(() => {
+        const urlTableType = searchParams.get("table") || "staff";
+        setSelectedUserType(urlTableType);
+    }, [searchParams]);
+
+    // Update URL when selection changes
+    const handleTableTypeChange = (value: string) => {
+        setSelectedUserType(value);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("table", value);
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    };
 
     return (
         <TitleSelectionCard
             selectPlaceholder="Select a table type"
             selectOptions={userTypeOptions}
             selectValue={selectedUserType}
-            onSelectChange={setSelectedUserType}
+            onSelectChange={handleTableTypeChange}
             className={className}
         >
             {selectedUserType === "staff" ? (

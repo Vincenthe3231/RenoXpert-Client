@@ -1,27 +1,28 @@
 import BackendConfig from "@/config/backend";
 import { ApiClient } from "../client";
 import { BaseUser } from "@/lib/types/user.types";
+import { EditUserInput } from "@/lib/schemas";
 
 export class UserApiService {
     private static readonly basePath = BackendConfig.endpoints.users;
 
-    static async getAll(): Promise<BaseUser[]> {
-        return ApiClient.get<BaseUser[]>(this.basePath);
+    static async getAll(params?: Record<string, any>, token?: string | null): Promise<BaseUser[]> {
+        return ApiClient.get<BaseUser[]>(this.basePath, params, token);
     }
 
-    static async getById(id: string): Promise<BaseUser> {
-        return ApiClient.get<BaseUser>(`${this.basePath}/${id}`);
+    static async getById(id: string, token?: string | null): Promise<BaseUser> {
+        return ApiClient.get<BaseUser>(`${this.basePath}/${id}`, undefined, token);
     }
 
-    static async create(user: BaseUser): Promise<BaseUser> {
-        return ApiClient.post<BaseUser>(this.basePath, user);
+    static async create(user: BaseUser, token?: string | null): Promise<BaseUser> {
+        return ApiClient.post<BaseUser>(this.basePath, user, token);
     }
 
-    static async update(id: string, user: BaseUser): Promise<BaseUser> {
-        return ApiClient.put<BaseUser>(`${this.basePath}/${id}`, user);
+    static async update(id: string, user: EditUserInput, token?: string | null): Promise<BaseUser> {
+        return ApiClient.put<BaseUser>(`${this.basePath}/${id}`, user, token);
     }
 
-    static async delete(id: string): Promise<void> {
-        return ApiClient.delete<void>(`${this.basePath}/${id}`);
+    static async delete(id: string, token?: string | null): Promise<void> {
+        return ApiClient.delete<void>(`${this.basePath}/${id}`, token);
     }
 }

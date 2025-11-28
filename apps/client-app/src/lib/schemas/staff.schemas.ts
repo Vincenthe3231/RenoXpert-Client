@@ -1,5 +1,5 @@
 import z from "zod";
-import { userSchema } from "./user.schemas";
+import { baseUserEditSchema, userSchema } from "./user.schemas";
 
 export const staffSchema = userSchema.extend({
     profile: z.object({
@@ -16,4 +16,15 @@ export const staffSchema = userSchema.extend({
     userType: z.literal('staff'),
 });
 
+// Staff edit schema
+export const editStaffSchema = baseUserEditSchema.extend({
+    userType: z.literal('staff'),
+    profile: z.object({
+        type: z.enum(['super_admin', 'admin', 'staff'], {
+            errorMap: () => ({ message: "Invalid staff type" }),
+        }),
+    }),
+});
+
 export type Staff = z.infer<typeof staffSchema>;
+export type EditStaffInput = z.infer<typeof editStaffSchema>;

@@ -103,7 +103,7 @@ const page = () => {
     });
 
     return (
-        <div className="flex flex-col h-[calc(100vh-170px)] space-y-2">
+        <div className="flex flex-col h-[calc(100vh-100px)] space-y-2">
             <div className="flex justify-between flex-shrink-0">
                 <h1 className="text-3xl font-bold mb-6">User Management</h1>
                 <div className="flex gap-2">
@@ -121,7 +121,7 @@ const page = () => {
                 </div>
             </div>
             <div className="flex w-full gap-3 flex-1 min-h-0">
-                <div className="flex flex-col gap-3 flex-[5] min-h-0">
+                <div className="flex flex-col gap-3 flex-[5]">
                     <div className="grid grid-cols-12 gap-6">
                         <div className="lg:col-span-4 md:col-span-6  col-span-12">
                             <div

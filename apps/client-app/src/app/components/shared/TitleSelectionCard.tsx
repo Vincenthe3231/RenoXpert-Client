@@ -38,8 +38,8 @@ const TitleSelectionCard: React.FC<TitleCardProps> = ({
         >
             <div className="flex justify-between items-center border-b border-ld px-6 py-2">
                 <h5 className="text-xl font-semibold">
-                    <Select 
-                        value={selectValue} 
+                    <Select
+                        value={selectValue}
                         defaultValue={selectDefaultValue}
                         onValueChange={onSelectChange}
                     >

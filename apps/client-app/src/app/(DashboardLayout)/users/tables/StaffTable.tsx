@@ -10,10 +10,12 @@ import { Badge } from "flowbite-react";
 import Image from "next/image";
 import { getUserTypeLabel, getUserTypeBadge, getUserStatusBadge } from "@/utils/user-helpers";
 import { Staff } from "@/lib/schemas";
-import { Button } from "@/app/components/shadcn-ui/Default-Ui/button";
+import { Button } from "flowbite-react";
 import { useStaffType } from "@/hooks/use-staff-type";
+import Link from "next/link";
 
 export interface StaffTableType {
+    id?: number;
     avatar?: any;
     name?: string;
     email?: string;
@@ -64,6 +66,7 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
                 const avatarUrl = info.getValue() || "/images/profile/user-1.jpg";
                 const userName = info.row.original.name || "User";
                 const userEmail = info.row.original.email || "";
+                const userId = info.row.original.id;
 
                 return (
                     <div className="flex items-center space-x-2 p-1">
@@ -78,10 +81,13 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
                                 e.currentTarget.src = "/images/profile/user-1.jpg";
                             }}
                         />
-                        <div className="truncate">
-                            <h6 className="text-xs font-medium">{userName}</h6>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{userEmail}</p>
-                        </div>
+                        <Link
+                            href={`/users/${userId}`}
+                            className="truncate group"
+                        >
+                            <h6 className="text-xs font-medium group-hover:text-primary transition-colors">{userName}</h6>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors">{userEmail}</p>
+                        </Link>
                     </div>
                 );
             },
@@ -112,7 +118,16 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
             cell: (info) => (
                 <div className="flex gap-2">
                     {isSuperAdmin && (
-                        <Button variant="outline" size="xs" className="text-xs">Edit</Button>
+                        <Button
+                            size="xs"
+                            color='primary'
+                            className='border border-primary text-primary hover:bg-primary hover:text-white rounded-md'
+                            outline
+                            as={Link}
+                            href={`/users/${info.row.original?.id}/edit`}
+                        >
+                            Edit
+                        </Button>
                     )}
                 </div>
             ),
@@ -122,6 +137,7 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
     useEffect(() => {
         if (staffList?.data) {
             const mappedData: StaffTableType[] = staffList.data.map((staff) => ({
+                id: staff.id,
                 avatar: staff.profile?.avatarUrl || staff.profile?.avatarBig || "/images/profile/user-1.jpg",
                 name: staff.name || '',
                 email: staff.email || '',
