@@ -16,7 +16,8 @@ import {
     Building,
     FileText,
     Loader2,
-    AlertCircle
+    AlertCircle,
+    CheckCircle
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -29,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import CardBox from "@/app/components/shared/CardBox";
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/shadcn-ui/Default-Ui/card";
 import { formatIC } from "@/utils/format-helpers";
+import { toast } from "@/hooks/use-toast";
 
 function EditUserPage() {
     const router = useRouter();
@@ -55,6 +57,7 @@ function EditUserPage() {
         if (!user) return undefined;
 
         if (isStaff) {
+            console.log('user', user);
             return {
                 name: user.name,
                 email: user.email,
@@ -130,7 +133,14 @@ function EditUserPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['user', id] });
-            router.push(`/users/${id}`);
+            router.back();
+            toast({
+                title: <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-green-500">User Updated</span>
+                </div>,
+                description: "The user has been updated.",
+            });
         },
     });
 
@@ -403,7 +413,7 @@ function EditUserPage() {
                                                         <Shield className="h-3.5 w-3.5 text-gray-500" />
                                                         Staff Type
                                                     </FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={user?.staffType || 'staff'}>
                                                         <FormControl>
                                                             <SelectTrigger className="transition-all focus:ring-2 focus:ring-primary/20 w-full">
                                                                 <div className="flex items-center gap-2 w-full min-w-0">
