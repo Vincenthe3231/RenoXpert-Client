@@ -21,7 +21,7 @@ function AddressDetail({ user }: { user: Owner }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <p className="text-sm font-medium text-dark dark:text-white flex-1">
-                                {user.profile?.address1 || <span className="text-gray-400 italic text-xs">N/A</span>}
+                                {user.address1 || <span className="text-gray-400 italic text-xs">N/A</span>}
                             </p>
                         </div>
                     </div>
@@ -36,7 +36,7 @@ function AddressDetail({ user }: { user: Owner }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <p className="text-sm font-medium text-dark dark:text-white flex-1">
-                                {user.profile?.address2 || <span className="text-gray-400 italic text-xs">N/A</span>}
+                                {user.address2 || <span className="text-gray-400 italic text-xs">N/A</span>}
                             </p>
                         </div>
                     </div>
@@ -51,7 +51,7 @@ function AddressDetail({ user }: { user: Owner }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <p className="text-sm font-medium text-dark dark:text-white flex-1">
-                                {user.profile?.city || <span className="text-gray-400 italic text-xs">N/A</span>}
+                                {user.city || <span className="text-gray-400 italic text-xs">N/A</span>}
                             </p>
                         </div>
                     </div>
@@ -66,7 +66,7 @@ function AddressDetail({ user }: { user: Owner }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <p className="text-sm font-medium text-dark dark:text-white flex-1">
-                                {user.profile?.state || <span className="text-gray-400 italic text-xs">N/A</span>}
+                                {user.state || <span className="text-gray-400 italic text-xs">N/A</span>}
                             </p>
                         </div>
                     </div>
@@ -81,9 +81,9 @@ function AddressDetail({ user }: { user: Owner }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <div className="flex-1">
-                                {user.profile?.postcode ? (
+                                {user.postcode ? (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-xs">
-                                        {user.profile.postcode}
+                                        {user.postcode}
                                     </span>
                                 ) : (
                                     <span className="text-gray-400 italic text-xs">N/A</span>

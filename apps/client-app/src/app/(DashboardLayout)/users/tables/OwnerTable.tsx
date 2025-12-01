@@ -9,7 +9,7 @@ import {
 import { Badge } from "flowbite-react";
 import Image from "next/image";
 import { getUserStatusBadge } from "@/utils/user-helpers";
-import { User } from "@/lib/schemas";
+import { Owner, PaginatedResponse } from "@/lib/schemas";
 import { Button } from "flowbite-react";
 import { useStaffType } from "@/hooks/use-staff-type";
 import Link from "next/link";
@@ -25,31 +25,11 @@ export interface OwnerTableType {
     actions?: string;
 }
 
-interface PaginatedResponse {
-    current_page: number;
-    data: User[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-        url: string | null;
-        label: string;
-        page: number;
-        active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
 
 const columnHelper = createColumnHelper<OwnerTableType>();
 
 // Calculate profile completion percentage
-const calculateProfileCompletion = (user: User): number => {
+const calculateProfileCompletion = (user: Owner): number => {
     const fields = [
         user.name,
         user.email,
@@ -63,7 +43,7 @@ const calculateProfileCompletion = (user: User): number => {
 };
 
 interface OwnerTableProps {
-    ownerList?: PaginatedResponse;
+    ownerList?: PaginatedResponse<Owner>;
     isOwnerLoading: boolean;
     ownerError: Error | null;
     isOwnerError: boolean;
@@ -284,9 +264,9 @@ const OwnerTable = ({ ownerList, isOwnerLoading, ownerError, isOwnerError }: Own
                         </div>
                     </div>
 
-                    {ownerList && ownerList.total > 0 && (
+                    {ownerList && ownerList.meta.total > 0 && (
                         <div className="mt-4 text-xs text-gray-600 dark:text-gray-400">
-                            Showing {ownerList.from} to {ownerList.to} of {ownerList.total} owners
+                            Showing {ownerList.meta.from} to {ownerList.meta.to} of {ownerList.meta.total} owners
                         </div>
                     )}
                 </>

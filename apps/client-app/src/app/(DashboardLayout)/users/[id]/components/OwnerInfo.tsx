@@ -25,7 +25,7 @@ function OwnerInfo({ user }: { user: Owner }) {
         return flagCode ? `/images/flag/icon-flag-${flagCode}.svg` : null;
     };
 
-    const flagPath = getFlagPath(user.countryCode);
+    const flagPath = getFlagPath(user.countryCode || null);
     const fullPhoneNumber = user.countryCode && user.phoneNo 
         ? `+${user.countryCode} ${user.phoneNo}` 
         : null;
@@ -107,9 +107,9 @@ function OwnerInfo({ user }: { user: Owner }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <div className="flex-1">
-                                {user.profile?.ic ? (
+                                {user.ic ? (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 font-mono text-xs">
-                                        {formatIC(user.profile.ic)}
+                                        {formatIC(user.ic)}
                                     </span>
                                 ) : (
                                     <span className="text-gray-400 italic text-xs">N/A</span>

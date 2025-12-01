@@ -11,7 +11,7 @@ function ProfileSection({ user }: { user: Owner | Staff }) {
             <div className='flex items-center gap-6 w-full p-2'>
                 <div className="relative">
                     <Image
-                        src={(user as Staff)?.profile?.avatarUrl || '/images/profile/user-7.jpg'}
+                        src={(user as Staff)?.avatarUrl || '/images/profile/user-7.jpg'}
                         alt='Profile'
                         width={80}
                         height={80}
@@ -28,11 +28,11 @@ function ProfileSection({ user }: { user: Owner | Staff }) {
 
                             {user?.userType === 'staff' && (
                                 <Badge
-                                    color={getUserTypeBadge((user as Staff).profile.type)}
+                                    color={getUserTypeBadge((user as Staff).staffType)}
                                     size="xs"
                                     className="capitalize"
                                 >
-                                    {getUserTypeLabel((user as Staff).profile.type)}
+                                    {getUserTypeLabel((user as Staff).staffType)}
                                 </Badge>
                             )}
                         </h3>

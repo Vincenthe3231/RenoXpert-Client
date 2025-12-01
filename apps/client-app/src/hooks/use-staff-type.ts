@@ -6,7 +6,7 @@ import { StaffType, hasStaffType, hasAnyStaffType, hasAllStaffTypes, isExactStaf
 export const useStaffType = () => {
     const { user } = useUser();
 
-    const staffType = user?.profile?.type as StaffType | undefined;
+    const staffType = user?.staffType as StaffType | undefined;
 
     return {
         staffType,

@@ -2,12 +2,12 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AuthService } from '@/lib/auth/login.auth';
-import { staffSchema } from '@/lib/schemas';
+import { StaffSchema } from '@/lib/schemas';
 import z from 'zod';
 
 // Define the shape of the user context state
 interface UserContextState {
-  user: z.infer<typeof staffSchema> | null;
+  user: z.infer<typeof StaffSchema> | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;

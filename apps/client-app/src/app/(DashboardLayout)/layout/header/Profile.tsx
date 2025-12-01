@@ -6,8 +6,6 @@ import Link from "next/link";
 import Image from "next/image";
 import SimpleBar from "simplebar-react";
 import { useUser } from "@/app/context/UserContext";
-import { UserErrorState } from "@/app/components/UserErrorState";
-import { UserLoadingState } from "@/app/components/UserLoadingState";
 import { getUserTypeLabel, getUserTypeBadge } from "@/utils/user-helpers";
 
 const Profile = () => {
@@ -22,7 +20,7 @@ const Profile = () => {
         renderTrigger={() => (
           <span className=" hover:text-primary hover:bg-lightprimary rounded-full flex justify-center items-center cursor-pointer group-hover/menu:bg-lightprimary group-hover/menu:text-primary">
             <Image
-              src={user?.profile?.avatarUrl || "/images/profile/user-1.jpg"}
+              src={user?.avatarUrl || "/images/profile/user-1.jpg"}
               alt="logo"
               height="35"
               width="35"
@@ -35,7 +33,7 @@ const Profile = () => {
           <h3 className="text-lg font-semibold text-ld">User Profile</h3>
           <div className="flex items-center gap-6 pb-5 border-b border-border dark:border-darkborder mt-5 mb-3">
             <Image
-              src={user?.profile?.avatarBig || "/images/profile/user-1.jpg"}
+              src={user?.avatarBig || "/images/profile/user-1.jpg"}
               alt="logo"
               height="80"
               width="80"
@@ -43,7 +41,7 @@ const Profile = () => {
             />
             <div>
               <h5 className="card-title text-sm  mb-0.5 font-medium">{user?.name}</h5>
-              <Badge className="mt-2" color={getUserTypeBadge(user?.profile?.type)}>{getUserTypeLabel(user?.profile?.type)}</Badge>
+              <Badge className="mt-2" color={getUserTypeBadge(user?.staffType)}>{getUserTypeLabel(user?.staffType)}</Badge>
               <p className="card-subtitle font-normal text-muted mb-0 mt-1 flex items-center">
                 <Icon
                   icon="tabler:user"

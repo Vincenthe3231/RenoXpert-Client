@@ -1,6 +1,6 @@
 "use client"
 
-import { Owner, Staff } from "@/lib/schemas";
+import { EditOwnerInput, EditStaffInput, Owner, Staff } from "@/lib/schemas";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "flowbite-react";
 import {
@@ -22,7 +22,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { editStaffSchema, editOwnerSchema, EditStaffInput, EditOwnerInput } from "@/lib/schemas";
+import { editStaffSchema, editOwnerSchema } from "@/lib/schemas";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/app/components/shadcn-ui/Default-Ui/form";
 import { Input } from "@/app/components/shadcn-ui/Default-Ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/shadcn-ui/Default-Ui/select";
@@ -47,61 +47,56 @@ function EditUserPage() {
         },
     });
 
+    // Determine if user is staff (needed early for form initialization)
+    const isStaff = user?.userType === 'staff';
+
     // Get initial values
     const getInitialValues = () => {
         if (!user) return undefined;
 
-        const isStaffUser = user.userType === 'staff';
-
-        if (isStaffUser) {
+        if (isStaff) {
             return {
-                name: user.name ?? '',
-                email: user.email ?? '',
-                countryCode: user.countryCode ?? '',
-                phoneNo: user.phoneNo ?? '',
-                status: user.status,
+                staffType: (user as Staff).staffType,
                 userType: 'staff' as const,
-                profile: {
-                    type: (user as Staff).profile?.type ?? 'staff',
-                },
             } as EditStaffInput;
         } else {
             return {
-                name: user.name ?? '',
-                email: user.email ?? '',
-                countryCode: user.countryCode ?? '',
-                phoneNo: user.phoneNo ?? '',
-                status: user.status,
+                name: user.name,
+                email: user.email,
+                countryCode: user.countryCode || '',
+                phoneNo: user.phoneNo || '',
+                salutation: user.salutation || '',
+                ic: user.ic || '',
+                address1: user.address1 || '',
+                address2: user.address2 || '',
+                city: user.city || '',
+                state: user.state || '',
+                postcode: user.postcode || '',
                 userType: 'owner' as const,
-                profile: {
-                    salutation: (user as Owner).profile?.salutation ?? '',
-                    ic: (user as Owner).profile?.ic ?? '',
-                    address1: (user as Owner).profile?.address1 ?? '',
-                    address2: (user as Owner).profile?.address2 ?? '',
-                    city: (user as Owner).profile?.city ?? '',
-                    state: (user as Owner).profile?.state ?? '',
-                    postcode: (user as Owner).profile?.postcode ?? '',
-                    country: (user as Owner).profile?.country ?? '',
-                },
             } as EditOwnerInput;
         }
     };
 
     // Initialize form with default values to prevent uncontrolled/controlled warning
-    const form = useForm({
-        resolver: user ? zodResolver(user.userType === 'staff' ? editStaffSchema : editOwnerSchema) : undefined,
-        defaultValues: user ? getInitialValues() : {
+    const form = useForm<EditStaffInput | EditOwnerInput>({
+        resolver: user ? zodResolver(isStaff ? editStaffSchema : editOwnerSchema) : undefined,
+        defaultValues: isStaff ? {
+            staffType: undefined as any,
+            userType: 'staff',
+        } : {
             name: '',
             email: '',
             countryCode: '',
             phoneNo: '',
-            status: 'inactive' as const,
-            userType: 'staff' as const,
-            profile: {
-                type: 'staff' as const,
-            },
+            salutation: '',
+            ic: '',
+            address1: '',
+            address2: '',
+            city: '',
+            state: '',
+            postcode: '',
+            userType: 'owner',
         },
-        values: getInitialValues(),
     });
 
     // Update form when user data loads
@@ -109,10 +104,12 @@ function EditUserPage() {
         if (user) {
             const values = getInitialValues();
             if (values) {
-                form.reset(values);
+                // Clear any errors and reset form with new values
+                form.clearErrors();
+                form.reset(values as any, { keepDefaultValues: false });
             }
         }
-    }, [user]);
+    }, [user, isStaff]);
 
     // Update mutation
     const updateMutation = useMutation({
@@ -136,22 +133,29 @@ function EditUserPage() {
     });
 
     const onSubmit = (data: any) => {
-        // For staff users, only the staff type is editable, but we need to include required fields
-        if (isStaff) {
-            const staffData: EditStaffInput = {
-                userType: 'staff',
-                name: user?.name || '',
-                email: user?.email || '',
-                status: user?.status || 'inactive',
-                profile: {
-                    type: data.profile?.type || 'staff',
-                },
-            };
-            updateMutation.mutate(staffData);
-        } else {
-            // For owners, send all the data
-            updateMutation.mutate(data as EditOwnerInput);
+        try {
+            // For staff users, only the staff type is editable, but we need to include required fields
+            if (isStaff) {
+                const staffData: EditStaffInput = {
+                    staffType: data.staffType,
+                    userType: 'staff',
+                };
+                updateMutation.mutate(staffData);
+            } else {
+                // For owners, send all the data with userType
+                const ownerData: EditOwnerInput = {
+                    ...data,
+                    userType: 'owner',
+                };
+                updateMutation.mutate(ownerData);
+            }
+        } catch (error) {
+            console.error('Form submission error:', error);
         }
+    };
+
+    const onError = (errors: any) => {
+        console.error('Form validation errors:', errors);
     };
 
     if (isLoading) {
@@ -189,8 +193,6 @@ function EditUserPage() {
             </div>
         );
     }
-
-    const isStaff = user.userType === 'staff';
 
     return (
         <div className="flex flex-col h-[calc(100vh-100px)] space-y-4 overflow-y-auto w-full max-w-full">
@@ -230,7 +232,7 @@ function EditUserPage() {
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 w-full max-w-full">
+                <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6 w-full max-w-full">
                     <div className="space-y-6 p-2">
                         {/* Basic Information */}
                         <CardBox className="rounded-lg border-l-4 border-l-primary/50 dark:border-l-primary/30 transition-all w-full max-w-full overflow-hidden">
@@ -242,8 +244,8 @@ function EditUserPage() {
                                     <div>
                                         <CardTitle className="text-lg font-semibold">Basic Information</CardTitle>
                                         <CardDescription className="text-xs mt-1">
-                                            {isStaff 
-                                                ? 'View user\'s personal details and contact information' 
+                                            {isStaff
+                                                ? 'View user\'s personal details and contact information'
                                                 : 'Update user\'s personal details and contact information'}
                                         </CardDescription>
                                     </div>
@@ -385,7 +387,7 @@ function EditUserPage() {
                                 <CardContent className="pt-6 w-full overflow-hidden">
                                     <FormField
                                         control={form.control}
-                                        name="profile.type"
+                                        name="staffType"
                                         render={({ field }) => {
                                             const staffTypeConfig = {
                                                 super_admin: { label: 'Super Admin', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20' },
@@ -449,7 +451,7 @@ function EditUserPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full min-w-0">
                                             <FormField
                                                 control={form.control}
-                                                name="profile.salutation"
+                                                name="salutation"
                                                 render={({ field }) => (
                                                     <FormItem className="min-w-0">
                                                         <FormLabel>Salutation</FormLabel>
@@ -471,7 +473,7 @@ function EditUserPage() {
 
                                             <FormField
                                                 control={form.control}
-                                                name="profile.ic"
+                                                name="ic"
                                                 render={({ field }) => (
                                                     <FormItem className="min-w-0">
                                                         <FormLabel>IC Number</FormLabel>
@@ -523,7 +525,7 @@ function EditUserPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full min-w-0">
                                             <FormField
                                                 control={form.control}
-                                                name="profile.address1"
+                                                name="address1"
                                                 render={({ field }) => (
                                                     <FormItem className="md:col-span-2 min-w-0">
                                                         <FormLabel>Address 1</FormLabel>
@@ -545,7 +547,7 @@ function EditUserPage() {
 
                                             <FormField
                                                 control={form.control}
-                                                name="profile.address2"
+                                                name="address2"
                                                 render={({ field }) => (
                                                     <FormItem className="md:col-span-2 min-w-0">
                                                         <FormLabel>Address 2</FormLabel>
@@ -567,7 +569,7 @@ function EditUserPage() {
 
                                             <FormField
                                                 control={form.control}
-                                                name="profile.city"
+                                                name="city"
                                                 render={({ field }) => (
                                                     <FormItem className="min-w-0">
                                                         <FormLabel className="flex items-center gap-2">
@@ -592,7 +594,7 @@ function EditUserPage() {
 
                                             <FormField
                                                 control={form.control}
-                                                name="profile.state"
+                                                name="state"
                                                 render={({ field }) => (
                                                     <FormItem className="min-w-0">
                                                         <FormLabel className="flex items-center gap-2">
@@ -617,35 +619,13 @@ function EditUserPage() {
 
                                             <FormField
                                                 control={form.control}
-                                                name="profile.postcode"
+                                                name="postcode"
                                                 render={({ field }) => (
                                                     <FormItem className="min-w-0">
                                                         <FormLabel>Postcode</FormLabel>
                                                         <FormControl>
                                                             <Input
                                                                 placeholder="Enter postcode"
-                                                                className="w-full"
-                                                                value={field.value || ''}
-                                                                onChange={(e) => field.onChange(e.target.value || null)}
-                                                                onBlur={field.onBlur}
-                                                                name={field.name}
-                                                                ref={field.ref}
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={form.control}
-                                                name="profile.country"
-                                                render={({ field }) => (
-                                                    <FormItem className="min-w-0">
-                                                        <FormLabel>Country</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                placeholder="Enter country"
                                                                 className="w-full"
                                                                 value={field.value || ''}
                                                                 onChange={(e) => field.onChange(e.target.value || null)}

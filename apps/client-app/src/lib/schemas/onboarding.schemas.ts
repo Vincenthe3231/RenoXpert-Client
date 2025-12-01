@@ -1,5 +1,5 @@
 import z from "zod";
-import { staffSchema } from "./staff.schemas";
+import { StaffSchema } from "./user.schemas";
 import { USER_STATUS_VALUES } from "../constants/statuses/user.statuses";
 import { ONBOARDING_STATUS_VALUES } from "../constants/statuses/onboarding.statuses";
 
@@ -11,7 +11,7 @@ export const onboardingSchema = z.object({
     status: z.enum(ONBOARDING_STATUS_VALUES),
     assignedUserType: z.enum(USER_STATUS_VALUES),
     rejectionReason: z.string().nullable(),
-    staff: staffSchema.nullable(),
+    staff: StaffSchema.nullable(),
 });
 
 export type Onboarding = z.infer<typeof onboardingSchema>;

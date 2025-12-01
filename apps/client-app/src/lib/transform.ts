@@ -3,11 +3,15 @@ type CamelCase<S extends string> = S extends `${infer P1}_${infer P2}${infer P3}
     : Lowercase<S>;
 
 export function toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    return str.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
 }
 
 export function toSnakeCase(str: string): string {
-    return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    // First, handle uppercase letters
+    let result = str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    // Then, handle digits that follow a letter or another digit
+    result = result.replace(/([a-z])([0-9])/g, '$1_$2');
+    return result;
 }
 
 export function keysToCamel<T = any>(obj: any): T {

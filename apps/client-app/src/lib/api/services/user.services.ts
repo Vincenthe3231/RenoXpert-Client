@@ -1,7 +1,7 @@
 import BackendConfig from "@/config/backend";
 import { ApiClient } from "../client";
 import { BaseUser } from "@/lib/types/user.types";
-import { EditUserInput } from "@/lib/schemas";
+import { EditOwnerInput, EditStaffInput } from "@/lib/schemas";
 
 export class UserApiService {
     private static readonly basePath = BackendConfig.endpoints.users;
@@ -18,7 +18,7 @@ export class UserApiService {
         return ApiClient.post<BaseUser>(this.basePath, user, token);
     }
 
-    static async update(id: string, user: EditUserInput, token?: string | null): Promise<BaseUser> {
+    static async update(id: string, user: EditStaffInput | EditOwnerInput, token?: string | null): Promise<BaseUser> {
         return ApiClient.put<BaseUser>(`${this.basePath}/${id}`, user, token);
     }
 

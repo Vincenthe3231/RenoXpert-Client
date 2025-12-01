@@ -1,6 +1,7 @@
 import { UserApiService } from "@/lib/api/services/user.services";
+import { EditOwnerInput, editOwnerSchema, EditStaffInput, editStaffSchema } from "@/lib/schemas";
 import { NextRequest, NextResponse } from "next/server";
-import { editStaffSchema, editOwnerSchema, EditStaffInput, EditOwnerInput } from "@/lib/schemas";
+// import { editStaffSchema, editOwnerSchema, EditStaffInput, EditOwnerInput } from "@/lib/schemas";
 
 
 // GET /api/users/[id] - Get user by ID
@@ -72,13 +73,15 @@ export async function PUT(
         }
 
         const { id } = await params;
-        
+
         // Parse request body
         const body = await request.json();
 
+        console.log('body', body);
+
         // Validate the request body based on userType
         let validatedData: EditStaffInput | EditOwnerInput;
-        
+
         if (body.userType === 'staff') {
             validatedData = editStaffSchema.parse(body) as EditStaffInput;
         } else if (body.userType === 'owner') {

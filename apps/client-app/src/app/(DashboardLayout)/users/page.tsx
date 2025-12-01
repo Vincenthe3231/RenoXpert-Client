@@ -5,56 +5,14 @@ import { Button } from "flowbite-react";
 import UserTable from "./tables/UserTable";
 import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
-import { Owner, Staff, User } from "@/lib/schemas";
+import { Owner, PaginatedResponse, Staff } from "@/lib/schemas";
 import Link from "next/link";
 import { useStaffType } from "@/hooks/use-staff-type";
-
-interface StaffPaginatedResponse {
-    current_page: number;
-    data: Staff[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-        url: string | null;
-        label: string;
-        page: number;
-        active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
-
-interface OwnerPaginatedResponse {
-    current_page: number;
-    data: Owner[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-        url: string | null;
-        label: string;
-        page: number;
-        active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
 
 const page = () => {
     const { isSuperAdmin } = useStaffType();
 
-    const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<StaffPaginatedResponse>({
+    const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<PaginatedResponse<Staff>>({
         queryKey: ['staffList'],
         queryFn: async () => {
             const response = await fetch('/api/staff');
@@ -70,7 +28,7 @@ const page = () => {
         refetchOnWindowFocus: false,
     });
 
-    const { data: ownerList, isLoading: isOwnerLoading, error: ownerError, isError: isOwnerError } = useQuery<OwnerPaginatedResponse>({
+    const { data: ownerList, isLoading: isOwnerLoading, error: ownerError, isError: isOwnerError } = useQuery<PaginatedResponse<Owner>>({
         queryKey: ['ownerList'],
         queryFn: async () => {
             const response = await fetch('/api/owners');
@@ -86,7 +44,7 @@ const page = () => {
         refetchOnWindowFocus: false,
     });
 
-    const { data: verifyingStaffList } = useQuery<StaffPaginatedResponse>({
+    const { data: verifyingStaffList } = useQuery<PaginatedResponse<Staff>>({
         queryKey: ['staffList', 'verifying'],
         queryFn: async () => {
             const response = await fetch('/api/staff?filter[status]=verifying');
@@ -128,7 +86,7 @@ const page = () => {
                                 className="p-[30px] bg-lightprimary dark:bg-lightprimary text-center rounded-md cursor-pointer"
                             // onClick={() => setFilter('total_tickets')}
                             >
-                                <h3 className="text-primary text-2xl">{ownerList?.total || "-"}</h3>
+                                <h3 className="text-primary text-2xl">{ownerList?.meta.total || "-"}</h3>
                                 <h6 className="text-base text-primary">Owners</h6>
                             </div>
                         </div>
@@ -137,7 +95,7 @@ const page = () => {
                                 className="p-[30px] bg-lightwarning dark:bg-lightwarning text-center rounded-md cursor-pointer"
                             // onClick={() => setFilter('Pending')}
                             >
-                                <h3 className="text-warning text-2xl">{staffList?.total || "-"}</h3>
+                                <h3 className="text-warning text-2xl">{staffList?.meta.total || "-"}</h3>
                                 <h6 className="text-base text-warning">Internal Staff</h6>
                             </div>
                         </div>
@@ -146,7 +104,7 @@ const page = () => {
                                 className="p-[30px] bg-lightsuccess dark:bg-lightsuccess text-center rounded-md cursor-pointer"
                             // onClick={() => setFilter('Open')}
                             >
-                                <h3 className="text-success text-2xl">{verifyingStaffList?.total || "-"}</h3>
+                                <h3 className="text-success text-2xl">{verifyingStaffList?.meta.total || "-"}</h3>
                                 <h6 className="text-base text-success">Onboarding</h6>
                             </div>
                         </div>

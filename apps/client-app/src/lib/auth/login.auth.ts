@@ -4,41 +4,12 @@
  */
 
 import BackendConfig from '../../config/backend';
-import { staffSchema } from '../schemas';
+import { StaffSchema } from '../schemas';
 import z from 'zod';
-
-export interface User {
-  id: number;
-  uuid: string;
-  name: string;
-  email: string;
-  email_verified_at?: string;
-  profile?: StaffProfile;
-  avatar_url?: string;
-  avatar_big?: string;
-  larksuite_open_id?: string;
-  larksuite_union_id?: string;
-  user_type?: string;
-  user_status?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface StaffProfile {
-  id: number;
-  user_id: number;
-  type: string;
-  roles: string[];
-  avatar_url: string;
-  avatar_big: string;
-  larksuite_open_id: string;
-  larksuite_union_id: string;
-  user_type: string;
-}
 
 export interface AuthResponse {
   token: string;
-  user: z.infer<typeof staffSchema>;
+  user: z.infer<typeof StaffSchema>;
   token_type: string;
   expires_in: number;
 }
@@ -136,7 +107,7 @@ export class Auth {
   /**
    * Get current user information
    */
-  async getCurrentUser(): Promise<z.infer<typeof staffSchema>> {
+  async getCurrentUser(): Promise<z.infer<typeof StaffSchema>> {
     const token = this.getToken();
 
     if (!token) {
@@ -268,7 +239,7 @@ export class Auth {
   /**
    * Get stored user data
    */
-  getUser(): z.infer<typeof staffSchema> | null {
+  getUser(): z.infer<typeof StaffSchema> | null {
     if (typeof window === 'undefined') return null;
     const userStr = localStorage.getItem(BackendConfig.userKey);
     return userStr ? JSON.parse(userStr) : null;
@@ -277,7 +248,7 @@ export class Auth {
   /**
    * Set user data
    */
-  setUser(user: z.infer<typeof staffSchema>): void {
+  setUser(user: z.infer<typeof StaffSchema>): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(BackendConfig.userKey, JSON.stringify(user));
   }

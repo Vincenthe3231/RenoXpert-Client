@@ -4,49 +4,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import TitleSelectionCard from "@/app/components/shared/TitleSelectionCard";
 import StaffTable from "./StaffTable";
 import OwnerTable from "./OwnerTable";
-import { Staff, User } from "@/lib/schemas";
-
-interface StaffPaginatedResponse {
-    current_page: number;
-    data: Staff[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-        url: string | null;
-        label: string;
-        page: number;
-        active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
-
-interface OwnerPaginatedResponse {
-    current_page: number;
-    data: User[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-        url: string | null;
-        label: string;
-        page: number;
-        active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
+import { Owner, PaginatedResponse, Staff } from "@/lib/schemas";
 
 const userTypeOptions = [
     { value: "staff", label: "Staff Table" },
@@ -56,8 +14,8 @@ const userTypeOptions = [
 interface UserTableProps {
     title: string;
     className: string;
-    staffList?: StaffPaginatedResponse;
-    ownerList?: OwnerPaginatedResponse;
+    staffList?: PaginatedResponse<Staff>;
+    ownerList?: PaginatedResponse<Owner>;
     isStaffLoading: boolean;
     isOwnerLoading: boolean;
     staffError: Error | null;

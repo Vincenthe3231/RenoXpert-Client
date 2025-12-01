@@ -68,11 +68,11 @@ function StaffInfo({ user }: { user: Staff }) {
                         <div className="flex items-start gap-1.5">
                             <div className="w-5 flex-shrink-0" />
                             <Badge
-                                color={getUserTypeBadge(user.profile.type)}
+                                color={getUserTypeBadge(user.staffType)}
                                 size="xs"
                                 className="capitalize"
                             >
-                                {getUserTypeLabel(user.profile.type)}
+                                {getUserTypeLabel(user.staffType)}
                             </Badge>
                         </div>
                     </div>

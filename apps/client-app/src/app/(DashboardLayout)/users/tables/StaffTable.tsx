@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
     createColumnHelper,
     useReactTable,
@@ -9,7 +9,7 @@ import {
 import { Badge } from "flowbite-react";
 import Image from "next/image";
 import { getUserTypeLabel, getUserTypeBadge, getUserStatusBadge } from "@/utils/user-helpers";
-import { Staff } from "@/lib/schemas";
+import { PaginatedResponse, Staff } from "@/lib/schemas";
 import { Button } from "flowbite-react";
 import { useStaffType } from "@/hooks/use-staff-type";
 import Link from "next/link";
@@ -25,39 +25,18 @@ export interface StaffTableType {
     actions?: string;
 }
 
-interface StaffPaginatedResponse {
-    current_page: number;
-    data: Staff[];
-    first_page_url: string;
-    from: number;
-    last_page: number;
-    last_page_url: string;
-    links: Array<{
-        url: string | null;
-        label: string;
-        page: number;
-        active: boolean;
-    }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number;
-    total: number;
-}
-
 const columnHelper = createColumnHelper<StaffTableType>();
 
 interface StaffTableProps {
-    staffList?: StaffPaginatedResponse;
+    staffList?: PaginatedResponse<Staff>;
     isStaffLoading: boolean;
     staffError: Error | null;
     isStaffError: boolean;
 }
 
 const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: StaffTableProps) => {
-    const [data, setData] = React.useState<StaffTableType[]>([]);
-    const [density, setDensity] = React.useState("md");
+    const [data, setData] = useState<StaffTableType[]>([]);
+    const [density, setDensity] = useState("md");
     const { isSuperAdmin } = useStaffType();
 
     const columns = [
@@ -138,13 +117,15 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
         if (staffList?.data) {
             const mappedData: StaffTableType[] = staffList.data.map((staff) => ({
                 id: staff.id,
-                avatar: staff.profile?.avatarUrl || staff.profile?.avatarBig || "/images/profile/user-1.jpg",
+                avatar: staff.avatarUrl || staff.avatarBig || "/images/profile/user-1.jpg",
                 name: staff.name || '',
                 email: staff.email || '',
-                userType: staff.profile?.type || '',
+                userType: staff.staffType || '',
                 status: staff.status || '',
             }));
             setData(mappedData);
+            console.log(mappedData);
+            
         }
     }, [staffList]);
 
@@ -240,9 +221,9 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
                         </div>
                     </div>
 
-                    {staffList && staffList.total > 0 && (
+                    {staffList && staffList.meta.total > 0 && (
                         <div className="mt-4 text-xs text-gray-600 dark:text-gray-400">
-                            Showing {staffList.from} to {staffList.to} of {staffList.total} users
+                            Showing {staffList.meta.from} to {staffList.meta.to} of {staffList.meta.total} users
                         </div>
                     )}
                 </>
