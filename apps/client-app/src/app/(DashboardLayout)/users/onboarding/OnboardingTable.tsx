@@ -166,7 +166,7 @@ const OnboardingTable = ({ title, className, onboardingList, isOnboardingLoading
     useEffect(() => {
         if (onboardingList?.data) {
             const mappedData: TableTypeDense[] = onboardingList.data.map((onboarding) => ({
-                avatar: onboarding.staff?.profile.avatarUrl || onboarding.staff?.profile.avatarBig || "/images/profile/user-1.jpg",
+                avatar: onboarding.staff?.avatarUrl || onboarding.staff?.avatarBig || "/images/profile/user-1.jpg",
                 id: onboarding.id || undefined,
                 name: onboarding.staff?.name || '',
                 email: onboarding.staff?.email || '',

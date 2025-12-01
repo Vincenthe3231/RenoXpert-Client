@@ -56,6 +56,8 @@ function EditUserPage() {
 
         if (isStaff) {
             return {
+                name: user.name,
+                email: user.email,
                 staffType: (user as Staff).staffType,
                 userType: 'staff' as const,
             } as EditStaffInput;

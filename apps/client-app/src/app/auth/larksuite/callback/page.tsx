@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthService } from "../../../../lib/auth/login.auth";
-import { staffSchema, Staff } from "../../../../lib/schemas";
+import { StaffSchema, Staff } from "../../../../lib/schemas";
 import { keysToCamel } from "@/lib/transform";
 
 function LarkSuiteCallbackContent() {
@@ -29,7 +29,7 @@ function LarkSuiteCallbackContent() {
           // Parse and validate user data using staff schema
           const parsedUser = JSON.parse(user);
           const camelCaseUser = keysToCamel<Staff>(parsedUser);
-          const userData = staffSchema.parse(camelCaseUser);
+          const userData = StaffSchema.parse(camelCaseUser);
 
           // Store the token and user data
           AuthService.setToken(token);
