@@ -10,9 +10,10 @@ import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
 import { Onboarding } from "@/lib/schemas";
 import OnboardingTable from "./OnboardingTable";
-import { CheckCircle, ChevronLeft } from "lucide-react";
+import { CheckCircle, ChevronLeft, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
+import { useStaffType } from "@/hooks/use-staff-type";
 
 interface PaginatedResponse {
     current_page: number;
@@ -43,6 +44,9 @@ interface PaginatedResponse {
 
 const page = () => {
     const router = useRouter();
+    const { user, isLoading: isUserLoading } = useUser();
+    const { isSuperAdmin } = useStaffType();
+    
     const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError, refetch: refetchOnboardingList } = useQuery<PaginatedResponse>({
         queryKey: ['onboardingList'],
         queryFn: async () => {
@@ -57,7 +61,38 @@ const page = () => {
         },
         staleTime: 60 * 1000, // 1 minute - data is fresh for 1 minute
         refetchOnWindowFocus: false, // Don't refetch when window regains focus
+        enabled: isSuperAdmin, // Only fetch if user is super_admin
     });
+
+    // Show loading state while checking user
+    if (isUserLoading) {
+        return <UserLoadingState message="Loading..." />;
+    }
+
+    // Check if user has permission (only super_admin can access)
+    if (!isSuperAdmin) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <div className="flex flex-col items-center gap-4 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 max-w-md">
+                    <Lock className="h-12 w-12 text-red-600 dark:text-red-400" />
+                    <div className="text-center">
+                        <h3 className="font-semibold text-red-900 dark:text-red-300 mb-2">Access Denied</h3>
+                        <p className="text-sm text-red-700 dark:text-red-400 mb-4">
+                            You do not have permission to access the onboarding module. Only super administrators can access this page.
+                        </p>
+                        <Button
+                            color="light"
+                            onClick={() => router.back()}
+                            className="flex items-center gap-2"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Go Back
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-[calc(100vh-170px)] space-y-2">

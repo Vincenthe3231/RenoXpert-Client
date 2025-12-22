@@ -53,3 +53,53 @@ export const getUserStatusBadge = (userStatus?: string) => {
       return 'lightsecondary';
   }
 };
+
+/**
+ * Check if the current user can edit a target user based on RBAC rules
+ * 
+ * Rules:
+ * - super_admin: can edit everyone
+ * - admin: cannot edit super_admin and admin
+ * - staff: cannot edit super_admin, admin, and staff
+ * - Owners can always be edited by all staff types
+ * 
+ * @param currentUserStaffType - The staff type of the current logged-in user
+ * @param targetUserType - The user type of the target user ('staff' or 'owner')
+ * @param targetUserStaffType - The staff type of the target user (only if targetUserType is 'staff')
+ * @returns boolean - true if the current user can edit the target user
+ */
+export const canEditUser = (
+  currentUserStaffType?: string,
+  targetUserType?: string,
+  targetUserStaffType?: string
+): boolean => {
+  // If current user is not a staff member, they cannot edit
+  if (!currentUserStaffType) {
+    return false;
+  }
+
+  // Owners can always be edited by all staff types
+  if (targetUserType === 'owner') {
+    return true;
+  }
+
+  // If target is a staff member, check staff type restrictions
+  if (targetUserType === 'staff' && targetUserStaffType) {
+    // super_admin can edit everyone
+    if (currentUserStaffType === 'super_admin') {
+      return true;
+    }
+
+    // admin cannot edit super_admin and admin
+    if (currentUserStaffType === 'admin') {
+      return targetUserStaffType !== 'super_admin' && targetUserStaffType !== 'admin';
+    }
+
+    // staff cannot edit super_admin, admin, and staff
+    if (currentUserStaffType === 'staff') {
+      return false; // staff cannot edit any staff members
+    }
+  }
+
+  return false;
+};

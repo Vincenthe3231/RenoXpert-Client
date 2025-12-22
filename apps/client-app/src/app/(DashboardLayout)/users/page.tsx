@@ -1,17 +1,63 @@
 
 "use client"
-import React from "react";
-import { Button } from "flowbite-react";
+import React, { useState } from "react";
+import { Button, Tooltip } from "flowbite-react";
 import UserTable from "./tables/UserTable";
 import OutlineCard from "@/app/components/shared/OutlineCard";
 import { useQuery } from "@tanstack/react-query";
 import { Owner, PaginatedResponse, Staff } from "@/lib/schemas";
 import Link from "next/link";
 import { useStaffType } from "@/hooks/use-staff-type";
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { IconBuildingStore, IconUsers } from "@tabler/icons-react";
+import { useRouter } from "next/navigation";
+
+const AddUserModal = ({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => void }) => {
+    const router = useRouter();
+
+    const handleOwnerClick = () => {
+        setOpen(false);
+        router.push('/users/create-owner');
+    };
+
+    return (
+        <Dialog transition open={open} onClose={() => setOpen(false)} className={'fixed inset-0 flex w-screen items-center justify-center bg-black/60 p-4 transition duration-300 ease-out data-[closed]:opacity-0 z-50'}>
+            <div className='fixed inset-0 z-50 w-screen overflow-y-auto'>
+                <div className='flex min-h-full items-center justify-center p-4'>
+                    <DialogPanel className='w-full max-w-xl rounded-lg bg-white dark:bg-slate-600 p-6 shadow-md dark:dark-shadow-md'>
+                        <DialogTitle className='text-xl font-semibold mb-2 text-gray-900 dark:text-white'>Add User</DialogTitle>
+                        <p className='text-gray-600 dark:text-gray-300 mb-6'>Select a user type to be created</p>
+
+                        <div className='grid grid-cols-2 gap-4'>
+                            <button
+                                className='group flex flex-col items-center justify-center p-8 border-1 border-gray-300 dark:border-gray-500 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors'
+                                onClick={handleOwnerClick}
+                            >
+                                <IconUsers className='text-5xl mb-3 transition-transform group-hover:scale-130' />
+                                <span className='text-lg font-medium text-gray-900 dark:text-white'>Owner</span>
+                            </button>
+
+                            <Tooltip content='Vendor selection is not available yet' placement='top'>
+                                <button
+                                    disabled
+                                    className='group w-full flex flex-col items-center justify-center p-8 border-1 border-gray-300 dark:border-gray-500 rounded-lg opacity-50 cursor-not-allowed transition-colors'
+                                    onClick={() => {/* Handle Vendor selection */ }}
+                                >
+                                    <IconBuildingStore className='text-5xl mb-3' />
+                                    <span className='text-lg font-medium text-gray-900 dark:text-white'>Vendor</span>
+                                </button>
+                            </Tooltip>
+                        </div>
+                    </DialogPanel>
+                </div>
+            </div>
+        </Dialog>
+    )
+}
 
 const page = () => {
     const { isSuperAdmin } = useStaffType();
-
+    const [open, setOpen] = useState(false);
     const { data: staffList, isLoading: isStaffLoading, error: staffError, isError: isStaffError } = useQuery<PaginatedResponse<Staff>>({
         queryKey: ['staffList'],
         queryFn: async () => {
@@ -65,7 +111,15 @@ const page = () => {
             <div className="flex justify-between flex-shrink-0">
                 <h1 className="text-3xl font-bold mb-6">User Management</h1>
                 <div className="flex gap-2">
-                    <Button color={"primary"} className="inline-block rounded-md">Add User</Button>
+                    <Button
+                        color={"primary"}
+                        className="inline-block rounded-md"
+                        onClick={() => {
+                            setOpen(true);
+                        }}
+                    >
+                        Add User
+                    </Button>
                     {isSuperAdmin && (
                         <Button
                             color={"info"}
@@ -138,6 +192,8 @@ const page = () => {
                     </OutlineCard>
                 </div>
             </div>
+
+            <AddUserModal open={open} setOpen={setOpen} />
         </div>
     );
 };

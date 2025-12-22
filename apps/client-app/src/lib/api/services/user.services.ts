@@ -10,9 +10,11 @@ export class UserApiService {
         return ApiClient.get<BaseUser[]>(this.basePath, params, token);
     }
 
+    // http://lcoalhost:8000/api/v1/users/5
     static async getById(id: string, token?: string | null): Promise<BaseUser> {
         return ApiClient.get<BaseUser>(`${this.basePath}/${id}`, undefined, token);
     }
+
 
     static async create(user: BaseUser, token?: string | null): Promise<BaseUser> {
         return ApiClient.post<BaseUser>(this.basePath, user, token);

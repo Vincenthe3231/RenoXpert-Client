@@ -16,10 +16,13 @@ import StaffAccessOverview from "./components/StaffAccessOverview";
 import QuickActions from "./components/QuickActions";
 import { Icon } from '@iconify/react'
 import Link from "next/link";
+import { useUser } from "@/app/context/UserContext";
+import { canEditUser } from "@/utils/user-helpers";
 
 function page() {
     const router = useRouter();
     const { id } = useParams();
+    const { user: currentUser } = useUser();
     const { data: user, isLoading, error } = useQuery<Owner | Staff>({
         queryKey: ['user', id],
         queryFn: async () => {
@@ -30,6 +33,13 @@ function page() {
             return response.json();
         },
     });
+
+    // Check if current user can edit this user
+    const canEdit = canEditUser(
+        currentUser?.staffType,
+        user?.userType,
+        user?.userType === 'staff' ? (user as Staff).staffType : undefined
+    );
 
     if (isLoading) return <div>Loading...</div>;
     if (error) return <div>Error: {error.message}</div>;
@@ -42,14 +52,16 @@ function page() {
                     <h1 className="text-3xl font-bold">User Detail</h1>
                 </div>
                 <div className="flex">
-                    <Button
-                        color={"primary"}
-                        className="inline-block rounded-md"
-                        as={Link}
-                        href={`/users/${id}/edit`}
-                    >
-                        Update Information
-                    </Button>
+                    {canEdit && (
+                        <Button
+                            color={"primary"}
+                            className="inline-block rounded-md"
+                            as={Link}
+                            href={`/users/${id}/edit`}
+                        >
+                            Update Information
+                        </Button>
+                    )}
                 </div>
             </div>
             <div className="flex w-full gap-3 flex-1 min-h-0">

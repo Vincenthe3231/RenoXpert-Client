@@ -17,7 +17,8 @@ import {
     FileText,
     Loader2,
     AlertCircle,
-    CheckCircle
+    CheckCircle,
+    Lock
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -31,11 +32,14 @@ import CardBox from "@/app/components/shared/CardBox";
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/shadcn-ui/Default-Ui/card";
 import { formatIC } from "@/utils/format-helpers";
 import { toast } from "@/hooks/use-toast";
+import { useUser } from "@/app/context/UserContext";
+import { canEditUser } from "@/utils/user-helpers";
 
 function EditUserPage() {
     const router = useRouter();
     const { id } = useParams();
     const queryClient = useQueryClient();
+    const { user: currentUser } = useUser();
 
     // Fetch user data
     const { data: user, isLoading, error } = useQuery<Owner | Staff>({
@@ -51,6 +55,13 @@ function EditUserPage() {
 
     // Determine if user is staff (needed early for form initialization)
     const isStaff = user?.userType === 'staff';
+
+    // Check if current user can edit this user
+    const canEdit = canEditUser(
+        currentUser?.staffType,
+        user?.userType,
+        isStaff ? (user as Staff).staffType : undefined
+    );
 
     // Get initial values
     const getInitialValues = () => {
@@ -201,6 +212,31 @@ function EditUserPage() {
                 <div className="flex flex-col items-center gap-4 p-6">
                     <AlertCircle className="h-8 w-8 text-gray-400" />
                     <p className="text-sm text-gray-500 dark:text-gray-400">User not found</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Check permissions - show access denied if user cannot edit
+    if (!canEdit) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <div className="flex flex-col items-center gap-4 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 max-w-md">
+                    <Lock className="h-12 w-12 text-red-600 dark:text-red-400" />
+                    <div className="text-center">
+                        <h3 className="font-semibold text-red-900 dark:text-red-300 mb-2">Access Denied</h3>
+                        <p className="text-sm text-red-700 dark:text-red-400 mb-4">
+                            You do not have permission to edit this user.
+                        </p>
+                        <Button
+                            color="light"
+                            onClick={() => router.back()}
+                            className="flex items-center gap-2"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Go Back
+                        </Button>
+                    </div>
                 </div>
             </div>
         );
@@ -413,9 +449,14 @@ function EditUserPage() {
                                                         <Shield className="h-3.5 w-3.5 text-gray-500" />
                                                         Staff Type
                                                     </FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={user?.staffType || 'staff'}>
+                                                    <Select 
+                                                        onValueChange={field.onChange} 
+                                                        value={field.value} 
+                                                        defaultValue={user?.staffType || 'staff'}
+                                                        disabled={!canEdit}
+                                                    >
                                                         <FormControl>
-                                                            <SelectTrigger className="transition-all focus:ring-2 focus:ring-primary/20 w-full">
+                                                            <SelectTrigger className="transition-all focus:ring-2 focus:ring-primary/20 w-full" disabled={!canEdit}>
                                                                 <div className="flex items-center gap-2 w-full min-w-0">
                                                                     <SelectValue placeholder="Select staff type" className="flex-1 min-w-0" />
                                                                 </div>

@@ -8,10 +8,11 @@ import {
 } from "@tanstack/react-table";
 import { Badge } from "flowbite-react";
 import Image from "next/image";
-import { getUserTypeLabel, getUserTypeBadge, getUserStatusBadge } from "@/utils/user-helpers";
+import { getUserTypeLabel, getUserTypeBadge, getUserStatusBadge, canEditUser } from "@/utils/user-helpers";
 import { PaginatedResponse, Staff } from "@/lib/schemas";
 import { Button } from "flowbite-react";
 import { useStaffType } from "@/hooks/use-staff-type";
+import { useUser } from "@/app/context/UserContext";
 import Link from "next/link";
 
 export interface StaffTableType {
@@ -37,7 +38,8 @@ interface StaffTableProps {
 const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: StaffTableProps) => {
     const [data, setData] = useState<StaffTableType[]>([]);
     const [density, setDensity] = useState("md");
-    const { isSuperAdmin } = useStaffType();
+    const { staffType: currentUserStaffType } = useStaffType();
+    const { user: currentUser } = useUser();
 
     const columns = [
         columnHelper.accessor("avatar", {
@@ -94,22 +96,32 @@ const StaffTable = ({ staffList, isStaffLoading, staffError, isStaffError }: Sta
         }),
         columnHelper.accessor("actions", {
             header: () => <span>Actions</span>,
-            cell: (info) => (
-                <div className="flex gap-2">
-                    {isSuperAdmin && (
-                        <Button
-                            size="xs"
-                            color='primary'
-                            className='border border-primary text-primary hover:bg-primary hover:text-white rounded-md'
-                            outline
-                            as={Link}
-                            href={`/users/${info.row.original?.id}/edit`}
-                        >
-                            Edit
-                        </Button>
-                    )}
-                </div>
-            ),
+            cell: (info) => {
+                // userType in the table data contains the staffType value
+                const targetStaffType = info.row.original.userType;
+                const canEdit = canEditUser(
+                    currentUser?.staffType,
+                    'staff',
+                    targetStaffType as 'super_admin' | 'admin' | 'staff'
+                );
+
+                return (
+                    <div className="flex gap-2">
+                        {canEdit && (
+                            <Button
+                                size="xs"
+                                color='primary'
+                                className='border border-primary text-primary hover:bg-primary hover:text-white rounded-md'
+                                outline
+                                as={Link}
+                                href={`/users/${info.row.original?.id}/edit`}
+                            >
+                                Edit
+                            </Button>
+                        )}
+                    </div>
+                );
+            },
         }),
     ];
 

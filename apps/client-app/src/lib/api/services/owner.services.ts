@@ -1,6 +1,6 @@
 import BackendConfig from "@/config/backend";
 import { ApiClient } from "../client";
-import { Owner } from "@/lib/schemas";
+import { Owner, CreateOwnerInput } from "@/lib/schemas";
 
 export class OwnerApiService {
     private static readonly basePath = BackendConfig.endpoints.owners;
@@ -13,7 +13,7 @@ export class OwnerApiService {
         return ApiClient.get<Owner>(`${this.basePath}/${id}`, undefined, token);
     }
 
-    static async create(user: Owner, token?: string | null): Promise<Owner> {
+    static async create(user: CreateOwnerInput, token?: string | null): Promise<Owner> {
         return ApiClient.post<Owner>(this.basePath, user, token);
     }
 

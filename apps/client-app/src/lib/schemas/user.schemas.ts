@@ -80,6 +80,25 @@ export const editOwnerSchema = z.object({
     userType: z.literal("owner"),
 });
 
+// Create owner schema - required fields for creating a new owner
+export const createOwnerSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    email: z.union([
+        z.string().email("Invalid email address"),
+        z.literal("")
+    ]).optional(),
+    phoneNo: z.string().min(1, "Phone number is required"),
+    countryCode: z.string().min(1, "Country code is required"),
+    salutation: z.string().optional(),
+    ic: z.string().optional(),
+    address1: z.string().optional(),
+    address2: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postcode: z.string().optional(),
+    userType: z.literal("owner"),
+});
+
 // Inferred types
 export type Staff = z.infer<typeof StaffSchema>;
 export type Owner = z.infer<typeof OwnerSchema>;
@@ -87,3 +106,4 @@ export type Vendor = z.infer<typeof VendorSchema>;
 
 export type EditStaffInput = z.infer<typeof editStaffSchema>;
 export type EditOwnerInput = z.infer<typeof editOwnerSchema>;
+export type CreateOwnerInput = z.infer<typeof createOwnerSchema>;

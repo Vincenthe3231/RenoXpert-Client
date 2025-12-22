@@ -1,5 +1,6 @@
 import { OwnerApiService } from '@/lib/api/services/owner.services';
 import { NextRequest, NextResponse } from 'next/server';
+import { createOwnerSchema, CreateOwnerInput } from '@/lib/schemas';
 
 /**
  * GET /api/owners
@@ -83,6 +84,83 @@ export async function GET(request: NextRequest) {
             {
                 error: 'Internal Server Error',
                 message: error instanceof Error ? error.message : 'Failed to fetch owners'
+            },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * POST /api/owners
+ * Server-side route handler to create a new owner in the backend API
+ */
+export async function POST(request: NextRequest) {
+    try {
+        // Get the authentication token from cookies
+        const token = request.cookies.get('auth-token')?.value;
+
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized', message: 'No authentication token found' },
+                { status: 401 }
+            );
+        }
+
+        // Parse request body
+        const body = await request.json();
+
+        // Validate request body using Zod schema
+        const validatedData = createOwnerSchema.parse(body) as CreateOwnerInput;
+
+        // Create owner via backend service
+        const createdOwner = await OwnerApiService.create(validatedData, token);
+
+        return NextResponse.json(createdOwner, { status: 201 });
+    } catch (error: any) {
+        console.error('Error creating owner:', error);
+
+        // Handle Zod validation errors
+        if (error?.name === 'ZodError') {
+            return NextResponse.json(
+                {
+                    error: 'Validation Error',
+                    message: 'Invalid input data',
+                    details: error.errors,
+                },
+                { status: 400 }
+            );
+        }
+
+        // Handle different error statuses from backend
+        if (error?.message?.includes('401') || error?.response?.status === 401) {
+            return NextResponse.json(
+                { error: 'Unauthorized', message: 'Authentication token expired or invalid' },
+                { status: 401 }
+            );
+        }
+
+        if (error?.response?.status === 403) {
+            return NextResponse.json(
+                { error: 'Forbidden', message: 'You do not have permission to create owners' },
+                { status: 403 }
+            );
+        }
+
+        if (error?.response?.status === 422) {
+            return NextResponse.json(
+                {
+                    error: 'Validation Error',
+                    message: error.response?.data?.message || 'Validation failed',
+                    details: error.response?.data?.errors || {},
+                },
+                { status: 422 }
+            );
+        }
+
+        return NextResponse.json(
+            {
+                error: 'Internal Server Error',
+                message: error instanceof Error ? error.message : 'Failed to create owner',
             },
             { status: 500 }
         );
