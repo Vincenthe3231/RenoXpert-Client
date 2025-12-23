@@ -1,7 +1,7 @@
 import React from 'react'
 import SocialButtons from './components/SocialButtons'
 import AuthLogin from './components/AuthLogin'
-import LeftSidebarPart from '../../auth/auth1/LeftSidebarPart'
+import LeftSidebarPart from './components/LeftSidebarPart'
 import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Side Login Authentication',

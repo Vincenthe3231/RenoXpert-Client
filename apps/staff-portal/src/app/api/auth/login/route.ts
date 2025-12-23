@@ -4,16 +4,16 @@ import { laravelApi, laravelRootApi } from '@/lib/api/axios'
 export async function POST(req: Request) {
     const body = await req.json()
 
-    // 1️⃣ Get CSRF cookie (required for Sanctum, harmless even if CSRF disabled)
+    // Get CSRF cookie (required for Sanctum, harmless even if CSRF disabled)
     await laravelRootApi.get('/sanctum/csrf-cookie')
 
-    // 2️⃣ Login
+    // Login
     const laravelRes = await laravelApi.post('/login', body)
 
-    // 3️⃣ Create response
+    // Create response
     const res = NextResponse.json(laravelRes.data)
 
-    // 4️⃣ FORWARD ALL COOKIES (THIS WAS MISSING / BROKEN)
+    // FORWARD ALL COOKIES (THIS WAS MISSING / BROKEN)
     const setCookies = laravelRes.headers['set-cookie']
 
     if (setCookies) {
