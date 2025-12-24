@@ -23,6 +23,7 @@ const buttonVariants = cva(
         warning: "bg-warning text-white hover:bg-warningemphasis",
         info: "bg-info text-white hover:bg-infoemphasis",
         error: "bg-error text-white hover:bg-erroremphasis",
+        gray: "bg-lightgray text-dark hover:bg-gray-600 hover:bg-lightgray/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         ghostprimary: "hover:bg-lightprimary hover:text-primary text-primary",
         ghostsecondary: "hover:bg-lightsecondary hover:text-secondary text-secondary",
@@ -30,6 +31,7 @@ const buttonVariants = cva(
         ghostwarning: "hover:bg-lightwarning hover:text-warning text-warning",
         ghosterror: "hover:bg-lighterror hover:text-error text-error",
         ghostinfo: "hover:bg-lightinfo hover:text-info text-info",
+        gradient: "bg-gradient-to-r from-primary to-role-super-admin text-primary-foreground shadow-md hover:shadow-lg hover:opacity-95",
         link: "text-primary underline-offset-4 hover:underline",
         lightprimary: "bg-lightprimary text-primary hover:bg-primary hover:text-white",
         lightsecondary: "bg-lightsecondary text-secondary hover:bg-secondary hover:text-white",
@@ -41,8 +43,10 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        xs: "h-6 rounded-md px-2 text-xs",
+        sm: "h-9 rounded-md px-3 text-sm",
+        md: "h-10 rounded-md px-4 text-base",
+        lg: "h-11 rounded-md px-8 text-lg",
         icon: "h-10 w-10",
       },
       shape: {

@@ -101,7 +101,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         name: "Users",
         icon: "solar:user-linear",
-        url: "/theme-pages/inetegration",
+        url: "/users",
       },
     ],
   },

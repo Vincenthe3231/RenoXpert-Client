@@ -3,18 +3,18 @@ import {
     LoginInputSchema,
     LoginResponseSchema,
     MeResponseSchema,
-    type User,
     type LoginInput,
+    Staff,
 } from './auth.schemas'
 
-export async function login(payload: LoginInput): Promise<User> {
+export async function login(payload: LoginInput): Promise<Staff> {
     LoginInputSchema.parse(payload)
 
     const { data } = await axios.post('/api/auth/login', payload)
     return LoginResponseSchema.parse(data).user
 }
 
-export async function getMe(): Promise<User | null> {
+export async function getMe(): Promise<Staff | null> {
     const { data } = await axios.get('/api/auth/me')
     return MeResponseSchema.parse(data).user
 }

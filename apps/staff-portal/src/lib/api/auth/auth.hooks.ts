@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { login, getMe, logout } from './auth'
-import type { User, LoginInput } from './auth.schemas'
+import type { Staff, LoginInput } from './auth.schemas'
 
 export const AUTH_QUERY_KEY = ['auth', 'me']
 
 export function useAuth() {
-    return useQuery<User | null>({
+    return useQuery<Staff | null>({
         queryKey: AUTH_QUERY_KEY,
         queryFn: getMe,
         retry: false,
@@ -16,7 +16,7 @@ export function useAuth() {
 export function useLogin() {
     const queryClient = useQueryClient()
 
-    return useMutation<User, Error, LoginInput>({
+    return useMutation<Staff, Error, LoginInput>({
         mutationFn: login,
         onSuccess: (user) => {
             queryClient.setQueryData(AUTH_QUERY_KEY, user)
