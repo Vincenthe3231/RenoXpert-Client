@@ -13,12 +13,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
-import { useLogout, useAuth } from '@/lib/api/auth'
+import { useLogout } from '@/lib/api/auth'
+import { useAuthContext } from '@/providers/AuthProvider'
 import { useRouter } from 'next/navigation'
 
 const Profile = () => {
   const { activeDir } = useContext(CustomizerContext)
-  const { data: user } = useAuth()
+  const { user } = useAuthContext()
   const router = useRouter()
   const logout = useLogout()
 

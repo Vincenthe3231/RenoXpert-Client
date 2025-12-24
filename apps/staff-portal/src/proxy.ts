@@ -19,7 +19,7 @@ const PUBLIC_ASSETS = [
 export async function proxy(req: NextRequest) {
     const { pathname } = req.nextUrl
 
-    // ✅ Allow Next.js internals
+    // Allow Next.js internals
     if (
         pathname.startsWith('/_next') ||
         pathname.startsWith('/static')
@@ -27,17 +27,17 @@ export async function proxy(req: NextRequest) {
         return NextResponse.next()
     }
 
-    // ✅ Allow public assets
+    // Allow public assets
     if (PUBLIC_ASSETS.some(path => pathname.startsWith(path))) {
         return NextResponse.next()
     }
 
-    // ✅ Allow public routes
+    // Allow public routes
     if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
         return NextResponse.next()
     }
 
-    // 🔐 Auth check
+    // Auth check
     const cookie = req.headers.get('cookie') ?? ''
 
     const res = await fetch(`${req.nextUrl.origin}/api/auth/me`, {
