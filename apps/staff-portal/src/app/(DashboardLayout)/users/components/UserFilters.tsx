@@ -25,8 +25,7 @@ const roleFilters: { label: string; value: UserRole | "all" }[] = [
     { label: "Staff", value: "staff" },
 ];
 
-const typeFilters: { label: string; value: UserType | "all" }[] = [
-    { label: "All", value: "all" },
+const typeFilters: { label: string; value: UserType }[] = [
     { label: "Staff", value: "staff" },
     { label: "Owner", value: "owner" },
 ];

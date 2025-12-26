@@ -5,16 +5,45 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
 import InputPlaceholderAnimate from '@/app/components/animatedComponents/AnimatedInputPlaceholder';
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import UserFilters from "./components/UserFilters";
+import { useUsers } from "@/lib/api/auth/auth.hooks";
+import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
+import UserTable from "./components/UserTable";
 
 const UsersPage = () => {
-    const [searchTerm, setSearchTerm] = useState('')
-    // const typeFromUrl = searchParams.get("type") as UserType | null;
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [typeFilter, setTypeFilter] = useState<string>("staff");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+    // Debounce search query to avoid excessive API calls
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500); // Wait 500ms after user stops typing
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Build filter params for the API
+    const filterParams = useMemo<GetUsersParams>(() => {
+        const params: GetUsersParams = {};
+
+        if (statusFilter !== "all") {
+            params.status = statusFilter as UserStatus;
+        }
+        // Always include type filter (defaults to "staff")
+        params.type = typeFilter as UserType;
+        if (debouncedSearchQuery.trim()) {
+            params.search = debouncedSearchQuery.trim();
+        }
+
+        return params;
+    }, [statusFilter, typeFilter, debouncedSearchQuery]);
+
+    const { data: usersData, isLoading, error } = useUsers(filterParams);
+    const users = usersData?.data ?? [];
 
     return (
         <div className="space-y-6">
@@ -33,7 +62,7 @@ const UsersPage = () => {
             </div>
 
             {/* Filters and Search */}
-            <Card className="">
+            <Card className="p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     {/* Status Filters */}
                     <div className="space-y-2">
@@ -67,12 +96,6 @@ const UsersPage = () => {
                             size={18}
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                         />
-                        {/* <Input
-                            placeholder="Search users..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        /> */}
                         <InputPlaceholderAnimate
                             value={searchQuery}
                             onChange={(val: string) => setSearchQuery(val)}
@@ -86,6 +109,47 @@ const UsersPage = () => {
                     </Button>
                 </div>
             </Card>
+
+            {/* Users Table */}
+            {isLoading ? (
+                <div className="space-y-4">
+                    <Skeleton className="h-14 rounded-xl" />
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <Skeleton key={i} className="h-16 rounded-lg" />
+                    ))}
+                </div>
+            ) : error ? (
+                <div className="rounded-xl bg-destructive/10 p-12 text-center">
+                    <p className="text-lg font-medium text-destructive">
+                        Failed to load users
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {error.message || "Please try again later"}
+                    </p>
+                </div>
+            ) : users.length > 0 ? (
+                <div className="rounded-xl bg-card shadow-card">
+                    <UserTable users={users} />
+                </div>
+            ) : (
+                <div className="rounded-xl bg-card p-12 text-center shadow-card">
+                    <p className="text-lg font-medium text-muted-foreground">
+                        No users found
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Try adjusting your filters or search query
+                    </p>
+                </div>
+            )}
+
+            {/* Pagination Info */}
+            {users.length > 0 && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>
+                        Showing {users.length} of {users?.length || 0} users
+                    </span>
+                </div>
+            )}
         </div>
     )
 }
