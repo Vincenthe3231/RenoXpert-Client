@@ -1,7 +1,7 @@
 'use client'
 import React, { Activity, useContext } from 'react'
-import Sidebar from './layout/vertical/sidebar/Sidebar'
-import Header from './layout/vertical/header/Header'
+import Sidebar from './layout/sidebar/Sidebar'
+import Header from './layout/header/Header'
 import { Customizer } from './layout/shared/customizer/Customizer'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -35,11 +35,10 @@ export default function Layout({
 
               {/* Body Content  */}
               <div
-                className={` ${
-                  isLayout == 'full'
-                    ? 'w-full py-[30px] md:px-[30px] px-5'
-                    : 'container py-[30px]'
-                } ${activeLayout == 'horizontal' ? 'xl:mt-3' : ''}
+                className={` ${isLayout == 'full'
+                  ? 'w-full py-[30px] md:px-[30px] px-5'
+                  : 'container py-[30px]'
+                  } ${activeLayout == 'horizontal' ? 'xl:mt-3' : ''}
             `}>
                 {children}
               </div>

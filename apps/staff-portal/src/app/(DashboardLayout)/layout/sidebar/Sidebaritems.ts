@@ -103,6 +103,12 @@ const SidebarContent: MenuItem[] = [
         icon: "solar:user-linear",
         url: "/users",
       },
+      {
+        id: uniqueId(),
+        name: "Onboarding",
+        icon: "solar:users-group-two-rounded-linear",
+        url: "/onboarding",
+      },
     ],
   },
 ];

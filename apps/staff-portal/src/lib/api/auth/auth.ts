@@ -4,10 +4,10 @@ import {
     LoginResponseSchema,
     MeResponseSchema,
     userListSchema,
-    type LoginInput,
-    type StaffUser,
-    type GetUsersParams,
-    type UserListResponse,
+    LoginInput,
+    StaffUser,
+    GetUsersParams,
+    UserListResponse,
 } from './auth.schemas'
 
 export async function login(payload: LoginInput): Promise<StaffUser> {

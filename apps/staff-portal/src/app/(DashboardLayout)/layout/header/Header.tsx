@@ -8,9 +8,9 @@ import AppLinks from './AppLinks'
 import Messages from './Messages'
 import Profile from './Profile'
 import { Language } from './Language'
-import FullLogo from '../../shared/logo/FullLogo'
+import FullLogo from '../shared/logo/FullLogo'
 import MobileHeaderItems from './MobileHeaderItems'
-import Sidebar from '@/app/(DashboardLayout)/layout/vertical/sidebar/Sidebar'
+import Sidebar from '@/app/(DashboardLayout)/layout/sidebar/Sidebar'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useSidebar } from '@/components/ui/sidebar'
@@ -21,7 +21,12 @@ interface HeaderPropsType {
 }
 
 const Header = ({ layoutType }: HeaderPropsType) => {
+  const [mounted, setMounted] = useState(false)
   const [isSticky, setIsSticky] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,15 +78,13 @@ const Header = ({ layoutType }: HeaderPropsType) => {
   return (
     <>
       <header
-        className={`sticky top-0 z-[2] ${
-          isSticky
-            ? 'bg-white dark:bg-dark shadow-md fixed w-full'
-            : 'bg-transparent'
-        }`}>
+        className={`sticky top-0 z-[2] ${isSticky
+          ? 'bg-white dark:bg-dark shadow-md fixed w-full'
+          : 'bg-transparent'
+          }`}>
         <nav
-          className={`px-2 dark:border-gray-700 rounded-none bg-transparent dark:bg-transparent py-4 sm:px-6 ${
-            layoutType == 'horizontal' ? 'container mx-auto' : ''
-          }  ${isLayout == 'full' ? '!max-w-full' : ''}`}>
+          className={`px-2 dark:border-gray-700 rounded-none bg-transparent dark:bg-transparent py-4 sm:px-6 ${layoutType == 'horizontal' ? 'container mx-auto' : ''
+            }  ${isLayout == 'full' ? '!max-w-full' : ''}`}>
           <div className='mx-auto flex flex-wrap items-center justify-between'>
             <span
               onClick={() => setOpenMobile(!openMobile)}
@@ -142,32 +145,33 @@ const Header = ({ layoutType }: HeaderPropsType) => {
             <div className='xl:!block !hidden md:!hidden'>
               <div className='flex gap-0 items-center'>
                 {/* Theme Toggle */}
-                {activeMode === 'light' ? (
-                  <div
-                    className=' hover:text-primary px-4 dark:hover:text-primary focus:ring-0 rounded-full flex justify-center items-center cursor-pointer text-link dark:text-darklink group relative'
-                    onClick={toggleMode}>
-                    <span className='flex items-center justify-center relative after:absolute after:w-10 after:h-10 after:rounded-full after:-top-1/2 group-hover:after:bg-lightprimary'>
-                      <Icon
-                        icon='tabler:moon'
-                        width='20'
+                {mounted && (
+                  activeMode === 'light' ? (
+                    <div
+                      className=' hover:text-primary px-4 dark:hover:text-primary focus:ring-0 rounded-full flex justify-center items-center cursor-pointer text-link dark:text-darklink group relative'
+                      onClick={toggleMode}>
+                      <span className='flex items-center justify-center relative after:absolute after:w-10 after:h-10 after:rounded-full after:-top-1/2 group-hover:after:bg-lightprimary'>
+                        <Icon
+                          icon='tabler:moon'
+                          width='20'
                         // className="text-link group-hover:text-primary"
-                      />
-                    </span>
-                  </div>
-                ) : (
-                  // Dark Mode Button
-                  <div
-                    className=' hover:text-primary px-4 dark:hover:text-primary focus:ring-0 rounded-full flex justify-center items-center cursor-pointer text-link dark:text-darklink group relative'
-                    onClick={toggleMode}>
-                    <span className='flex items-center justify-center relative after:absolute after:w-10 after:h-10 after:rounded-full after:-top-1/2  group-hover:after:bg-lightprimary'>
-                      <Icon
-                        icon='solar:sun-bold-duotone'
-                        width='20'
+                        />
+                      </span>
+                    </div>
+                  ) : (
+                    // Dark Mode Button
+                    <div
+                      className=' hover:text-primary px-4 dark:hover:text-primary focus:ring-0 rounded-full flex justify-center items-center cursor-pointer text-link dark:text-darklink group relative'
+                      onClick={toggleMode}>
+                      <span className='flex items-center justify-center relative after:absolute after:w-10 after:h-10 after:rounded-full after:-top-1/2  group-hover:after:bg-lightprimary'>
+                        <Icon
+                          icon='solar:sun-bold-duotone'
+                          width='20'
                         // className='group-hover:text-primary'
-                      />
-                    </span>
-                  </div>
-                )}
+                        />
+                      </span>
+                    </div>
+                  ))}
                 {/* Language Dropdown*/}
                 <Language />
 
