@@ -26,7 +26,7 @@ const baseUserSchema = {
 
 
 // Profile schemas (only extra fields)
-const staffProfileSchema = z.object({
+export const staffProfileSchema = z.object({
     larksuiteOpenId: z.string().nullable(),
     larksuiteUnionId: z.string().nullable(),
     avatarUrl: z.string().url().nullable(),
@@ -43,7 +43,7 @@ export const staffUserSchema = z.object({
 });
 
 
-const ownerProfileSchema = z.object({
+export const ownerProfileSchema = z.object({
     salutation: z.string().nullable(),
     ic: z.string().nullable(),
     address1: z.string().nullable(),

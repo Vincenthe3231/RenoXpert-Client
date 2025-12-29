@@ -1,8 +1,11 @@
+"use client"
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, CheckCircle2, Users } from "lucide-react";
+import { useOnboardings } from "@/lib/api/onboarding";
 
 const OnboardingPage = () => {
+    const { data: onboardingList, isLoading: isOnboardingLoading, error: onboardingError, isError: isOnboardingError, refetch: refetchOnboardingList } = useOnboardings();
     return (
         <div className="space-y-6">
             {/* Header */}

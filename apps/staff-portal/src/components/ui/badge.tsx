@@ -29,7 +29,7 @@ const badgeVariants = cva(
         lightWarning: 'bg-lightwarning text-warning border-0',
         destructive: 'border-transparent bg-destructive text-destructive-foreground',
         gray: 'bg-white dark:bg-darkmuted text-dark dark:text-white border-0',
-        lightgray: 'bg-lightgray dark:bg-darkmuted text-dark dark:text-white border-0',
+        lightGray: 'bg-lightgray dark:bg-darkmuted text-dark dark:text-white border-0',
         white: "bg-white dark:bg-darkmuted text-dark dark:text-white border-0",
         muted: "bg-lightgray dark:bg-darkmuted text-dark dark:text-white border-0",
       },
