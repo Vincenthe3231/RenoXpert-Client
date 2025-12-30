@@ -10,6 +10,5 @@ export function useOnboardings(params?: GetOnboardingParams) {
         queryFn: () => getOnboardings(params),
         placeholderData: keepPreviousData,
         staleTime: 30 * 1000, // 30 seconds
-        retry: false,
     })
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { staffUserSchema } from "../auth/auth.schemas";
+import { staffUserSchema, userSchema } from "../auth/auth.schemas";
 import { staffProfileSchema } from "../auth/auth.schemas";
 
 export const onboardingUserTypeSchema = z.enum(["staff", "owner", "vendor"]).nullable();
@@ -13,7 +13,8 @@ export const onboardingSchema = z.object({
     status: onboardingStatusSchema,
     assignedUserType: onboardingUserTypeSchema,
     rejectionReason: z.string().nullable(),
-    staff: staffProfileSchema.nullable(),
+    user: userSchema.nullable(),
+    createdAt: z.string().datetime().nullable(),
 });
 
 export const onboardingListSchema = z.object({
@@ -38,6 +39,12 @@ export const getOnboardingParamsSchema = z.object({
     perPage: z.number().optional(),
 });
 
+export const rejectOnboardingSchema = z.object({
+    rejectionReason: z.string().min(5, "Reason must be at least 5 characters").max(500),
+});
+
 export type Onboarding = z.infer<typeof onboardingSchema>;
 export type OnboardingListResponse = z.infer<typeof onboardingListSchema>;
 export type GetOnboardingParams = z.infer<typeof getOnboardingParamsSchema>;
+
+export type RejectOnboardingInput = z.infer<typeof rejectOnboardingSchema>;

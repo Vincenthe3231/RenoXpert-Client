@@ -1,8 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { UserStatus, UserType, StaffRole } from "@/lib/api/auth/auth.schemas";
-
-type UserRole = StaffRole;
+import { UserStatus, UserType, StaffType } from "@/lib/api/auth/auth.schemas";
 
 interface UserFiltersProps {
     activeFilter: string;
@@ -18,7 +16,7 @@ const statusFilters: { label: string; value: UserStatus | "all" }[] = [
     { label: "Rejected", value: "rejected" },
 ];
 
-const roleFilters: { label: string; value: UserRole | "all" }[] = [
+const roleFilters: { label: string; value: StaffType | "all" }[] = [
     { label: "All", value: "all" },
     { label: "Super Admin", value: "super-admin" },
     { label: "Admin", value: "admin" },

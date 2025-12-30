@@ -2,9 +2,8 @@ import { z } from 'zod'
 
 // User Types
 export type UserType = "staff" | "owner";
-export type StaffRole = "super-admin" | "admin" | "staff";
-export type OwnerRole = "owner";
-export type UserRole = StaffRole | OwnerRole;
+export type StaffType = "super-admin" | "admin" | "staff";
+export type OwnerType = "owner";
 export type UserStatus = "active" | "deactivated" | "verifying" | "rejected";
 
 // Zod Schemas

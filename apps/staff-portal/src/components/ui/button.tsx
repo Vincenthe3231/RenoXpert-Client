@@ -50,7 +50,14 @@ const buttonVariants = cva(
         icon: "h-10 w-10",
       },
       shape: {
-        pill: "rounded-full"
+        pill: "rounded-full",
+        square: "rounded-none",
+        rounded: "rounded-md",
+        roundedLg: "rounded-lg",
+        roundedXl: "rounded-xl",
+        rounded2xl: "rounded-2xl",
+        rounded3xl: "rounded-3xl",
+        rounded4xl: "rounded-4xl",
       }
     },
     defaultVariants: {

@@ -1,5 +1,5 @@
 import axios from "axios"
-import { GetOnboardingParams, OnboardingListResponse, onboardingListSchema } from "."
+import { GetOnboardingParams, Onboarding, OnboardingListResponse, onboardingListSchema, onboardingSchema } from "."
 
 export async function getOnboardings(params?: GetOnboardingParams): Promise<OnboardingListResponse> {
     const { data } = await axios.get('/api/onboarding', { params })
@@ -10,4 +10,16 @@ export async function getOnboardings(params?: GetOnboardingParams): Promise<Onbo
         throw new Error(`Invalid onboarding data: ${result.error.message}`)
     }
     return result.data
+}
+
+// Approval
+export async function onboardingApproval(onboardingId: number, userType: string): Promise<Onboarding> {
+    const { data } = await axios.post(`/api/onboarding/${onboardingId}/approval`, { userType });
+    return onboardingSchema.parse(data);
+}
+
+// Rejection
+export async function onboardingRejection(onboardingId: number, reason: string): Promise<Onboarding> {
+    const { data } = await axios.post(`/api/onboarding/${onboardingId}/rejection`, { reason });
+    return onboardingSchema.parse(data);
 }
