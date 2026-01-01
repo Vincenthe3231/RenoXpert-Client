@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { staffUserSchema, userSchema } from "../auth/auth.schemas";
 import { staffProfileSchema } from "../auth/auth.schemas";
+import { staffRoleSchema } from "../auth/auth.schemas";
 
 export const onboardingUserTypeSchema = z.enum(["staff", "owner", "vendor"]).nullable();
 export const onboardingStatusSchema = z.enum(["pending", "approved", "rejected"]).nullable();
@@ -11,7 +12,7 @@ export const onboardingSchema = z.object({
     reviewedBy: z.number().nullable(),
     reviewedAt: z.string().nullable(),
     status: onboardingStatusSchema,
-    assignedUserType: onboardingUserTypeSchema,
+    assignedUserType: staffRoleSchema,
     rejectionReason: z.string().nullable(),
     user: userSchema.nullable(),
     createdAt: z.string().datetime().nullable(),
@@ -39,6 +40,10 @@ export const getOnboardingParamsSchema = z.object({
     perPage: z.number().optional(),
 });
 
+export const approveOnboardingSchema = z.object({
+    staffType: staffRoleSchema,
+});
+
 export const rejectOnboardingSchema = z.object({
     rejectionReason: z.string().min(5, "Reason must be at least 5 characters").max(500),
 });
@@ -46,5 +51,5 @@ export const rejectOnboardingSchema = z.object({
 export type Onboarding = z.infer<typeof onboardingSchema>;
 export type OnboardingListResponse = z.infer<typeof onboardingListSchema>;
 export type GetOnboardingParams = z.infer<typeof getOnboardingParamsSchema>;
-
+export type ApproveOnboardingInput = z.infer<typeof approveOnboardingSchema>;
 export type RejectOnboardingInput = z.infer<typeof rejectOnboardingSchema>;

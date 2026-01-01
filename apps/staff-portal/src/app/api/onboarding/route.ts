@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
         params.per_page = perPage
     }
 
+    // Filter for pending status - let Laravel backend handle the filtering
+    params.filter = { status: 'pending' }
+
     try {
         const { data } = await laravelApi.get('/onboarding', {
             headers: { cookie },

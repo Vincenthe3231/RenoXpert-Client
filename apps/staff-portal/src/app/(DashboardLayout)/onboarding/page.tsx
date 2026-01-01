@@ -8,10 +8,12 @@ import { useState } from "react";
 import RejectDialog from "./components/RejectDialog";
 import { StaffType, StaffUser } from "@/lib/api/auth";
 import ApproveDialog from "./components/ApproveDialog";
+import { useApproveOnboarding } from "@/lib/api/onboarding/onboarding.hooks";
 
 const OnboardingPage = () => {
     const { data: onboardingListData, isLoading, error } = useOnboardings();
     const onboardingList = onboardingListData?.data ?? [];
+    const approveOnboarding = useApproveOnboarding();
 
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -36,8 +38,10 @@ const OnboardingPage = () => {
         console.log(onboardingId, reason);
     };
 
-    const handleApproveConfirm = (onboardingId: number, staffType: StaffType) => {
-        console.log(onboardingId, staffType);
+    const handleApproveConfirm = async (onboardingId: number, staffType: StaffType) => {
+        await approveOnboarding.mutateAsync({ onboardingId, staffType });
+        setApproveDialogOpen(false);
+        setSelectedOnboarding(null);
     };
 
     return (

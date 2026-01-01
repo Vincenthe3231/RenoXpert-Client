@@ -33,7 +33,7 @@ const page = () => {
                     <div className="space-y-2">
                         <p><strong>Email:</strong> {user.email}</p>
                         <p><strong>User ID:</strong> {user.id}</p>
-                        {user.larksuite_open_id && (
+                        {/* {user.larksuite_open_id && (
                             <p><strong>LarkSuite Open ID:</strong> {user.larksuite_open_id}</p>
                         )}
                         {user.larksuite_union_id && (
@@ -41,7 +41,7 @@ const page = () => {
                         )}
                         {user.email_verified_at && (
                             <p><strong>Email Verified:</strong> {new Date(user.email_verified_at).toLocaleDateString()}</p>
-                        )}
+                        )} */}
                     </div>
                     <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                         <p className="text-green-800 dark:text-green-200">

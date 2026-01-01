@@ -1,5 +1,5 @@
 import axios from "axios"
-import { GetOnboardingParams, Onboarding, OnboardingListResponse, onboardingListSchema, onboardingSchema } from "."
+import { GetOnboardingParams, Onboarding, OnboardingListResponse, approveOnboardingSchema, onboardingListSchema, onboardingSchema } from "."
 
 export async function getOnboardings(params?: GetOnboardingParams): Promise<OnboardingListResponse> {
     const { data } = await axios.get('/api/onboarding', { params })
@@ -13,10 +13,10 @@ export async function getOnboardings(params?: GetOnboardingParams): Promise<Onbo
 }
 
 // Approval
-export async function onboardingApproval(onboardingId: number, userType: string): Promise<Onboarding> {
-    const { data } = await axios.post(`/api/onboarding/${onboardingId}/approval`, { userType });
+export async function onboardingApproval(onboardingId: number, staffType: string) {
+    const { data } = await axios.post(`/api/onboarding/${onboardingId}/approval`, { staffType });
     return onboardingSchema.parse(data);
-}
+  }
 
 // Rejection
 export async function onboardingRejection(onboardingId: number, reason: string): Promise<Onboarding> {
