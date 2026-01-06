@@ -12,7 +12,7 @@ export const onboardingSchema = z.object({
     reviewedBy: z.number().nullable(),
     reviewedAt: z.string().nullable(),
     status: onboardingStatusSchema,
-    assignedUserType: staffRoleSchema,
+    assignedUserType: staffRoleSchema.nullable(),
     rejectionReason: z.string().nullable(),
     user: userSchema.nullable(),
     createdAt: z.string().datetime().nullable(),
