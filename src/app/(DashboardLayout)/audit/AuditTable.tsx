@@ -16,7 +16,7 @@ interface AuditTableProps {
 
 const AuditTable = ({ decisions, isLoading, getReviewerName, getInitials }: AuditTableProps) => {
   return (
-    <Card className="shadow-card">
+    <Card className="shadow-card rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <History className="w-5 h-5" />
@@ -48,7 +48,10 @@ const AuditTable = ({ decisions, isLoading, getReviewerName, getInitials }: Audi
               </TableHeader>
               <TableBody>
                 {decisions.map((decision) => (
-                  <TableRow key={decision.id}>
+                  <TableRow 
+                    key={decision.id}
+                    className="transition-all duration-200 ease-in-out hover:bg-muted/50 hover:-translate-y-0.5 cursor-pointer"
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
@@ -71,13 +74,19 @@ const AuditTable = ({ decisions, isLoading, getReviewerName, getInitials }: Audi
                     </TableCell>
                     <TableCell>
                       {decision.status === "approved" ? (
-                        <Badge className="bg-success/10 text-success hover:bg-success/20 border-0">
-                          <CheckCircle className="w-3 h-3 mr-1" />
+                        <Badge 
+                          variant="outline"
+                          className="gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                        >
+                          <CheckCircle size={12} />
                           Approved
                         </Badge>
                       ) : (
-                        <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-0">
-                          <XCircle className="w-3 h-3 mr-1" />
+                        <Badge 
+                          variant="outline"
+                          className="gap-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                        >
+                          <XCircle size={12} />
                           Rejected
                         </Badge>
                       )}

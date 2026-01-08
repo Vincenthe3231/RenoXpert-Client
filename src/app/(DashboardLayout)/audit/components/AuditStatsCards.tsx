@@ -10,10 +10,10 @@ interface AuditStatsCardsProps {
 const AuditStatsCards = ({ totalDecisions, approvedCount, rejectedCount }: AuditStatsCardsProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card>
+      <Card className="group shadow-card rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
               <History className="w-6 h-6 text-primary" />
             </div>
             <div>
@@ -23,10 +23,10 @@ const AuditStatsCards = ({ totalDecisions, approvedCount, rejectedCount }: Audit
           </div>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="group shadow-card rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
               <CheckCircle className="w-6 h-6 text-success" />
             </div>
             <div>
@@ -36,10 +36,10 @@ const AuditStatsCards = ({ totalDecisions, approvedCount, rejectedCount }: Audit
           </div>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="group shadow-card rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
               <XCircle className="w-6 h-6 text-destructive" />
             </div>
             <div>

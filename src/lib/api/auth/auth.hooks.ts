@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { login, getMe, logout, getUsers } from './auth'
+import { login, getMe, logout, getUsers, getUser } from './auth'
 import type {
     StaffUser,
     LoginInput,
     GetUsersParams,
     UserListResponse,
+    User,
 } from './auth.schemas'
 
 export const AUTH_QUERY_KEY = ['auth', 'me']
@@ -46,6 +47,15 @@ export function useUsers(params?: GetUsersParams) {
         queryKey: [...USERS_QUERY_KEY, params],
         queryFn: () => getUsers(params),
         placeholderData: keepPreviousData,
+        staleTime: 30 * 1000, // 30 seconds
+    })
+}
+
+export function useUser(uuid: string | null) {
+    return useQuery<User | null>({
+        queryKey: ['user', uuid],
+        queryFn: () => uuid ? getUser(uuid) : null,
+        enabled: !!uuid,
         staleTime: 30 * 1000, // 30 seconds
     })
 }

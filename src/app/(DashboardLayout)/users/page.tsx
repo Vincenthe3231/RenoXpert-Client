@@ -62,7 +62,7 @@ const UsersPage = () => {
             </div>
 
             {/* Filters and Search */}
-            <Card className="p-5">
+            <Card className="p-5 rounded-full">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     {/* Status Filters */}
                     <div className="space-y-2">
@@ -128,11 +128,11 @@ const UsersPage = () => {
                     </p>
                 </div>
             ) : users.length > 0 ? (
-                <div className="rounded-xl bg-card shadow-card">
+                <div className="rounded-full bg-card shadow-card">
                     <UserTable users={users} />
                 </div>
             ) : (
-                <div className="rounded-xl bg-card p-12 text-center shadow-card">
+                <div className="rounded-full bg-card p-12 text-center shadow-card">
                     <p className="text-lg font-medium text-muted-foreground">
                         No users found
                     </p>

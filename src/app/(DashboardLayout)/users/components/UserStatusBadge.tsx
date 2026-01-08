@@ -8,26 +8,30 @@ interface UserStatusBadgeProps {
 
 const statusConfig: Record<
     UserStatus,
-    { label: string; variant: "lightSuccess" | "lightWarning" | "lightGray" | "lightError"; icon: React.ReactNode }
+    { 
+        label: string; 
+        className: string;
+        icon: React.ReactNode;
+    }
 > = {
     active: {
         label: "Active",
-        variant: "lightSuccess",
+        className: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
         icon: <CheckCircle size={12} />,
     },
     verifying: {
         label: "Verifying",
-        variant: "lightWarning",
+        className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
         icon: <Clock size={12} />,
     },
     deactivated: {
         label: "Deactivated",
-        variant: "lightGray",
+        className: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
         icon: <Ban size={12} />,
     },
     rejected: {
         label: "Rejected",
-        variant: "lightError",
+        className: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
         icon: <XCircle size={12} />,
     },
 };
@@ -36,7 +40,7 @@ const UserStatusBadge = ({ status }: UserStatusBadgeProps) => {
     const config = statusConfig[status];
 
     return (
-        <Badge variant={config.variant} className="gap-1">
+        <Badge variant="outline" className={`gap-1 ${config.className}`}>
             {config.icon}
             {config.label}
         </Badge>

@@ -16,6 +16,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import UserStatusBadge from "./UserStatusBadge";
+import RoleBadge from "./RoleBadge";
+import UserDetailsDialog from "./UserDetailsDialog";
 import { cn } from "@/lib/utils";
 import { User, StaffUser, OwnerUser, VendorUser } from "@/lib/api/auth/auth.schemas";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +110,7 @@ const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User
                         <TableCell>
                             <div className="flex flex-wrap gap-1">
                                 {user.profile.roles.map((role) => (
-                                    <Badge key={role} variant="outline" className="text-xs capitalize">
-                                        {role}
-                                    </Badge>
+                                    <RoleBadge key={role} role={role} />
                                 ))}
                             </div>
                         </TableCell>
@@ -132,7 +132,7 @@ const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User
 
 // Owner Users Table
 const OwnerTable = ({ users, onView }: { users: OwnerUser[]; onView: (user: User) => void }) => (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+    <div className="rounded-full border border-border bg-card shadow-card overflow-hidden">
         <Table>
             <TableHeader>
                 <TableRow className="bg-muted/5 hover:bg-muted/10">
@@ -208,7 +208,7 @@ const OwnerTable = ({ users, onView }: { users: OwnerUser[]; onView: (user: User
 
 // Vendor Users Table
 const VendorTable = ({ users, onView }: { users: VendorUser[]; onView: (user: User) => void }) => (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+    <div className="rounded-full border border-border bg-card shadow-card overflow-hidden">
         <Table>
             <TableHeader>
                 <TableRow className="bg-muted/5 hover:bg-muted/10">
@@ -254,11 +254,11 @@ const VendorTable = ({ users, onView }: { users: VendorUser[]; onView: (user: Us
 );
 
 const UserTable = ({ users, onViewUser }: UserTableProps) => {
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
     const handleViewDetails = (user: User) => {
-        setSelectedUser(user);
+        setSelectedUserId(user.uuid);
         setDetailsOpen(true);
         onViewUser?.(user);
     };
@@ -269,17 +269,25 @@ const UserTable = ({ users, onViewUser }: UserTableProps) => {
     const vendorUsers = users.filter(isVendorUser);
 
     return (
-        <div className="space-y-6">
-            {staffUsers.length > 0 && (
-                <StaffTable users={staffUsers} onView={handleViewDetails} />
-            )}
-            {ownerUsers.length > 0 && (
-                <OwnerTable users={ownerUsers} onView={handleViewDetails} />
-            )}
-            {vendorUsers.length > 0 && (
-                <VendorTable users={vendorUsers} onView={handleViewDetails} />
-            )}
-        </div>
+        <>
+            <div className="space-y-6">
+                {staffUsers.length > 0 && (
+                    <StaffTable users={staffUsers} onView={handleViewDetails} />
+                )}
+                {ownerUsers.length > 0 && (
+                    <OwnerTable users={ownerUsers} onView={handleViewDetails} />
+                )}
+                {vendorUsers.length > 0 && (
+                    <VendorTable users={vendorUsers} onView={handleViewDetails} />
+                )}
+            </div>
+            
+            <UserDetailsDialog
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                userId={selectedUserId}
+            />
+        </>
     );
 };
 
