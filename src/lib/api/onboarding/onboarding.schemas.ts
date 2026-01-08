@@ -16,6 +16,7 @@ export const onboardingSchema = z.object({
     rejectionReason: z.string().nullable(),
     user: userSchema.nullable(),
     createdAt: z.string().datetime().nullable(),
+    updatedAt: z.string().datetime().nullable(),
 });
 
 export const onboardingListSchema = z.object({
@@ -38,6 +39,7 @@ export const getOnboardingParamsSchema = z.object({
     search: z.string().optional(),
     page: z.number().optional(),
     perPage: z.number().optional(),
+    status: onboardingStatusSchema.optional(),
 });
 
 export const approveOnboardingSchema = z.object({

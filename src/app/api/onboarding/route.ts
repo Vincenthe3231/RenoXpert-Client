@@ -21,8 +21,11 @@ export async function GET(request: NextRequest) {
         params.per_page = perPage
     }
 
-    // Filter for pending status - let Laravel backend handle the filtering
-    params.filter = { status: 'pending' }
+    // Filter by status if provided, otherwise get all
+    const status = searchParams.get('status')
+    if (status) {
+        params.filter = { status }
+    }
 
     try {
         const { data } = await laravelApi.get('/onboarding', {

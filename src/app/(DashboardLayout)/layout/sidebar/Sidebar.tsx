@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useContext } from 'react'
+import React, { useContext, useState, useEffect } from 'react'
 import SidebarData from './Sidebaritems'
 import NavItems from './NavItems'
 import NavCollapse from './NavCollapse'
@@ -10,7 +10,7 @@ import { Icon } from '@iconify/react'
 import Image from 'next/image'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
 import { useRouter } from 'next/navigation'
-import { useLogout } from '@/lib/api/auth'
+import { useLogout, useAuth } from '@/lib/api/auth'
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +31,63 @@ const SidebarLayout = () => {
   const { isCollapse, activeDir } = useContext(CustomizerContext)
   const router = useRouter()
   const logout = useLogout()
+  const { data: user } = useAuth()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Helper function to check if user has required role
+  const hasRequiredRole = (requiredRole: 'super-admin' | 'admin' | 'staff' | undefined): boolean => {
+    // If no role requirement, everyone can see it
+    if (!requiredRole) return true
+
+    const userRoles = user?.profile?.roles || []
+    
+    // Normalize roles for comparison
+    const normalizedUserRoles = userRoles.map(role => 
+      role.toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-')
+    )
+    const normalizedRequired = requiredRole.toLowerCase()
+
+    // Check if user has the exact role
+    if (normalizedUserRoles.includes(normalizedRequired)) {
+      return true
+    }
+
+    // Super admin can access everything
+    if (normalizedUserRoles.some(role => 
+      role === 'super-admin' || 
+      role === 'superadmin' ||
+      role === 'super_admin'
+    )) {
+      return true
+    }
+
+    // Admin can access admin and staff level items
+    if (normalizedRequired === 'admin' || normalizedRequired === 'staff') {
+      if (normalizedUserRoles.includes('admin')) {
+        return true
+      }
+    }
+
+    // Staff can only access staff level items
+    if (normalizedRequired === 'staff') {
+      if (normalizedUserRoles.includes('staff')) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // Filter sidebar items based on user role
+  const filteredSidebarData = SidebarData.map(item => ({
+    ...item,
+    children: item.children?.filter(child => hasRequiredRole(child.requiredRole))
+  }))
+
   return (
     <>
       <div className='flex'>
@@ -41,7 +98,7 @@ const SidebarLayout = () => {
           <SidebarHeader className='p-0'>
             <div
               className={`${
-                isCollapse === 'full-sidebar' ? 'px-6' : 'px-5'
+                mounted && isCollapse === 'full-sidebar' ? 'px-6' : 'px-5'
               } flex items-center brand-logo overflow-hidden`}>
               <FullLogo />
             </div>
@@ -49,9 +106,9 @@ const SidebarLayout = () => {
 
           <SimpleBar className='h-[calc(100vh_-_180px)]'>
             <SidebarContent
-              className={`${isCollapse === 'full-sidebar' ? 'px-6' : 'px-4'}`}>
+              className={`${mounted && isCollapse === 'full-sidebar' ? 'px-6' : 'px-4'}`}>
               <SidebarGroup className='sidebar-nav p-0'>
-                {SidebarData.map((item, index) => (
+                {filteredSidebarData.map((item, index) => (
                   <React.Fragment key={index}>
                     <SidebarGroupLabel className='px-0 caption'>
                       <h5 className='text-link font-bold text-xs dark:text-darklink '>
@@ -89,11 +146,11 @@ const SidebarLayout = () => {
           <SidebarFooter>
             <div
               className={` my-4 ${
-                isCollapse === 'full-sidebar' ? 'mx-6' : 'mx-0.5'
+                mounted && isCollapse === 'full-sidebar' ? 'mx-6' : 'mx-0.5'
               }`}>
               <div
                 className={` py-4 ${
-                  isCollapse === 'full-sidebar' ? 'px-4' : 'px-2'
+                  mounted && isCollapse === 'full-sidebar' ? 'px-4' : 'px-2'
                 } bg-lightsecondary rounded-md overflow-hidden`}>
                 <div className='flex justify-between items-center'>
                   <div className='flex gap-4 items-center'>

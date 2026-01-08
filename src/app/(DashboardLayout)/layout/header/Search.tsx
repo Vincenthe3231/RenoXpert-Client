@@ -12,7 +12,9 @@ import {
   Dialog,
   DialogContent,
   DialogTrigger,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 const Search = () => {
   const [openModal, setOpenModal] = useState(false);
@@ -26,13 +28,16 @@ const Search = () => {
   );
 
   return (
-    <Dialog open={openModal} onOpenChange={setOpenModal}>
+    <Dialog open={openModal} onOpenChange={setOpenModal} modal={false}>
       <DialogTrigger asChild>
         <button className="px-[15px] hover:text-primary text-link dark:text-darklink dark:hover:text-primary relative after:absolute after:w-10 after:h-10 after:rounded-full hover:after:bg-lightprimary  after:bg-transparent rounded-full flex justify-center items-center cursor-pointer">
           <Icon icon="solar:magnifer-line-duotone" height={20} />
         </button>
       </DialogTrigger>
       <DialogContent className="w-full max-w-2xl p-0 gap-0 [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>Search</DialogTitle>
+        </VisuallyHidden>
         <div className=" p-6 border-b border-ld">
           <InputPlaceholderAnimate
             value={searchLink}

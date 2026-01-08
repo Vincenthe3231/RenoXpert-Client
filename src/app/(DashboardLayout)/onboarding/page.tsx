@@ -11,7 +11,7 @@ import ApproveDialog from "./components/ApproveDialog";
 import { useApproveOnboarding } from "@/lib/api/onboarding/onboarding.hooks";
 
 const OnboardingPage = () => {
-    const { data: onboardingListData, isLoading, error } = useOnboardings();
+    const { data: onboardingListData, isLoading, error } = useOnboardings({ status: 'pending' });
     const onboardingList = onboardingListData?.data ?? [];
     const approveOnboarding = useApproveOnboarding();
 
