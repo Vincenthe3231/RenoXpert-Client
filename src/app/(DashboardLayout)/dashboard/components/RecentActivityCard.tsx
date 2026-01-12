@@ -61,7 +61,7 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
 
   return (
     <Card className="shadow-card lg:col-span-2 rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
-      <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
         <div>
           <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
           <CardDescription className="text-sm text-muted-foreground mt-1">

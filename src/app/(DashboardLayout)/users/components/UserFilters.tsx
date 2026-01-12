@@ -94,7 +94,7 @@ const UserFilters = ({
                     case "verifying":
                         return "bg-lightwarning text-warning hover:bg-lightwarning/80 border-warning/20";
                     case "deactivated":
-                        return "bg-purple-500/10 text-purple-500 hover:bg-disabled border-purple-500/30";
+                        return "bg-pink-500/10 text-pink-500/90 hover:bg-disabled border-pink-500/30";
                     case "rejected":
                         return "bg-lighterror text-error hover:bg-lighterror/80 border-error/20";
                     default:

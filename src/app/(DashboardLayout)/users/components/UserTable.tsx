@@ -132,7 +132,7 @@ const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User
 
 // Owner Users Table
 const OwnerTable = ({ users, onView }: { users: OwnerUser[]; onView: (user: User) => void }) => (
-    <div className="rounded-full border border-border bg-card shadow-card overflow-hidden">
+    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
         <Table>
             <TableHeader>
                 <TableRow className="bg-muted/5 hover:bg-muted/10">

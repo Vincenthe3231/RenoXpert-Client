@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useContext } from 'react'
 import { Icon } from '@iconify/react'
-import Search from './Search'
 import Messages from './Messages'
 import Profile from './Profile'
 import FullLogo from '../shared/logo/FullLogo'
@@ -111,8 +110,6 @@ const Header = ({ layoutType }: HeaderPropsType) => {
                     <Icon icon='tabler:menu-2' height={20} />
                   </span>
                 ) : null}
-
-                <Search />
               </div>
             </div>
             {/* mobile-logo */}

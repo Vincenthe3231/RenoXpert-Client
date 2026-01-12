@@ -3,6 +3,7 @@ import React, { Activity, useContext } from 'react'
 import Sidebar from './layout/sidebar/Sidebar'
 import Header from './layout/header/Header'
 import { Customizer } from './layout/shared/customizer/Customizer'
+import CommandPalette from './layout/shared/CommandPalette/CommandPalette'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
 import { SidebarProvider } from '@/components/ui/sidebar'
 
@@ -43,6 +44,7 @@ export default function Layout({
                 {children}
               </div>
               <Customizer />
+              <CommandPalette />
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, History, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { Onboarding } from "@/lib/api/onboarding"
 import AuditEmptyState from "./components/AuditEmptyState"
+import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 
 interface AuditTableProps {
   decisions: Onboarding[]
@@ -32,7 +33,7 @@ const AuditTable = ({ decisions, isLoading, getReviewerName, getInitials }: Audi
         ) : decisions.length === 0 ? (
           <AuditEmptyState />
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-md border border-border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -93,7 +94,7 @@ const AuditTable = ({ decisions, isLoading, getReviewerName, getInitials }: Audi
                     </TableCell>
                     <TableCell>
                       {decision.assignedUserType ? (
-                        <Badge variant="outline" className="capitalize">{decision.assignedUserType}</Badge>
+                        <RoleBadge role={decision.assignedUserType} />
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>
                       )}

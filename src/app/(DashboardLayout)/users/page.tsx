@@ -90,7 +90,7 @@ const UsersPage = () => {
                 </div>
 
                 {/* Search and Actions */}
-                <div className="mt-4 flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative flex-1 sm:max-w-xs">
                         <Search
                             size={18}

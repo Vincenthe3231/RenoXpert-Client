@@ -47,7 +47,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProp
         ) : user ? (
           <div className="space-y-6">
             {/* Profile Header */}
-            <div className="flex items-start gap-4 border-b pb-6">
+            <div className="flex items-start gap-4 border-b border-border pb-6">
               <Avatar className="h-20 w-20">
                 <AvatarImage src={
                   user.userType === 'staff' 
@@ -184,7 +184,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProp
             )}
 
             {/* Common Info */}
-            <div className="border-t pt-4">
+            <div className="border-t border-border pt-4">
               <h4 className="font-semibold mb-3 text-sm text-muted-foreground uppercase">Account Information</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>

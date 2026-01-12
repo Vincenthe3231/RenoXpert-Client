@@ -9,8 +9,8 @@ import FullLogo from '../shared/logo/FullLogo'
 import { Icon } from '@iconify/react'
 import Image from 'next/image'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
-import { useRouter } from 'next/navigation'
-import { useLogout, useAuth } from '@/lib/api/auth'
+import { useAuth } from '@/lib/api/auth'
+import LogoutDialog from '../shared/LogoutDialog/LogoutDialog'
 import {
   Sidebar,
   SidebarContent,
@@ -29,10 +29,34 @@ import {
 
 const SidebarLayout = () => {
   const { isCollapse, activeDir } = useContext(CustomizerContext)
-  const router = useRouter()
-  const logout = useLogout()
   const { data: user } = useAuth()
   const [mounted, setMounted] = useState(false)
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+
+  // Check for unsaved work (hardcoded for UX simulation)
+  // TODO: Replace with actual unsaved work detection logic
+  const checkForUnsavedWork = () => {
+    return [
+      {
+        id: 1,
+        name: "Project_Financial_Report_Q4.pdf",
+        type: "Document",
+        modifiedAt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+      },
+      {
+        id: 2,
+        name: "User_Persona_Research.sketch",
+        type: "Design",
+        modifiedAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+      },
+      {
+        id: 3,
+        name: "Marketing_Strategy_Notes.txt",
+        type: "Text",
+        modifiedAt: new Date(Date.now() - 30 * 1000), // 30 seconds ago
+      },
+    ]
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -172,12 +196,9 @@ const SidebarLayout = () => {
                     <TooltipTrigger asChild>
                       <div
                         className='cursor-pointer'
-                        onClick={async () => {
-                          try {
-                            await logout.mutateAsync()
-                          } finally {
-                            router.push('/login')
-                          }
+                        onClick={() => {
+                          // Open logout dialog (checkForUnsavedWork is called in LogoutDialog)
+                          setLogoutDialogOpen(true)
                         }}>
                         <Icon
                           icon='tabler:power'
@@ -195,6 +216,11 @@ const SidebarLayout = () => {
           </SidebarFooter>
         </Sidebar>
       </div>
+      <LogoutDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        unsavedWork={checkForUnsavedWork()}
+      />
     </>
   )
 }
