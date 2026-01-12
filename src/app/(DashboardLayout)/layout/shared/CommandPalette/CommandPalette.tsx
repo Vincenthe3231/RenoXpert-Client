@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useContext } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
   CommandDialog,
@@ -22,6 +22,8 @@ import {
   User,
   LogOut,
   PanelLeftClose,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '@/lib/api/auth'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
@@ -52,10 +54,14 @@ const CommandPalette = () => {
   const [open, setOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const { data: user } = useAuth()
   const { isCollapse, setIsCollapse } = useContext(CustomizerContext)
+  
+  // Check if we're on the users page
+  const isUsersPage = pathname === '/users'
 
   // Ensure theme is mounted to avoid hydration issues
   useEffect(() => {
@@ -114,7 +120,7 @@ const CommandPalette = () => {
             id: 'dashboard',
             label: 'Go to Dashboard',
             icon: Layout,
-            shortcut: 'D',
+            shortcut: 'Ctrl + Alt + D',
             action: () => {
               router.push('/dashboard')
               setOpen(false)
@@ -124,7 +130,7 @@ const CommandPalette = () => {
             id: 'users',
             label: 'Manage Users',
             icon: Users,
-            shortcut: 'U',
+            shortcut: 'Ctrl + Alt + U',
             action: () => {
               router.push('/users')
               setOpen(false)
@@ -135,7 +141,7 @@ const CommandPalette = () => {
             id: 'onboarding',
             label: 'Review Onboarding',
             icon: FileCheck,
-            shortcut: 'O',
+            shortcut: 'Ctrl + Alt + O',
             action: () => {
               router.push('/onboarding')
               setOpen(false)
@@ -146,7 +152,7 @@ const CommandPalette = () => {
             id: 'audit',
             label: 'View Decision History',
             icon: History,
-            shortcut: 'A',
+            shortcut: 'Ctrl + Alt + A',
             action: () => {
               router.push('/audit')
               setOpen(false)
@@ -221,6 +227,31 @@ const CommandPalette = () => {
               setOpen(false)
             },
           },
+          // Filter navigation commands - only show on /users page
+          ...(isUsersPage ? [
+            {
+              id: 'filter-prev',
+              label: 'Previous Filter',
+              icon: ChevronLeft,
+              shortcut: 'A',
+              action: () => {
+                setOpen(false)
+                // Dispatch custom event for filter navigation
+                window.dispatchEvent(new CustomEvent('filter-nav-prev'))
+              },
+            },
+            {
+              id: 'filter-next',
+              label: 'Next Filter',
+              icon: ChevronRight,
+              shortcut: 'D',
+              action: () => {
+                setOpen(false)
+                // Dispatch custom event for filter navigation
+                window.dispatchEvent(new CustomEvent('filter-nav-next'))
+              },
+            },
+          ] : []),
         ],
       },
     ]
@@ -235,7 +266,7 @@ const CommandPalette = () => {
         return true
       })
     })).filter(category => category.commands.length > 0)
-  }, [router, theme, setTheme, mounted, isSuperAdmin, isCollapse, setIsCollapse])
+  }, [router, theme, setTheme, mounted, isSuperAdmin, isCollapse, setIsCollapse, isUsersPage])
 
   // Global theme toggle shortcut (Ctrl + Alt + T / Cmd + Option + T)
   // This works globally, even when the command palette is closed
@@ -299,6 +330,57 @@ const CommandPalette = () => {
     window.addEventListener('keydown', handleSidebarToggle)
     return () => window.removeEventListener('keydown', handleSidebarToggle)
   }, [isMac, isCollapse, setIsCollapse])
+
+  // Global navigation shortcuts (Ctrl + Alt + D, U, O, A / Cmd + Option + D, U, O, A)
+  // This works globally, even when the command palette is closed
+  useEffect(() => {
+    const handleNavigation = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      const target = e.target as HTMLElement
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      const key = e.key.toLowerCase()
+      
+      // Ctrl + Alt + D (Windows/Linux) or Cmd + Option + D (Mac) - Dashboard
+      const isDashboardMac = isMac && e.metaKey && e.altKey && key === 'd'
+      const isDashboardWin = !isMac && e.ctrlKey && e.altKey && key === 'd'
+      
+      // Ctrl + Alt + U (Windows/Linux) or Cmd + Option + U (Mac) - Users
+      const isUsersMac = isMac && e.metaKey && e.altKey && key === 'u'
+      const isUsersWin = !isMac && e.ctrlKey && e.altKey && key === 'u'
+      
+      // Ctrl + Alt + O (Windows/Linux) or Cmd + Option + O (Mac) - Onboarding
+      const isOnboardingMac = isMac && e.metaKey && e.altKey && key === 'o'
+      const isOnboardingWin = !isMac && e.ctrlKey && e.altKey && key === 'o'
+      
+      // Ctrl + Alt + A (Windows/Linux) or Cmd + Option + A (Mac) - Audit
+      const isAuditMac = isMac && e.metaKey && e.altKey && key === 'a'
+      const isAuditWin = !isMac && e.ctrlKey && e.altKey && key === 'a'
+
+      if (isDashboardMac || isDashboardWin) {
+        e.preventDefault()
+        router.push('/dashboard')
+      } else if ((isUsersMac || isUsersWin) && isSuperAdmin) {
+        e.preventDefault()
+        router.push('/users')
+      } else if ((isOnboardingMac || isOnboardingWin) && isSuperAdmin) {
+        e.preventDefault()
+        router.push('/onboarding')
+      } else if ((isAuditMac || isAuditWin) && isSuperAdmin) {
+        e.preventDefault()
+        router.push('/audit')
+      }
+    }
+
+    window.addEventListener('keydown', handleNavigation)
+    return () => window.removeEventListener('keydown', handleNavigation)
+  }, [isMac, router, isSuperAdmin])
 
   // Command palette trigger shortcuts (Ctrl + / or Ctrl + K)
   // Single-letter shortcuts (D, U, O, etc.) are handled automatically by cmdk

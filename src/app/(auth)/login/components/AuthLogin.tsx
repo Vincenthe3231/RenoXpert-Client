@@ -42,6 +42,10 @@ const AuthLogin = () => {
     login.mutate(
       { email, password },
       {
+        onSuccess: () => {
+          // Redirect after successful login
+          router.replace('/dashboard')
+        },
         onError: (error: any) => {
           // API returned 401
           if (error?.response?.status === 401) {

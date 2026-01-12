@@ -76,13 +76,33 @@ export const LoginInputSchema = z.object({
     password: z.string().min(1),
 })
 
+// Backend response structure: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null } }
 export const LoginResponseSchema = z.object({
-    user: staffUserSchema,
+    message: z.string().optional(),
+    data: z.object({
+        user: staffUserSchema,
+        accessStatus: z.string().optional(),
+        rejectionReason: z.string().nullable().optional(),
+    }),
 })
 
-export const MeResponseSchema = z.object({
-    user: staffUserSchema.nullable(),
-})
+// Backend /me returns: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null } }
+// But frontend route handler returns { user: null } on error
+export const MeResponseSchema = z.union([
+    // Success case: { message: string, data: { user: {...}, accessStatus: string, rejectionReason: string | null } }
+    z.object({
+        message: z.string().optional(),
+        data: z.object({
+            user: staffUserSchema,
+            accessStatus: z.string().optional(),
+            rejectionReason: z.string().nullable().optional(),
+        }),
+    }),
+    // Error case: { user: null }
+    z.object({
+        user: z.null(),
+    }),
+])
 
 export const userListSchema = z.object({
     data: z.array(userSchema),

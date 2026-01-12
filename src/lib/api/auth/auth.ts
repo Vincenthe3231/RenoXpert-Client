@@ -23,7 +23,7 @@ export async function login(payload: LoginInput): Promise<StaffUser> {
         console.error('Received data:', JSON.stringify(data, null, 2))
         throw new Error(`Invalid login response: ${result.error.message}`)
     }
-    return result.data.user
+    return result.data.data.user
 }
 
 export async function getMe(): Promise<StaffUser | null> {
@@ -34,7 +34,11 @@ export async function getMe(): Promise<StaffUser | null> {
         console.error('Received data:', JSON.stringify(data, null, 2))
         throw new Error(`Invalid me response: ${result.error.message}`)
     }
-    return result.data.user
+    // Handle both response formats: nested data.user or null
+    if ('data' in result.data && result.data.data) {
+        return result.data.data.user
+    }
+    return null
 }
 
 export async function logout(): Promise<void> {

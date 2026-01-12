@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth, useUsers } from "@/lib/api/auth"
+import { useAuthorization } from "@/lib/auth/useAuthorization"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { Loader2 } from "lucide-react"
 import DashboardHeader from "./components/DashboardHeader"
@@ -45,8 +46,8 @@ export default function Dashboard() {
   const getInitials = (name: string) => 
     name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
-  // Check if user is super admin (you may need to adjust this based on your role system)
-  const isSuperAdmin = user?.profile?.roles?.includes('Super Admin') || user?.profile?.roles?.includes('super-admin')
+  // Use authorization hook
+  const { isSuperAdmin } = useAuthorization()
 
   // Regular user dashboard
   if (!isSuperAdmin) {

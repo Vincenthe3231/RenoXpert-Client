@@ -18,7 +18,9 @@ export async function GET() {
         const res = NextResponse.json(data)
 
         // Short-lived cache cookie to reduce middleware `/me` calls during navigation/RSC/prefetch.
-        if (data?.user) {
+        // Backend returns { message, data: { user, accessStatus, rejectionReason } } or { user: null }
+        const user = data?.data?.user || data?.user || null
+        if (user) {
             res.cookies.set(AUTH_CACHE_COOKIE, '1', {
                 httpOnly: true,
                 sameSite: 'lax',

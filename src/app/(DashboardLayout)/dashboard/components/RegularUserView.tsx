@@ -26,11 +26,11 @@ const RegularUserView = ({ user }: RegularUserViewProps) => {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Name:</span>
-                <span className="font-medium">{user?.name || "—"}</span>
+                <span className="font-medium text-foreground">{user?.name || "—"}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Email:</span>
-                <span className="font-medium">{user?.email || "—"}</span>
+                <span className="font-medium text-foreground">{user?.email || "—"}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Role:</span>

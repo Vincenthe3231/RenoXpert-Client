@@ -65,10 +65,12 @@ Improve the cohesiveness of `audit` and `dashboard` and reduce their coupling by
 - Low complexity: Only shared utilities
 - High reusability: Used by all modules
 
-| Priority 2: Create constants.ts (if routes grow)
+| Priority 2: Create constants.ts for each individual folder (if routes grow)
 - Useful when you have many endpoints
 - Can wait if the current number is manageable
 
 | Priority 3: Create errors.ts (if error handling becomes complex)
 - Useful if you need custom error handling
 - Can wait if current patterns work
+
+Read SPATIE_RBAC_MIGRATION.md after integrating frontend with backend

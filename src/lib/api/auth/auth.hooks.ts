@@ -26,7 +26,10 @@ export function useLogin() {
     return useMutation<StaffUser, Error, LoginInput>({
         mutationFn: login,
         onSuccess: (user) => {
+            // Set the user data and invalidate to trigger refetch
             queryClient.setQueryData(AUTH_QUERY_KEY, user)
+            // Invalidate to ensure fresh data is fetched on next useAuth() call
+            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
         },
     })
 }

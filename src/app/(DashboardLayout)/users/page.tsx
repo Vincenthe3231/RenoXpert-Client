@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
-import InputPlaceholderAnimate from '@/app/components/animatedComponents/AnimatedInputPlaceholder';
-import { useMemo, useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import UserFilters from "./components/UserFilters";
 import { useUsers } from "@/lib/api/auth/auth.hooks";
 import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
 import UserTable from "./components/UserTable";
+
+// Status filter options (in order for keyboard navigation)
+const STATUS_FILTER_OPTIONS: (UserStatus | "all")[] = ["all", "active", "verifying", "deactivated", "rejected"];
 
 const UsersPage = () => {
     const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -25,6 +28,82 @@ const UsersPage = () => {
 
         return () => clearTimeout(timer);
     }, [searchQuery]);
+
+    // Helper function to navigate filters
+    const navigateFilter = useCallback((direction: 'prev' | 'next') => {
+        setStatusFilter((currentFilter) => {
+            const currentIndex = STATUS_FILTER_OPTIONS.indexOf(currentFilter as UserStatus | "all")
+            if (currentIndex === -1) {
+                // If current filter is not found, default to first
+                return STATUS_FILTER_OPTIONS[0]
+            } else {
+                if (direction === 'prev') {
+                    // Wrap to last if at first index
+                    const previousIndex = currentIndex === 0
+                        ? STATUS_FILTER_OPTIONS.length - 1
+                        : currentIndex - 1
+                    return STATUS_FILTER_OPTIONS[previousIndex]
+                } else {
+                    // Wrap to first if at last index
+                    const nextIndex = currentIndex === STATUS_FILTER_OPTIONS.length - 1
+                        ? 0
+                        : currentIndex + 1
+                    return STATUS_FILTER_OPTIONS[nextIndex]
+                }
+            }
+        })
+    }, [])
+
+    // Keyboard shortcuts for filter navigation (A = left/previous, D = right/next)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Don't trigger if user is typing in an input/textarea/contenteditable
+            const target = e.target as HTMLElement
+            if (
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target.isContentEditable
+            ) {
+                return
+            }
+
+            // Check if modifier keys are pressed (we want only A or D, no modifiers)
+            if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) {
+                return
+            }
+
+            const key = e.key.toLowerCase()
+
+            // A key - navigate to previous filter (left direction)
+            if (key === 'a') {
+                e.preventDefault()
+                navigateFilter('prev')
+            }
+
+            // D key - navigate to next filter (right direction)
+            if (key === 'd') {
+                e.preventDefault()
+                navigateFilter('next')
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [navigateFilter])
+
+    // Listen for custom events from CommandPalette
+    useEffect(() => {
+        const handleFilterPrev = () => navigateFilter('prev')
+        const handleFilterNext = () => navigateFilter('next')
+
+        window.addEventListener('filter-nav-prev', handleFilterPrev)
+        window.addEventListener('filter-nav-next', handleFilterNext)
+
+        return () => {
+            window.removeEventListener('filter-nav-prev', handleFilterPrev)
+            window.removeEventListener('filter-nav-next', handleFilterNext)
+        }
+    }, [navigateFilter])
 
     // Build filter params for the API
     const filterParams = useMemo<GetUsersParams>(() => {
@@ -62,7 +141,7 @@ const UsersPage = () => {
             </div>
 
             {/* Filters and Search */}
-            <Card className="p-5 rounded-full">
+            <Card className="p-5 rounded-full shadow-card transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     {/* Status Filters */}
                     <div className="space-y-2">
@@ -91,16 +170,17 @@ const UsersPage = () => {
 
                 {/* Search and Actions */}
                 <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative flex-1 sm:max-w-xs">
+                    <div className="relative flex-1 sm:max-w-xs isolate">
                         <Search
                             size={18}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-20 pointer-events-none"
                         />
-                        <InputPlaceholderAnimate
+                        <Input
+                            type="text"
                             value={searchQuery}
-                            onChange={(val: string) => setSearchQuery(val)}
-                            placeholders={['Search email...', 'Search name...', 'Search phone...']}
-                            className="pl-10"
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search email, name, phone..."
+                            className="pl-10 relative z-10"
                         />
                     </div>
                     <Button variant="outline" size="sm">
