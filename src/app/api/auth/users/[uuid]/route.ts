@@ -9,13 +9,29 @@ export async function GET(
     try {
         const { uuid } = await params
         const cookieStore = await cookies()
-        const cookie = cookieStore.toString()
+        
+        // Properly format cookies: convert cookie store to HTTP Cookie header format
+        // Format: "name1=value1; name2=value2"
+        const cookieString = cookieStore.getAll()
+            .map(c => `${c.name}=${c.value}`)
+            .join('; ')
 
-        const { data } = await laravelApi.get(`/users/${uuid}`, {
-            headers: { cookie },
+        const laravelRes = await laravelApi.get(`/users/${uuid}`, {
+            headers: cookieString ? { cookie: cookieString } : undefined,
         })
 
-        return NextResponse.json(data)
+        const res = NextResponse.json(laravelRes.data)
+
+        // Forward any Set-Cookie headers from Laravel (session regeneration, etc.)
+        const setCookies = laravelRes.headers['set-cookie']
+        if (setCookies) {
+            const cookiesArray = Array.isArray(setCookies) ? setCookies : [setCookies]
+            for (const cookie of cookiesArray) {
+                res.headers.append('Set-Cookie', cookie)
+            }
+        }
+
+        return res
     } catch (error: any) {
         const status = error?.response?.status || 500
         const message = error?.response?.data?.message || 'Failed to fetch user'

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { login, getMe, logout, getUsers, getUser } from './auth'
 import type {
     StaffUser,
@@ -7,17 +7,24 @@ import type {
     UserListResponse,
     User,
 } from './auth.schemas'
+import { AUTH_QUERY_KEYS, AUTH_CONFIG, USER_QUERY_CONFIG } from './constants'
 
-export const AUTH_QUERY_KEY = ['auth', 'me']
-export const USERS_QUERY_KEY = ['users']
+// Re-export for backward compatibility
+export const AUTH_QUERY_KEY = AUTH_QUERY_KEYS.ME
+export const USERS_QUERY_KEY = AUTH_QUERY_KEYS.USERS
+
+/**
+ * Query options for auth/me endpoint
+ */
+export const authQueryOptions = queryOptions({
+    queryKey: AUTH_QUERY_KEYS.ME,
+    queryFn: getMe,
+    retry: AUTH_CONFIG.RETRY,
+    staleTime: AUTH_CONFIG.STALE_TIME,
+})
 
 export function useAuth() {
-    return useQuery<StaffUser | null>({
-        queryKey: AUTH_QUERY_KEY,
-        queryFn: getMe,
-        retry: false,
-        staleTime: Infinity,
-    })
+    return useQuery(authQueryOptions)
 }
 
 export function useLogin() {
@@ -27,9 +34,9 @@ export function useLogin() {
         mutationFn: login,
         onSuccess: (user) => {
             // Set the user data and invalidate to trigger refetch
-            queryClient.setQueryData(AUTH_QUERY_KEY, user)
+            queryClient.setQueryData(AUTH_QUERY_KEYS.ME, user)
             // Invalidate to ensure fresh data is fetched on next useAuth() call
-            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
+            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
         },
     })
 }
@@ -40,25 +47,39 @@ export function useLogout() {
     return useMutation({
         mutationFn: logout,
         onSuccess: () => {
-            queryClient.removeQueries({ queryKey: AUTH_QUERY_KEY })
+            queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
         },
     })
 }
 
-export function useUsers(params?: GetUsersParams) {
-    return useQuery<UserListResponse>({
-        queryKey: [...USERS_QUERY_KEY, params],
+/**
+ * Query options factory for users list
+ */
+export function usersQueryOptions(params?: GetUsersParams) {
+    return queryOptions({
+        queryKey: [...AUTH_QUERY_KEYS.USERS, params],
         queryFn: () => getUsers(params),
         placeholderData: keepPreviousData,
-        staleTime: 30 * 1000, // 30 seconds
+        staleTime: USER_QUERY_CONFIG.STALE_TIME,
+    })
+}
+
+export function useUsers(params?: GetUsersParams) {
+    return useQuery(usersQueryOptions(params))
+}
+
+/**
+ * Query options factory for single user
+ */
+export function userQueryOptions(uuid: string | null) {
+    return queryOptions({
+        queryKey: AUTH_QUERY_KEYS.USER(uuid!),
+        queryFn: () => uuid ? getUser(uuid) : null,
+        enabled: !!uuid,
+        staleTime: USER_QUERY_CONFIG.STALE_TIME,
     })
 }
 
 export function useUser(uuid: string | null) {
-    return useQuery<User | null>({
-        queryKey: ['user', uuid],
-        queryFn: () => uuid ? getUser(uuid) : null,
-        enabled: !!uuid,
-        staleTime: 30 * 1000, // 30 seconds
-    })
+    return useQuery(userQueryOptions(uuid))
 }
