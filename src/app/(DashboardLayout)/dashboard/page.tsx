@@ -1,14 +1,12 @@
 "use client"
 
 import { useAuth, useUsers } from "@/lib/api/auth"
-import { useAuthorization } from "@/lib/auth/useAuthorization"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { Loader2 } from "lucide-react"
 import DashboardHeader from "./components/DashboardHeader"
 import DashboardStatsCards from "./components/DashboardStatsCards"
 import QuickActionsCard from "./components/QuickActionsCard"
 import RecentActivityCard from "./components/RecentActivityCard"
-import RegularUserView from "./components/RegularUserView"
 
 export default function Dashboard() {
   const { data: user, isLoading: isAuthLoading } = useAuth()
@@ -46,15 +44,6 @@ export default function Dashboard() {
   const getInitials = (name: string) => 
     name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
-  // Use authorization hook
-  const { isSuperAdmin } = useAuthorization()
-
-  // Regular user dashboard
-  if (!isSuperAdmin) {
-    return <RegularUserView user={user} />
-  }
-
-  // Super Admin Dashboard
   if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center py-12">

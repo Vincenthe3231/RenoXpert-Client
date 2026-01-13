@@ -71,13 +71,6 @@ const CommandPalette = () => {
   // Detect platform for shortcut display
   const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
 
-  // Check if user is super admin
-  const isSuperAdmin = useMemo(() => {
-    if (!user?.profile?.roles) return false
-    const userRoles = user.profile.roles.map((r: string) => r.toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-'))
-    return userRoles.some((role: string) => ['super-admin', 'superadmin', 'super_admin'].includes(role))
-  }, [user])
-
   // Check for unsaved work (hardcoded for UX simulation)
   // TODO: Replace with actual unsaved work detection logic
   const checkForUnsavedWork = () => {
@@ -103,7 +96,7 @@ const CommandPalette = () => {
     ]
   }
 
-  // Build commands with actions and role-based filtering
+  // Build commands with actions
   const commands = useMemo(() => {
     const baseCommands: Array<{ name: string; commands: Array<{
       id: string
@@ -111,7 +104,6 @@ const CommandPalette = () => {
       icon: React.ElementType
       shortcut: string
       action: () => void
-      requiresSuperAdmin?: boolean
     }> }> = [
       {
         name: 'Navigation',
@@ -135,7 +127,6 @@ const CommandPalette = () => {
               router.push('/users')
               setOpen(false)
             },
-            requiresSuperAdmin: true,
           },
           {
             id: 'onboarding',
@@ -146,7 +137,6 @@ const CommandPalette = () => {
               router.push('/onboarding')
               setOpen(false)
             },
-            requiresSuperAdmin: true,
           },
           {
             id: 'audit',
@@ -157,7 +147,6 @@ const CommandPalette = () => {
               router.push('/audit')
               setOpen(false)
             },
-            requiresSuperAdmin: true,
           },
         ],
       },
@@ -256,17 +245,8 @@ const CommandPalette = () => {
       },
     ]
 
-    // Filter commands based on user role
-    return baseCommands.map(category => ({
-      ...category,
-      commands: category.commands.filter(cmd => {
-        if (cmd.requiresSuperAdmin && !isSuperAdmin) {
-          return false
-        }
-        return true
-      })
-    })).filter(category => category.commands.length > 0)
-  }, [router, theme, setTheme, mounted, isSuperAdmin, isCollapse, setIsCollapse, isUsersPage])
+    return baseCommands
+  }, [router, theme, setTheme, mounted, isCollapse, setIsCollapse, isUsersPage])
 
   // Global theme toggle shortcut (Ctrl + Alt + T / Cmd + Option + T)
   // This works globally, even when the command palette is closed
@@ -366,13 +346,13 @@ const CommandPalette = () => {
       if (isDashboardMac || isDashboardWin) {
         e.preventDefault()
         router.push('/dashboard')
-      } else if ((isUsersMac || isUsersWin) && isSuperAdmin) {
+      } else if (isUsersMac || isUsersWin) {
         e.preventDefault()
         router.push('/users')
-      } else if ((isOnboardingMac || isOnboardingWin) && isSuperAdmin) {
+      } else if (isOnboardingMac || isOnboardingWin) {
         e.preventDefault()
         router.push('/onboarding')
-      } else if ((isAuditMac || isAuditWin) && isSuperAdmin) {
+      } else if (isAuditMac || isAuditWin) {
         e.preventDefault()
         router.push('/audit')
       }
@@ -380,7 +360,7 @@ const CommandPalette = () => {
 
     window.addEventListener('keydown', handleNavigation)
     return () => window.removeEventListener('keydown', handleNavigation)
-  }, [isMac, router, isSuperAdmin])
+  }, [isMac, router])
 
   // Command palette trigger shortcuts (Ctrl + / or Ctrl + K)
   // Single-letter shortcuts (D, U, O, etc.) are handled automatically by cmdk
