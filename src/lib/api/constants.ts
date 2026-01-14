@@ -27,6 +27,14 @@ export const API_ROUTES = {
     APPROVAL: (id: number) => `/api/onboarding/${id}/approval`,
     REJECTION: (id: number) => `/api/onboarding/${id}/rejection`,
   },
+  
+  // Roles & Permissions Domain
+  ROLES: {
+    LIST: '/api/roles',
+    GET: (id: number) => `/api/roles/${id}`,
+    PERMISSIONS: '/api/permissions',
+    UPDATE_PERMISSIONS: (id: number) => `/api/roles/${id}/permissions`,
+  },
 } as const
 
 /**

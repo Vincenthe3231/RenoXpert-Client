@@ -67,12 +67,19 @@ const SidebarLayout = () => {
     // If no role requirement, everyone can see it
     if (!requiredRole) return true
 
-    const userRoles = user?.profile?.roles || []
+    // If user data hasn't loaded yet, show nothing (will re-render when data loads)
+    if (!user || !user.profile) {
+      return false
+    }
+
+    const userRoles = user.profile.roles || []
     
-    // Normalize roles for comparison
-    const normalizedUserRoles = userRoles.map(role => 
-      role.toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-')
-    )
+    // Normalize roles for comparison (convert to lowercase, replace spaces/underscores with hyphens)
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
     const normalizedRequired = requiredRole.toLowerCase()
 
     // Check if user has the exact role
@@ -80,12 +87,14 @@ const SidebarLayout = () => {
       return true
     }
 
-    // Super admin can access everything
-    if (normalizedUserRoles.some(role => 
-      role === 'super-admin' || 
-      role === 'superadmin' ||
-      role === 'super_admin'
-    )) {
+    // Super admin can access everything - check normalized roles array
+    // After normalization, "Super Admin", "super_admin", "super-admin" all become "super-admin"
+    // Also check for "superadmin" (no hyphen) variant
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin'
+    )
+    
+    if (isSuperAdmin) {
       return true
     }
 
@@ -107,10 +116,14 @@ const SidebarLayout = () => {
   }
 
   // Filter sidebar items based on user role
-  const filteredSidebarData = SidebarData.map(item => ({
-    ...item,
-    children: item.children?.filter(child => hasRequiredRole(child.requiredRole))
-  }))
+  const filteredSidebarData = SidebarData.map(item => {
+    const filteredChildren = item.children?.filter(child => hasRequiredRole(child.requiredRole)) || []
+    
+    return {
+      ...item,
+      children: filteredChildren
+    }
+  })
 
   return (
     <>

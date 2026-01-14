@@ -25,14 +25,15 @@ const baseUserSchema = {
 
 
 // Profile schemas (only extra fields)
+// Based on StaffResource: larksuiteOpenId, larksuiteUnionId, avatarUrl, avatarBig, status, roles, permissions
 export const staffProfileSchema = z.object({
     larksuiteOpenId: z.string().nullable(),
     larksuiteUnionId: z.string().nullable(),
-    avatarUrl: z.string().url().nullable(),
-    avatarBig: z.string().url().nullable(),
-    type: z.string().nullable(),
+    avatarUrl: z.string().nullable(), // Can be any string (URL, empty string) or null
+    avatarBig: z.string().nullable(), // Can be any string (URL, empty string) or null
     status: z.string(),
     roles: z.array(z.string()),
+    permissions: z.array(z.string()), // Always returned (even if empty array)
 });
 
 export const staffUserSchema = z.object({
@@ -76,26 +77,28 @@ export const LoginInputSchema = z.object({
     password: z.string().min(1),
 })
 
-// Backend response structure: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null } }
+// Backend response structure: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null, token: string } }
 export const LoginResponseSchema = z.object({
     message: z.string().optional(),
     data: z.object({
         user: staffUserSchema,
         accessStatus: z.string().optional(),
         rejectionReason: z.string().nullable().optional(),
+        token: z.string().optional(),
     }),
 })
 
-// Backend /me returns: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null } }
+// Backend /me returns: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null, token?: string } }
 // But frontend route handler returns { user: null } on error
 export const MeResponseSchema = z.union([
-    // Success case: { message: string, data: { user: {...}, accessStatus: string, rejectionReason: string | null } }
+    // Success case: { message: string, data: { user: {...}, accessStatus: string, rejectionReason: string | null, token?: string } }
     z.object({
         message: z.string().optional(),
         data: z.object({
             user: staffUserSchema,
             accessStatus: z.string().optional(),
             rejectionReason: z.string().nullable().optional(),
+            token: z.string().optional(),
         }),
     }),
     // Error case: { user: null }

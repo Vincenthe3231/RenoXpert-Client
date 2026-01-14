@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useContext } from 'react'
+import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
@@ -63,6 +63,35 @@ const CommandPalette = () => {
   // Check if we're on the users page
   const isUsersPage = pathname === '/users'
 
+  // Helper function to check if user has required role
+  const hasRequiredRole = useCallback((requiredRole: 'super-admin' | 'admin' | 'staff' | undefined): boolean => {
+    if (!requiredRole) return true
+    if (!user || !user.profile) return false
+
+    const userRoles = user.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    const normalizedRequired = requiredRole.toLowerCase()
+
+    if (normalizedUserRoles.includes(normalizedRequired)) {
+      return true
+    }
+
+    // Super admin can access everything
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin'
+    )
+    
+    if (isSuperAdmin) {
+      return true
+    }
+
+    return false
+  }, [user])
+
   // Ensure theme is mounted to avoid hydration issues
   useEffect(() => {
     setMounted(true)
@@ -103,6 +132,7 @@ const CommandPalette = () => {
       label: string
       icon: React.ElementType
       shortcut: string
+      requiredRole?: 'super-admin' | 'admin' | 'staff'
       action: () => void
     }> }> = [
       {
@@ -113,6 +143,7 @@ const CommandPalette = () => {
             label: 'Go to Dashboard',
             icon: Layout,
             shortcut: 'Ctrl + Alt + D',
+            requiredRole: undefined, // Everyone can access
             action: () => {
               router.push('/dashboard')
               setOpen(false)
@@ -123,6 +154,7 @@ const CommandPalette = () => {
             label: 'Manage Users',
             icon: Users,
             shortcut: 'Ctrl + Alt + U',
+            requiredRole: 'super-admin' as const,
             action: () => {
               router.push('/users')
               setOpen(false)
@@ -133,6 +165,7 @@ const CommandPalette = () => {
             label: 'Review Onboarding',
             icon: FileCheck,
             shortcut: 'Ctrl + Alt + O',
+            requiredRole: 'super-admin' as const,
             action: () => {
               router.push('/onboarding')
               setOpen(false)
@@ -143,12 +176,13 @@ const CommandPalette = () => {
             label: 'View Decision History',
             icon: History,
             shortcut: 'Ctrl + Alt + A',
+            requiredRole: 'super-admin' as const,
             action: () => {
               router.push('/audit')
               setOpen(false)
             },
           },
-        ],
+        ].filter(cmd => hasRequiredRole(cmd.requiredRole)),
       },
       {
         name: 'Account',
@@ -246,7 +280,7 @@ const CommandPalette = () => {
     ]
 
     return baseCommands
-  }, [router, theme, setTheme, mounted, isCollapse, setIsCollapse, isUsersPage])
+  }, [router, theme, setTheme, mounted, isCollapse, setIsCollapse, isUsersPage, user, hasRequiredRole])
 
   // Global theme toggle shortcut (Ctrl + Alt + T / Cmd + Option + T)
   // This works globally, even when the command palette is closed
@@ -346,13 +380,13 @@ const CommandPalette = () => {
       if (isDashboardMac || isDashboardWin) {
         e.preventDefault()
         router.push('/dashboard')
-      } else if (isUsersMac || isUsersWin) {
+      } else if ((isUsersMac || isUsersWin) && hasRequiredRole('super-admin')) {
         e.preventDefault()
         router.push('/users')
-      } else if (isOnboardingMac || isOnboardingWin) {
+      } else if ((isOnboardingMac || isOnboardingWin) && hasRequiredRole('super-admin')) {
         e.preventDefault()
         router.push('/onboarding')
-      } else if (isAuditMac || isAuditWin) {
+      } else if ((isAuditMac || isAuditWin) && hasRequiredRole('super-admin')) {
         e.preventDefault()
         router.push('/audit')
       }
@@ -360,7 +394,7 @@ const CommandPalette = () => {
 
     window.addEventListener('keydown', handleNavigation)
     return () => window.removeEventListener('keydown', handleNavigation)
-  }, [isMac, router])
+  }, [isMac, router, user, hasRequiredRole])
 
   // Command palette trigger shortcuts (Ctrl + / or Ctrl + K)
   // Single-letter shortcuts (D, U, O, etc.) are handled automatically by cmdk

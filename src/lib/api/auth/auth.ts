@@ -28,6 +28,7 @@ export async function login(payload: LoginInput): Promise<StaffUser> {
 
 export async function getMe(): Promise<StaffUser | null> {
     const { data } = await axios.get(API_ROUTES.AUTH.ME)
+    
     const result = MeResponseSchema.safeParse(data)
     if (!result.success) {
         console.error('Me response validation failed:', result.error.issues)
@@ -36,7 +37,12 @@ export async function getMe(): Promise<StaffUser | null> {
     }
     // Handle both response formats: nested data.user or null
     if ('data' in result.data && result.data.data) {
-        return result.data.data.user
+        const user = result.data.data.user
+        // Attach rejectionReason to user if available (for rejected users)
+        if (result.data.data.rejectionReason) {
+            (user as any).rejectionReason = result.data.data.rejectionReason
+        }
+        return user
     }
     return null
 }

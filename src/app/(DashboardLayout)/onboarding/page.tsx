@@ -1,19 +1,59 @@
 "use client"
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, CheckCircle2, Users, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Clock, CheckCircle2, Loader2 } from "lucide-react";
 import { Onboarding, useOnboardings } from "@/lib/api/onboarding";
 import OnboardingTable from "./OnboardingTable";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RejectDialog from "./components/RejectDialog";
 import { StaffType, StaffUser } from "@/lib/api/auth";
 import ApproveDialog from "./components/ApproveDialog";
-import { useApproveOnboarding } from "@/lib/api/onboarding/onboarding.hooks";
+import { useApproveOnboarding, useRejectOnboarding } from "@/lib/api/onboarding/onboarding.hooks";
 
 const OnboardingPage = () => {
-    const { data: onboardingListData, isLoading, error } = useOnboardings({ status: 'pending' });
+    const { data: onboardingListData, isLoading, error, refetch } = useOnboardings({ status: 'pending' });
+    
+    // Refetch onboarding list when page becomes visible (e.g., when user switches tabs back)
+    // This ensures Super Admins see new pending requests even if they're already on the page
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // Refetch when page becomes visible to catch any new pending requests
+                refetch()
+            }
+        }
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        
+        // Also refetch on window focus to catch updates
+        const handleFocus = () => {
+            refetch()
+        }
+        
+        window.addEventListener('focus', handleFocus)
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+            window.removeEventListener('focus', handleFocus)
+        }
+    }, [refetch])
+    
+    // Periodically refetch to catch new pending requests (every 30 seconds)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Only refetch if page is visible
+            if (document.visibilityState === 'visible') {
+                refetch()
+            }
+        }, 30000) // 30 seconds
+        
+        return () => clearInterval(interval)
+    }, [refetch])
     const onboardingList = onboardingListData?.data ?? [];
     const approveOnboarding = useApproveOnboarding();
+    const rejectOnboarding = useRejectOnboarding();
+    const { toast } = useToast();
 
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -29,20 +69,65 @@ const OnboardingPage = () => {
         setApproveDialogOpen(true);
     };
 
-    const handleRejectConfirm = (onboardingId: number, reason: string) => {
-        // if (selectedUser) {
-        //     rejectUser.mutate({ userId: selectedUser.id, reason });
-        //     setRejectDialogOpen(false);
-        //     setSelectedUser(null);
-        // }
-        console.log(onboardingId, reason);
+    const handleRejectConfirm = async (onboardingId: number, reason: string) => {
+        try {
+            await rejectOnboarding.mutateAsync({ onboardingId, reason });
+            setRejectDialogOpen(false);
+            setSelectedOnboarding(null);
+            toast({
+                title: 'User rejected',
+                description: 'The onboarding request has been rejected.',
+            });
+        } catch (err: any) {
+            // Handle different error types
+            let errorMessage = 'Please try again.'
+            
+            if (err?.response?.data?.message) {
+                errorMessage = err.response.data.message
+            } else if (err?.response?.data?.error) {
+                errorMessage = err.response.data.error
+            } else if (err?.message) {
+                errorMessage = err.message
+            } else if (err?.response?.data) {
+                // If backend returns validation errors in a different format
+                const backendError = err.response.data
+                if (Array.isArray(backendError)) {
+                    errorMessage = backendError.map((e: any) => e.message || e).join(', ')
+                } else if (typeof backendError === 'string') {
+                    errorMessage = backendError
+                }
+            }
+            
+            toast({
+                variant: 'destructive',
+                title: 'Failed to reject user',
+                description: errorMessage,
+            });
+        }
     };
 
     const handleApproveConfirm = async (onboardingId: number, staffType: StaffType) => {
-        await approveOnboarding.mutateAsync({ onboardingId, staffType });
-        setApproveDialogOpen(false);
-        setSelectedOnboarding(null);
+        try {
+            await approveOnboarding.mutateAsync({ onboardingId, staffType });
+            setApproveDialogOpen(false);
+            setSelectedOnboarding(null);
+            toast({
+                title: 'User approved',
+                description: 'The user has been approved and will move to the active list.',
+            });
+        } catch (err: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Failed to approve user',
+                description: err?.response?.data?.message || err?.message || 'Please try again.',
+            });
+        }
     };
+
+    const errorMessage =
+        (error as any)?.response?.data?.message ||
+        (error as Error | undefined)?.message ||
+        'Please try again later.';
 
     return (
         <>
@@ -80,6 +165,11 @@ const OnboardingPage = () => {
                             <Skeleton key={i} className="h-16 w-full rounded-lg" />
                         ))}
                     </div>
+                ) : error ? (
+                    <div className="rounded-xl bg-destructive/10 p-8 text-center shadow-card">
+                        <p className="text-lg font-semibold text-destructive">Failed to load onboarding requests</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{errorMessage}</p>
+                    </div>
                 ) : onboardingList && onboardingList.length > 0 ? (
                     <OnboardingTable onboardingList={onboardingList} handleRejectClick={handleRejectClick} handleApproveClick={handleApproveClick} />
                 ) : (
@@ -112,6 +202,7 @@ const OnboardingPage = () => {
                     open={approveDialogOpen}
                     onOpenChange={setApproveDialogOpen}
                     onApprove={handleApproveConfirm}
+                    isLoading={approveOnboarding.isPending}
                     userName={selectedOnboarding.user?.name || ""}
                     onboardingId={selectedOnboarding.id as number}
                 />

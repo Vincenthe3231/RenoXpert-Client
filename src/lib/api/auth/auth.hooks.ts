@@ -8,6 +8,7 @@ import type {
     User,
 } from './auth.schemas'
 import { AUTH_QUERY_KEYS, AUTH_CONFIG, USER_QUERY_CONFIG } from './constants'
+import { ONBOARDING_QUERY_KEYS } from '../onboarding/constants'
 
 // Re-export for backward compatibility
 export const AUTH_QUERY_KEY = AUTH_QUERY_KEYS.ME
@@ -33,10 +34,15 @@ export function useLogin() {
     return useMutation<StaffUser, Error, LoginInput>({
         mutationFn: login,
         onSuccess: (user) => {
-            // Set the user data and invalidate to trigger refetch
+            // Clear all queries first to ensure no stale data
+            queryClient.clear()
+            // Set the user data
             queryClient.setQueryData(AUTH_QUERY_KEYS.ME, user)
             // Invalidate to ensure fresh data is fetched on next useAuth() call
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+            // Invalidate onboarding queries to ensure Super Admins see any new pending requests
+            // This is especially important when a rejected user logs in again and status is refreshed to "pending"
+            queryClient.invalidateQueries({ queryKey: ONBOARDING_QUERY_KEYS.LIST })
         },
     })
 }
@@ -47,7 +53,8 @@ export function useLogout() {
     return useMutation({
         mutationFn: logout,
         onSuccess: () => {
-            queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+            // Clear all queries to ensure no cached data remains
+            queryClient.clear()
         },
     })
 }

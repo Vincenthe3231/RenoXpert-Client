@@ -38,9 +38,19 @@ const LogoutDialog = ({ open, onOpenChange, unsavedWork = [] }: LogoutDialogProp
     try {
       await logout.mutateAsync()
       onOpenChange(false)
-      router.push('/login')
+      // Small delay to ensure React Query cache is fully cleared
+      // Use hard redirect to ensure all session data is cleared
+      // This bypasses React Router and ensures a fresh page load
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 100)
     } catch (error) {
       console.error('Logout failed:', error)
+      // Even if logout fails, clear frontend session and redirect
+      onOpenChange(false)
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 100)
     }
   }
 

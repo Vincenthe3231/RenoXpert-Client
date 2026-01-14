@@ -1,6 +1,10 @@
+'use client'
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { UserStatus, UserType, StaffType } from "@/lib/api/auth/auth.schemas";
+import { UserStatus, UserType } from "@/lib/api/auth/auth.schemas";
+import { useRoles } from "@/lib/api/roles/roles.hooks";
+import { useMemo } from "react";
 
 interface UserFiltersProps {
     activeFilter: string;
@@ -16,12 +20,16 @@ const statusFilters: { label: string; value: UserStatus | "all" }[] = [
     { label: "Rejected", value: "rejected" },
 ];
 
-const roleFilters: { label: string; value: StaffType | "all" }[] = [
-    { label: "All", value: "all" },
-    { label: "Super Admin", value: "super-admin" },
-    { label: "Admin", value: "admin" },
-    { label: "Staff", value: "staff" },
-];
+/**
+ * Helper to format role name for display
+ * Converts "super_admin" -> "Super Admin", "staff" -> "Staff"
+ */
+function formatRoleName(roleName: string): string {
+    return roleName
+        .split(/[-_]/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
 
 const typeFilters: { label: string; value: UserType }[] = [
     { label: "Staff", value: "staff" },
@@ -33,6 +41,26 @@ const UserFilters = ({
     onFilterChange,
     filterType,
 }: UserFiltersProps) => {
+    // Fetch roles from API
+    const { data: rolesData, isLoading: rolesLoading } = useRoles();
+
+    // Build role filters from API data
+    const roleFilters = useMemo(() => {
+        const allOption = { label: "All", value: "all" as const };
+        
+        if (rolesLoading || !rolesData?.data) {
+            // Fallback to empty array with "All" option while loading
+            return [allOption];
+        }
+
+        const roleOptions = rolesData.data.map(role => ({
+            label: formatRoleName(role.name),
+            value: role.name,
+        }));
+
+        return [allOption, ...roleOptions];
+    }, [rolesData, rolesLoading]);
+
     const filters =
         filterType === "status"
             ? statusFilters
@@ -60,18 +88,23 @@ const UserFilters = ({
                         return "bg-primary text-white hover:bg-primary/90 border-primary";
                 }
             } else if (filterType === "role") {
-                switch (value) {
-                    case "all":
-                        return "bg-primary text-white hover:bg-primary/90 border-primary";
-                    case "super-admin":
-                        return "bg-info text-white hover:bg-info/90 border-info";
-                    case "admin":
-                        return "bg-blue-600 text-white hover:bg-blue-700 border-blue-600";
-                    case "staff":
-                        return "bg-gray-600 text-white hover:bg-gray-700 border-gray-600";
-                    default:
-                        return "bg-primary text-white hover:bg-primary/90 border-primary";
+                // Use consistent styling for role filters
+                // Special handling for common roles, fallback for others
+                if (value === "all") {
+                    return "bg-primary text-white hover:bg-primary/90 border-primary";
                 }
+                // Check for super admin variants
+                if (value === "super-admin" || value === "super_admin" || value === "superadmin") {
+                    return "bg-info text-white hover:bg-info/90 border-info";
+                }
+                if (value === "admin") {
+                    return "bg-blue-600 text-white hover:bg-blue-700 border-blue-600";
+                }
+                if (value === "staff") {
+                    return "bg-gray-600 text-white hover:bg-gray-700 border-gray-600";
+                }
+                // Default for other roles
+                return "bg-primary text-white hover:bg-primary/90 border-primary";
             } else {
                 // type filters
                 switch (value) {
@@ -101,18 +134,22 @@ const UserFilters = ({
                         return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
                 }
             } else if (filterType === "role") {
-                switch (value) {
-                    case "all":
-                        return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
-                    case "super-admin":
-                        return "bg-lightinfo text-info hover:bg-lightinfo/80 border-info/20";
-                    case "admin":
-                        return "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200";
-                    case "staff":
-                        return "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200";
-                    default:
-                        return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
+                // Use consistent styling for role filters (inactive state)
+                if (value === "all") {
+                    return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
                 }
+                // Check for super admin variants
+                if (value === "super-admin" || value === "super_admin" || value === "superadmin") {
+                    return "bg-lightinfo text-info hover:bg-lightinfo/80 border-info/20";
+                }
+                if (value === "admin") {
+                    return "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200";
+                }
+                if (value === "staff") {
+                    return "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200";
+                }
+                // Default for other roles
+                return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
             } else {
                 // type filters
                 switch (value) {
