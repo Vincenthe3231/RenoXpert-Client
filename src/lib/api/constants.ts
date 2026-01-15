@@ -19,6 +19,8 @@ export const API_ROUTES = {
     LOGOUT: '/api/auth/logout',
     USERS: '/api/auth/users',
     USER: (uuid: string) => `/api/auth/users/${uuid}`,
+    RESUBMIT: '/api/auth/resubmit',
+    DEACTIVATE_USER: (id: string) => `/api/auth/users/${id}/deactivate`,
   },
   
   // Onboarding Workflow Domain

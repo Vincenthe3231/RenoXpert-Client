@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { login, getMe, logout, getUsers, getUser } from './auth'
+import { login, getMe, logout, getUsers, getUser, deactivateUser } from './auth'
 import type {
     StaffUser,
     LoginInput,
@@ -78,15 +78,31 @@ export function useUsers(params?: GetUsersParams) {
 /**
  * Query options factory for single user
  */
-export function userQueryOptions(uuid: string | null) {
+export function userQueryOptions(id: string | null) {
     return queryOptions({
-        queryKey: AUTH_QUERY_KEYS.USER(uuid!),
-        queryFn: () => uuid ? getUser(uuid) : null,
-        enabled: !!uuid,
+        queryKey: AUTH_QUERY_KEYS.USER(id!),
+        queryFn: () => id ? getUser(id) : null,
+        enabled: !!id,
         staleTime: USER_QUERY_CONFIG.STALE_TIME,
     })
 }
 
-export function useUser(uuid: string | null) {
-    return useQuery(userQueryOptions(uuid))
+export function useUser(id: string | null) {
+    return useQuery(userQueryOptions(id))
+}
+
+export function useDeactivateUser() {
+    const queryClient = useQueryClient()
+
+    return useMutation<User, Error, string>({
+        mutationFn: deactivateUser,
+        onSuccess: (updatedUser, userId) => {
+            // Invalidate users list to refresh the table
+            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+            // Update the specific user in cache if it exists
+            queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedUser.uuid), updatedUser)
+            // Invalidate auth/me in case the deactivated user is the current user
+            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+        },
+    })
 }

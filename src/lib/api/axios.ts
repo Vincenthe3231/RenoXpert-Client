@@ -30,7 +30,12 @@ export const laravelApi = axios.create({
 
 // Add interceptors for versioned API
 laravelApi.interceptors.request.use(transformRequest)
-laravelApi.interceptors.response.use(transformResponse)
+laravelApi.interceptors.response.use(
+    transformResponse,
+    (error) => {
+        return Promise.reject(error)
+    }
+)
 
 // 🔹 Root API (Sanctum, health checks, etc.)
 export const laravelRootApi = axios.create({

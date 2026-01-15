@@ -13,6 +13,7 @@ export const ownerRoleSchema = z.enum(["owner"]);
 export const userStatusSchema = z.enum(["active", "deactivated", "verifying", "rejected"]);
 
 const baseUserSchema = {
+    id: z.number().optional(), // Integer ID for endpoints that require it (deactivate, activate, etc.)
     uuid: z.string().uuid(),
     name: z.string(),
     email: z.string().email(),

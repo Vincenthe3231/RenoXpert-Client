@@ -49,6 +49,7 @@ export async function GET() {
         return res
     } catch (error: any) {
         // Properly handle 401 errors - don't swallow them
+        // 401 is EXPECTED before authentication (during initial page load)
         if (error?.response?.status === 401) {
             const res = NextResponse.json({ user: null }, { status: 401 })
             res.cookies.delete(AUTH_CACHE_COOKIE)

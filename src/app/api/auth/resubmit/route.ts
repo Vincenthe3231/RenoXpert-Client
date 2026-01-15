@@ -1,24 +1,21 @@
 import { cookies } from 'next/headers'
 import { laravelApi } from '@/lib/api/axios'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST() {
     try {
-        const { id } = await params
         const cookieStore = await cookies()
         const cookieString = cookieStore.getAll()
             .map(c => `${c.name}=${c.value}`)
             .join('; ')
 
-        const laravelRes = await laravelApi.post(`/users/${id}/deactivate`, {}, {
+        const laravelRes = await laravelApi.post('/auth/resubmit', {}, {
             headers: cookieString ? { cookie: cookieString } : undefined,
         })
 
         const res = NextResponse.json(laravelRes.data)
 
+        // Forward any Set-Cookie headers from Laravel
         const setCookies = laravelRes.headers['set-cookie']
         if (setCookies) {
             const cookiesArray = Array.isArray(setCookies) ? setCookies : [setCookies]
@@ -29,11 +26,16 @@ export async function POST(
 
         return res
     } catch (error: any) {
+        console.error('Error resubmitting user:', error)
+
         const status = error?.response?.status || 500
-        const message = error?.response?.data?.message || 'Failed to deactivate user'
-        return NextResponse.json({ error: message }, { status })
+        const errorData = error?.response?.data || {
+            error: 'INTERNAL_ERROR',
+            message: 'Failed to resubmit user',
+            status,
+        }
+
+        return NextResponse.json(errorData, { status })
     }
 }
-
-
 

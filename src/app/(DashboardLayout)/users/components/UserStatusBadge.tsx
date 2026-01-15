@@ -26,7 +26,7 @@ const statusConfig: Record<
     },
     deactivated: {
         label: "Deactivated",
-        className: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
+        className: "bg-pink-50 text-pink-500/90 border-pink-500/30 hover:bg-pink-500/20",
         icon: <Ban size={12} />,
     },
     rejected: {

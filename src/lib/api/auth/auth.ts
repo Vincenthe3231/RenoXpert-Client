@@ -51,6 +51,29 @@ export async function logout(): Promise<void> {
     await axios.post(API_ROUTES.AUTH.LOGOUT)
 }
 
+export async function resubmit(): Promise<void> {
+    await axios.post(API_ROUTES.AUTH.RESUBMIT)
+}
+
+export async function deactivateUser(identifier: string): Promise<User> {
+    // Backend now accepts both integer ID and UUID string directly
+    try {
+        const { data } = await axios.post(API_ROUTES.AUTH.DEACTIVATE_USER(identifier))
+        // Handle response format: { success: true, message: "...", data: { user: {...} } }
+        // Also support legacy formats: { message: "...", data: { user: {...} } } or { user: {...} }
+        const userData = data?.data?.user || data?.user || data
+        const result = userSchema.safeParse(userData)
+        if (!result.success) {
+            console.error('Deactivate user response validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(userData, null, 2))
+            throw new Error(`Invalid deactivate user response: ${result.error.message}`)
+        }
+        return result.data
+    } catch (error: any) {
+        throw error
+    }
+}
+
 export async function getUsers(params?: GetUsersParams): Promise<UserListResponse> {
     const { data } = await axios.get(API_ROUTES.AUTH.USERS, { params })
     const result = userListSchema.safeParse(data)
@@ -62,15 +85,22 @@ export async function getUsers(params?: GetUsersParams): Promise<UserListRespons
     return result.data
 }
 
-export async function getUser(uuid: string): Promise<User> {
-    const { data } = await axios.get(API_ROUTES.AUTH.USER(uuid))
-    // Handle both response formats: { user: {...} } or directly the user object
-    const userData = data.user || data
-    const result = userSchema.safeParse(userData)
-    if (!result.success) {
-        console.error('User data validation failed:', result.error.issues)
-        console.error('Received data:', JSON.stringify(userData, null, 2))
-        throw new Error(`Invalid user data: ${result.error.message}`)
+export async function getUser(id: string): Promise<User> {
+    try {
+        const { data } = await axios.get(API_ROUTES.AUTH.USER(id))
+        // Handle multiple response formats:
+        // 1. { message: "...", data: { user: {...} } } - new backend format
+        // 2. { user: {...} } - old format
+        // 3. Direct user object
+        const userData = data?.data?.user || data?.user || data
+        const result = userSchema.safeParse(userData)
+        if (!result.success) {
+            console.error('User data validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(userData, null, 2))
+            throw new Error(`Invalid user data: ${result.error.message}`)
+        }
+        return result.data
+    } catch (error: any) {
+        throw error
     }
-    return result.data
 }

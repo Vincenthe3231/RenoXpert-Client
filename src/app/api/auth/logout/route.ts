@@ -32,6 +32,15 @@ export async function POST() {
             path: '/',
             maxAge: 0,
         })
+        
+        // Clear bearer token cookie
+        res.cookies.delete('rx_staff_bearer_token')
+        res.cookies.set('rx_staff_bearer_token', '', {
+            httpOnly: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 0,
+        })
 
         // Forward any Set-Cookie headers from Laravel (session invalidation, etc.)
         const setCookies = laravelRes.headers['set-cookie']
@@ -51,6 +60,15 @@ export async function POST() {
         // Clear the auth cache cookie with multiple methods to ensure it's removed
         res.cookies.delete(AUTH_CACHE_COOKIE)
         res.cookies.set(AUTH_CACHE_COOKIE, '', {
+            httpOnly: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 0,
+        })
+        
+        // Clear bearer token cookie
+        res.cookies.delete('rx_staff_bearer_token')
+        res.cookies.set('rx_staff_bearer_token', '', {
             httpOnly: true,
             sameSite: 'lax',
             path: '/',

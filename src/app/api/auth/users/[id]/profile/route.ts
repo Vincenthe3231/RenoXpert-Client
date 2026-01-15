@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { laravelApi } from '@/lib/api/axios'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(
+export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -13,7 +13,9 @@ export async function POST(
             .map(c => `${c.name}=${c.value}`)
             .join('; ')
 
-        const laravelRes = await laravelApi.post(`/users/${id}/deactivate`, {}, {
+        const body = await request.json()
+
+        const laravelRes = await laravelApi.put(`/users/${id}/profile`, body, {
             headers: cookieString ? { cookie: cookieString } : undefined,
         })
 
@@ -30,10 +32,8 @@ export async function POST(
         return res
     } catch (error: any) {
         const status = error?.response?.status || 500
-        const message = error?.response?.data?.message || 'Failed to deactivate user'
+        const message = error?.response?.data?.message || 'Failed to update user profile'
         return NextResponse.json({ error: message }, { status })
     }
 }
-
-
 

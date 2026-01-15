@@ -14,14 +14,18 @@ import {
 import { API_ROUTES } from '../constants'
 
 export async function getRoles(): Promise<RolesListResponse> {
-    const { data } = await axios.get(API_ROUTES.ROLES.LIST)
-    const result = rolesListResponseSchema.safeParse(data)
-    if (!result.success) {
-        console.error('Roles list response validation failed:', result.error.issues)
-        console.error('Received data:', JSON.stringify(data, null, 2))
-        throw new Error(`Invalid roles list response: ${result.error.message}`)
+    try {
+        const { data } = await axios.get(API_ROUTES.ROLES.LIST)
+        const result = rolesListResponseSchema.safeParse(data)
+        if (!result.success) {
+            console.error('Roles list response validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(data, null, 2))
+            throw new Error(`Invalid roles list response: ${result.error.message}`)
+        }
+        return result.data
+    } catch (error: any) {
+        throw error
     }
-    return result.data
 }
 
 export async function getRole(id: number): Promise<RoleResponse> {

@@ -5,24 +5,25 @@ import { getBearerToken } from '@/lib/api/utils/getBearerToken'
 
 export async function GET() {
     try {
-        const token = await getBearerToken()
-        if (!token) {
-            return NextResponse.json(
-                { error: 'UNAUTHORIZED', message: 'Authentication required.', status: 401 },
-                { status: 401 }
-            )
-        }
-
         const cookieStore = await cookies()
         const cookieString = cookieStore.getAll()
             .map(c => `${c.name}=${c.value}`)
             .join('; ')
 
+        const token = await getBearerToken()
+
+        // Build headers: prefer Bearer token, but also include session cookies as fallback
+        const headers: Record<string, string> = {}
+        if (token) {
+            headers.Authorization = `Bearer ${token}`
+        }
+        if (cookieString) {
+            headers.cookie = cookieString
+        }
+        
+        // Try with Bearer token if available, otherwise try with session cookies only
         const laravelRes = await laravelApi.get('/roles', {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                ...(cookieString ? { cookie: cookieString } : {}),
-            },
+            headers: Object.keys(headers).length > 0 ? headers : undefined,
         })
 
         const res = NextResponse.json(laravelRes.data)

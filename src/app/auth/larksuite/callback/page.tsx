@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { AUTH_QUERY_KEY } from '@/lib/api/auth/auth.hooks'
-import { getMe, logout } from '@/lib/api/auth/auth'
+import { getMe, logout, resubmit } from '@/lib/api/auth/auth'
 import { ONBOARDING_QUERY_KEYS } from '@/lib/api/onboarding/constants'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -54,17 +54,14 @@ function LarkSuiteCallbackContent() {
     }
 
     // Handle refresh status for rejected users
-    // This will attempt login again via Lark OAuth
-    // The backend should automatically refresh the account status back to "pending" 
-    // if Lark credentials are authenticated successfully
+    // Redirects to Lark OAuth login, which automatically resubmits the user for review
+    // Backend automatically: changes status from "rejected" → "verifying" and creates new onboarding record
     const handleRefreshStatus = async () => {
         try {
             setIsRefreshing(true)
             // Clear React Query cache to force fresh data
             queryClient.clear()
-            // Redirect to Lark OAuth to attempt login again
-            // Backend will authenticate Lark credentials and automatically reset status to "pending"
-            // if authentication succeeds
+            // Redirect to Lark OAuth - backend will automatically resubmit user for review on successful login
             window.location.href = '/api/auth/lark/redirect'
         } catch (error) {
             console.error('Refresh status failed:', error)
@@ -92,8 +89,10 @@ function LarkSuiteCallbackContent() {
                 }
 
                 // Handle account rejected status
-                // Note: If a rejected user attempts login again via Lark and credentials are valid,
-                // the backend should automatically refresh status back to "pending" and proceed with normal login
+                // Note: If a rejected user logs in again via Lark SSO, the backend automatically:
+                // - Changes status from "rejected" → "verifying"
+                // - Creates a new onboarding record with "pending" status
+                // - Preserves old rejection history
                 // This error only appears if the login attempt fails or credentials are invalid
                 if (error === 'ACCOUNT_REJECTED') {
                     setStatus('account-rejected')
@@ -139,19 +138,52 @@ function LarkSuiteCallbackContent() {
                     throw new Error('Login succeeded but no session was found. Please try again.')
                 }
 
+                // Workaround: If backend automatic resubmission didn't work, manually trigger resubmit
+                // This happens when a rejected user logs in via Lark OAuth but backend didn't auto-resubmit
+                let finalUser = user
+                if (user.status === 'rejected') {
+                    try {
+                        await resubmit()
+                        // Fetch updated user data after resubmission
+                        const updatedUser = await getMe()
+                        if (updatedUser) {
+                            finalUser = updatedUser
+                        }
+                    } catch (resubmitError) {
+                        console.error('Failed to resubmit user:', resubmitError)
+                        // Continue with rejected user - they'll see the rejection dialog
+                    }
+                }
+
                 // Set the user data
-                queryClient.setQueryData(AUTH_QUERY_KEY, user)
+                queryClient.setQueryData(AUTH_QUERY_KEY, finalUser)
                 
                 // Invalidate onboarding queries to ensure Super Admins see any new pending requests
-                // This is especially important when a rejected user logs in again and status is refreshed to "pending"
+                // This is especially important when a rejected user logs in again and is automatically resubmitted
                 queryClient.invalidateQueries({ queryKey: ONBOARDING_QUERY_KEYS.LIST })
                 
-                setStatus('success')
-                setMessage('Login successful! Redirecting...')
+                // If user is still rejected after resubmit attempt, show rejection dialog
+                if (finalUser.status === 'rejected') {
+                    setStatus('account-rejected')
+                    setRejectionDialogOpen(true)
+                    setMessage('Your account access has been rejected.')
+                    // Try to get rejection reason
+                    try {
+                        const userWithReason = await getMe()
+                        if (userWithReason && (userWithReason as any).rejectionReason) {
+                            setRejectionReason((userWithReason as any).rejectionReason)
+                        }
+                    } catch (e) {
+                        console.log('Could not fetch rejection reason:', e)
+                    }
+                } else {
+                    setStatus('success')
+                    setMessage('Login successful! Redirecting...')
 
-                setTimeout(() => {
-                    window.location.href = '/'
-                }, 800)
+                    setTimeout(() => {
+                        window.location.href = '/'
+                    }, 800)
+                }
             } catch (e) {
                 console.error('LarkSuite OAuth callback error:', e)
                 setStatus('error')
