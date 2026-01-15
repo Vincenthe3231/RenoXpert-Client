@@ -31,7 +31,8 @@ export async function GET(req: NextRequest) {
         // Forward any cookies Laravel sets (session regeneration, etc.)
         const setCookies = laravelRes.headers['set-cookie']
         if (setCookies) {
-            for (const cookie of setCookies) {
+            const cookiesArray = Array.isArray(setCookies) ? setCookies : [setCookies]
+            for (const cookie of cookiesArray) {
                 res.headers.append('Set-Cookie', cookie)
             }
         }

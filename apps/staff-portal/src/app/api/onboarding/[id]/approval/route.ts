@@ -16,14 +16,19 @@ export async function POST(
 
         // Get cookies for authentication
         const cookieStore = await cookies()
-        const cookie = cookieStore.toString()
+        
+        // Properly format cookies: convert cookie store to HTTP Cookie header format
+        // Format: "name1=value1; name2=value2"
+        const cookieString = cookieStore.getAll()
+            .map(c => `${c.name}=${c.value}`)
+            .join('; ')
 
         // Make request to Laravel backend
         const laravelRes = await laravelApi.post(
             `/onboarding/${id}/approval`,
             validatedData,
             {
-                headers: { cookie },
+                headers: cookieString ? { cookie: cookieString } : undefined,
             }
         )
 
@@ -33,7 +38,8 @@ export async function POST(
         // Forward all cookies from Laravel response
         const setCookies = laravelRes.headers['set-cookie']
         if (setCookies) {
-            for (const cookie of setCookies) {
+            const cookiesArray = Array.isArray(setCookies) ? setCookies : [setCookies]
+            for (const cookie of cookiesArray) {
                 res.headers.append('Set-Cookie', cookie)
             }
         }

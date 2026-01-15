@@ -2,8 +2,6 @@ import { useContext, useState, useEffect } from 'react'
 import { Icon } from '@iconify/react'
 import Messages from './Messages'
 import Profile from './Profile'
-import { Language } from './Language'
-import AppLinks from './AppLinks'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
 
 const MobileHeaderItems = () => {
@@ -57,12 +55,6 @@ const MobileHeaderItems = () => {
 
           {/* Messages Dropdown */}
           <Messages />
-
-          {/* App Link Dropwown   */}
-          <AppLinks />
-
-          {/* Language Dropdown*/}
-          <Language />
 
           {/* Profile Dropdown */}
           <Profile />

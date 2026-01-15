@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react'
 
-import React, { useContext } from 'react'
+import React, { useContext, useState } from 'react'
 import * as profileData from './Data'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -13,15 +13,38 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
-import { useLogout } from '@/lib/api/auth'
 import { useAuthContext } from '@/providers/AuthProvider'
-import { useRouter } from 'next/navigation'
+import LogoutDialog from '../shared/LogoutDialog/LogoutDialog'
 
 const Profile = () => {
   const { activeDir } = useContext(CustomizerContext)
   const { user } = useAuthContext()
-  const router = useRouter()
-  const logout = useLogout()
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+
+  // Check for unsaved work (hardcoded for UX simulation)
+  // TODO: Replace with actual unsaved work detection logic
+  const checkForUnsavedWork = () => {
+    return [
+      {
+        id: 1,
+        name: "Project_Financial_Report_Q4.pdf",
+        type: "Document",
+        modifiedAt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+      },
+      {
+        id: 2,
+        name: "User_Persona_Research.sketch",
+        type: "Design",
+        modifiedAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+      },
+      {
+        id: 3,
+        name: "Marketing_Strategy_Notes.txt",
+        type: "Text",
+        modifiedAt: new Date(Date.now() - 30 * 1000), // 30 seconds ago
+      },
+    ]
+  }
 
   return (
     <div className='relative group/menu ps-4'>
@@ -98,21 +121,22 @@ const Profile = () => {
 
           <div className='pt-2 px-7'>
             <Button
-              color='outlineprimary'
+              variant='outline'
               className='w-full rounded-md'
-              disabled={logout.isPending}
-              onClick={async () => {
-                try {
-                  await logout.mutateAsync()
-                } finally {
-                  router.push('/login')
-                }
+              onClick={() => {
+                // Open logout dialog (checkForUnsavedWork is called in LogoutDialog)
+                setLogoutDialogOpen(true)
               }}>
-              {logout.isPending ? 'Logging out...' : 'Logout'}
+              Logout
             </Button>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+      <LogoutDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        unsavedWork={checkForUnsavedWork()}
+      />
     </div>
   )
 }

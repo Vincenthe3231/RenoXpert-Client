@@ -4,7 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
     const cookieStore = await cookies()
-    const cookie = cookieStore.toString()
+    
+    // Properly format cookies: convert cookie store to HTTP Cookie header format
+    // Format: "name1=value1; name2=value2"
+    const cookieString = cookieStore.getAll()
+        .map(c => `${c.name}=${c.value}`)
+        .join('; ')
 
     const { searchParams } = new URL(request.url)
 
@@ -21,16 +26,30 @@ export async function GET(request: NextRequest) {
         params.per_page = perPage
     }
 
-    // Filter for pending status - let Laravel backend handle the filtering
-    params.filter = { status: 'pending' }
+    // Filter by status if provided, otherwise get all
+    const status = searchParams.get('status')
+    if (status) {
+        params.filter = { status }
+    }
 
     try {
-        const { data } = await laravelApi.get('/onboarding', {
-            headers: { cookie },
+        const laravelRes = await laravelApi.get('/onboarding', {
+            headers: cookieString ? { cookie: cookieString } : undefined,
             params,
         })
 
-        return NextResponse.json(data)
+        const res = NextResponse.json(laravelRes.data)
+
+        // Forward any Set-Cookie headers from Laravel (session regeneration, etc.)
+        const setCookies = laravelRes.headers['set-cookie']
+        if (setCookies) {
+            const cookiesArray = Array.isArray(setCookies) ? setCookies : [setCookies]
+            for (const cookie of cookiesArray) {
+                res.headers.append('Set-Cookie', cookie)
+            }
+        }
+
+        return res
     } catch (error: any) {
         const status = error?.response?.status || 500
         const message = error?.response?.data?.message || 'Failed to fetch onboardings'

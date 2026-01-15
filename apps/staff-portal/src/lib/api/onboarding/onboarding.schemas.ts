@@ -12,10 +12,11 @@ export const onboardingSchema = z.object({
     reviewedBy: z.number().nullable(),
     reviewedAt: z.string().nullable(),
     status: onboardingStatusSchema,
-    assignedUserType: staffRoleSchema,
+    assignedUserType: staffRoleSchema.nullable(),
     rejectionReason: z.string().nullable(),
     user: userSchema.nullable(),
     createdAt: z.string().datetime().nullable(),
+    updatedAt: z.string().datetime().nullable(),
 });
 
 export const onboardingListSchema = z.object({
@@ -38,6 +39,7 @@ export const getOnboardingParamsSchema = z.object({
     search: z.string().optional(),
     page: z.number().optional(),
     perPage: z.number().optional(),
+    status: onboardingStatusSchema.optional(),
 });
 
 export const approveOnboardingSchema = z.object({

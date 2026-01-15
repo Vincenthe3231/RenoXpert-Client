@@ -13,6 +13,7 @@ export const ownerRoleSchema = z.enum(["owner"]);
 export const userStatusSchema = z.enum(["active", "deactivated", "verifying", "rejected"]);
 
 const baseUserSchema = {
+    id: z.number().optional(), // Integer ID for endpoints that require it (deactivate, activate, etc.)
     uuid: z.string().uuid(),
     name: z.string(),
     email: z.string().email(),
@@ -25,14 +26,15 @@ const baseUserSchema = {
 
 
 // Profile schemas (only extra fields)
+// Based on StaffResource: larksuiteOpenId, larksuiteUnionId, avatarUrl, avatarBig, status, roles, permissions
 export const staffProfileSchema = z.object({
     larksuiteOpenId: z.string().nullable(),
     larksuiteUnionId: z.string().nullable(),
-    avatarUrl: z.string().url().nullable(),
-    avatarBig: z.string().url().nullable(),
-    type: z.string().nullable(),
+    avatarUrl: z.string().nullable(), // Can be any string (URL, empty string) or null
+    avatarBig: z.string().nullable(), // Can be any string (URL, empty string) or null
     status: z.string(),
     roles: z.array(z.string()),
+    permissions: z.array(z.string()), // Always returned (even if empty array)
 });
 
 export const staffUserSchema = z.object({
@@ -76,13 +78,35 @@ export const LoginInputSchema = z.object({
     password: z.string().min(1),
 })
 
+// Backend response structure: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null, token: string } }
 export const LoginResponseSchema = z.object({
-    user: staffUserSchema,
+    message: z.string().optional(),
+    data: z.object({
+        user: staffUserSchema,
+        accessStatus: z.string().optional(),
+        rejectionReason: z.string().nullable().optional(),
+        token: z.string().optional(),
+    }),
 })
 
-export const MeResponseSchema = z.object({
-    user: staffUserSchema.nullable(),
-})
+// Backend /me returns: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null, token?: string } }
+// But frontend route handler returns { user: null } on error
+export const MeResponseSchema = z.union([
+    // Success case: { message: string, data: { user: {...}, accessStatus: string, rejectionReason: string | null, token?: string } }
+    z.object({
+        message: z.string().optional(),
+        data: z.object({
+            user: staffUserSchema,
+            accessStatus: z.string().optional(),
+            rejectionReason: z.string().nullable().optional(),
+            token: z.string().optional(),
+        }),
+    }),
+    // Error case: { user: null }
+    z.object({
+        user: z.null(),
+    }),
+])
 
 export const userListSchema = z.object({
     data: z.array(userSchema),

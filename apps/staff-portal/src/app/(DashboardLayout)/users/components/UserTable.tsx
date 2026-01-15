@@ -8,7 +8,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Trash2, UserIcon } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Ban, UserIcon } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,11 +16,16 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import UserStatusBadge from "./UserStatusBadge";
+import RoleBadge from "./RoleBadge";
+import UserDetailsDialog from "./UserDetailsDialog";
+import DeactivateDialog from "./DeactivateDialog";
 import { cn } from "@/lib/utils";
 import { User, StaffUser, OwnerUser, VendorUser } from "@/lib/api/auth/auth.schemas";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { getFlagPath } from "@/lib/country";
+import { useDeactivateUser } from "@/lib/api/auth/auth.hooks";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserTableProps {
     users: User[];
@@ -52,7 +57,15 @@ const UserAvatar = ({ avatarUrl, name }: { avatarUrl?: string | null; name: stri
 };
 
 // Actions dropdown
-const UserActions = ({ user, onView }: { user: User; onView: (user: User) => void }) => (
+const UserActions = ({ 
+    user, 
+    onView, 
+    onDeactivate 
+}: { 
+    user: User
+    onView: (user: User) => void
+    onDeactivate: (user: User) => void
+}) => (
     <DropdownMenu>
         <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -68,17 +81,30 @@ const UserActions = ({ user, onView }: { user: User; onView: (user: User) => voi
                 <Edit size={14} className="mr-2" />
                 Edit User
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
-                <Trash2 size={14} className="mr-2" />
-                Delete
-            </DropdownMenuItem>
+            {user.status === 'active' && (
+                <DropdownMenuItem 
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDeactivate(user)}
+                >
+                    <Ban size={14} className="mr-2" />
+                    Deactivate
+                </DropdownMenuItem>
+            )}
         </DropdownMenuContent>
     </DropdownMenu>
 );
 
 // Staff Users Table
-const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User) => void }) => (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+const StaffTable = ({ 
+    users, 
+    onView, 
+    onDeactivate 
+}: { 
+    users: StaffUser[]
+    onView: (user: User) => void
+    onDeactivate: (user: User) => void
+}) => (
+    <div className="rounded-xl border border-border bg-card shadow-card transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl overflow-hidden">
         <Table>
             <TableHeader>
                 <TableRow className="bg-muted/5 hover:bg-muted/10">
@@ -108,9 +134,7 @@ const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User
                         <TableCell>
                             <div className="flex flex-wrap gap-1">
                                 {user.profile.roles.map((role) => (
-                                    <Badge key={role} variant="outline" className="text-xs capitalize">
-                                        {role}
-                                    </Badge>
+                                    <RoleBadge key={role} role={role} />
                                 ))}
                             </div>
                         </TableCell>
@@ -121,7 +145,7 @@ const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User
                             <span className="text-sm text-muted-foreground">{user.email}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                            <UserActions user={user} onView={onView} />
+                            <UserActions user={user} onView={onView} onDeactivate={onDeactivate} />
                         </TableCell>
                     </TableRow>
                 ))}
@@ -131,8 +155,16 @@ const StaffTable = ({ users, onView }: { users: StaffUser[]; onView: (user: User
 );
 
 // Owner Users Table
-const OwnerTable = ({ users, onView }: { users: OwnerUser[]; onView: (user: User) => void }) => (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+const OwnerTable = ({ 
+    users, 
+    onView, 
+    onDeactivate 
+}: { 
+    users: OwnerUser[]
+    onView: (user: User) => void
+    onDeactivate: (user: User) => void
+}) => (
+    <div className="rounded-xl border border-border bg-card shadow-card transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl overflow-hidden">
         <Table>
             <TableHeader>
                 <TableRow className="bg-muted/5 hover:bg-muted/10">
@@ -196,7 +228,7 @@ const OwnerTable = ({ users, onView }: { users: OwnerUser[]; onView: (user: User
                                 <span className="text-sm text-muted-foreground">{user.email}</span>
                             </TableCell>
                             <TableCell className="text-right">
-                                <UserActions user={user} onView={onView} />
+                                <UserActions user={user} onView={onView} onDeactivate={onDeactivate} />
                             </TableCell>
                         </TableRow>
                     );
@@ -207,8 +239,16 @@ const OwnerTable = ({ users, onView }: { users: OwnerUser[]; onView: (user: User
 );
 
 // Vendor Users Table
-const VendorTable = ({ users, onView }: { users: VendorUser[]; onView: (user: User) => void }) => (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+const VendorTable = ({ 
+    users, 
+    onView, 
+    onDeactivate 
+}: { 
+    users: VendorUser[]
+    onView: (user: User) => void
+    onDeactivate: (user: User) => void
+}) => (
+    <div className="rounded-full border border-border bg-card shadow-card transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl overflow-hidden">
         <Table>
             <TableHeader>
                 <TableRow className="bg-muted/5 hover:bg-muted/10">
@@ -244,7 +284,7 @@ const VendorTable = ({ users, onView }: { users: VendorUser[]; onView: (user: Us
                             <span className="text-sm text-muted-foreground">{user.email}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                            <UserActions user={user} onView={onView} />
+                            <UserActions user={user} onView={onView} onDeactivate={onDeactivate} />
                         </TableCell>
                     </TableRow>
                 ))}
@@ -254,13 +294,44 @@ const VendorTable = ({ users, onView }: { users: VendorUser[]; onView: (user: Us
 );
 
 const UserTable = ({ users, onViewUser }: UserTableProps) => {
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+    const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+    const deactivateUser = useDeactivateUser();
+    const { toast } = useToast();
 
     const handleViewDetails = (user: User) => {
-        setSelectedUser(user);
+        setSelectedUserId(user.uuid);
         setDetailsOpen(true);
         onViewUser?.(user);
+    };
+
+    const handleDeactivateClick = (user: User) => {
+        setUserToDeactivate(user);
+        setDeactivateDialogOpen(true);
+    };
+
+    const handleDeactivateConfirm = async () => {
+        if (!userToDeactivate) return;
+
+        try {
+            // Backend deactivate endpoint accepts both integer ID and UUID
+            const identifier = userToDeactivate.id ? String(userToDeactivate.id) : userToDeactivate.uuid
+            await deactivateUser.mutateAsync(identifier)
+            toast({
+                title: 'User deactivated',
+                description: `${userToDeactivate.name} has been deactivated successfully.`,
+            })
+            setDeactivateDialogOpen(false)
+            setUserToDeactivate(null)
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Failed to deactivate user',
+                description: error?.response?.data?.message || error?.message || 'Please try again.',
+            })
+        }
     };
 
     // Group users by type
@@ -269,17 +340,47 @@ const UserTable = ({ users, onViewUser }: UserTableProps) => {
     const vendorUsers = users.filter(isVendorUser);
 
     return (
-        <div className="space-y-6">
-            {staffUsers.length > 0 && (
-                <StaffTable users={staffUsers} onView={handleViewDetails} />
+        <>
+            <div className="space-y-6">
+                {staffUsers.length > 0 && (
+                    <StaffTable 
+                        users={staffUsers} 
+                        onView={handleViewDetails} 
+                        onDeactivate={handleDeactivateClick}
+                    />
+                )}
+                {ownerUsers.length > 0 && (
+                    <OwnerTable 
+                        users={ownerUsers} 
+                        onView={handleViewDetails} 
+                        onDeactivate={handleDeactivateClick}
+                    />
+                )}
+                {vendorUsers.length > 0 && (
+                    <VendorTable 
+                        users={vendorUsers} 
+                        onView={handleViewDetails} 
+                        onDeactivate={handleDeactivateClick}
+                    />
+                )}
+            </div>
+            
+            <UserDetailsDialog
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                userId={selectedUserId}
+            />
+
+            {userToDeactivate && (
+                <DeactivateDialog
+                    open={deactivateDialogOpen}
+                    onOpenChange={setDeactivateDialogOpen}
+                    onDeactivate={handleDeactivateConfirm}
+                    userName={userToDeactivate.name}
+                    isLoading={deactivateUser.isPending}
+                />
             )}
-            {ownerUsers.length > 0 && (
-                <OwnerTable users={ownerUsers} onView={handleViewDetails} />
-            )}
-            {vendorUsers.length > 0 && (
-                <VendorTable users={vendorUsers} onView={handleViewDetails} />
-            )}
-        </div>
+        </>
     );
 };
 

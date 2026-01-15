@@ -131,7 +131,7 @@
   --primary-foreground: var(--color-white);
   --secondary: var(--color-secondary);
   --secondary-foreground: var(--color-white);
-  --muted: #5a6a85;
+  --muted: #f6f9fc;
   --muted-foreground: #737373;
   --accent: var(--color-lightprimary);
   --accent-foreground: var(--color-primary);

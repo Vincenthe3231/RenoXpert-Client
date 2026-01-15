@@ -1,24 +1,45 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
+
+import { StaffType } from "../auth/auth.schemas";
+import { ONBOARDING_QUERY_KEYS, ONBOARDING_QUERY_CONFIG } from "./constants";
+import { getOnboardings, onboardingApproval, onboardingRejection } from ".";
 import { GetOnboardingParams, OnboardingListResponse } from "./onboarding.schemas";
-import { getOnboardings, onboardingApproval } from ".";
 
-export const ONBOARDINGS_QUERY_KEY = ['onboardings']
+// Re-export for backward compatibility
+export const ONBOARDINGS_QUERY_KEY = ONBOARDING_QUERY_KEYS.LIST
 
-export function useOnboardings(params?: GetOnboardingParams) {
-    return useQuery<OnboardingListResponse>({
-        queryKey: [...ONBOARDINGS_QUERY_KEY, params],
+/**
+ * Query options factory for onboardings list
+ */
+export function onboardingsQueryOptions(params?: GetOnboardingParams) {
+    return queryOptions({
+        queryKey: [...ONBOARDING_QUERY_KEYS.LIST, params],
         queryFn: () => getOnboardings(params),
         placeholderData: keepPreviousData,
-        staleTime: 30 * 1000, // 30 seconds
+        staleTime: ONBOARDING_QUERY_CONFIG.STALE_TIME,
     })
+}
+
+export function useOnboardings(params?: GetOnboardingParams) {
+    return useQuery(onboardingsQueryOptions(params))
 }
 
 export function useApproveOnboarding() {
     const qc = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ onboardingId, staffType }: { onboardingId: number; staffType: string }) =>
+        mutationFn: ({ onboardingId, staffType }: { onboardingId: number; staffType: StaffType }) =>
             onboardingApproval(onboardingId, staffType),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ONBOARDINGS_QUERY_KEY }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ONBOARDING_QUERY_KEYS.LIST }),
+    });
+}
+
+export function useRejectOnboarding() {
+    const qc = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ onboardingId, reason }: { onboardingId: number; reason: string }) =>
+            onboardingRejection(onboardingId, reason),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ONBOARDING_QUERY_KEYS.LIST }),
     });
 }

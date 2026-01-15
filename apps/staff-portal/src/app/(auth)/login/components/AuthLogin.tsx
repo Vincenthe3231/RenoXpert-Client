@@ -23,9 +23,10 @@ const AuthLogin = () => {
    */
   useEffect(() => {
     if (user) {
-      router.replace('/')
+      // Use hard redirect to ensure fresh page load
+      window.location.href = '/dashboard'
     }
-  }, [user, router])
+  }, [user])
 
   /**
    * Handle form submit
@@ -42,6 +43,11 @@ const AuthLogin = () => {
     login.mutate(
       { email, password },
       {
+        onSuccess: () => {
+          // Use hard redirect to ensure fresh page load and proper session initialization
+          // This ensures the middleware auth check runs and React Query cache is fresh
+          window.location.href = '/dashboard'
+        },
         onError: (error: any) => {
           // API returned 401
           if (error?.response?.status === 401) {
