@@ -8,7 +8,9 @@ const AUTH_CACHE_TTL_SECONDS = 30
 const PUBLIC_PATHS = [
     '/login',
     '/register',
-    '/api',
+    '/api/auth/login',
+    '/api/auth/lark',
+    '/auth/larksuite',
 ]
 
 const PUBLIC_ASSETS = [
@@ -42,8 +44,13 @@ export async function proxy(req: NextRequest) {
         return NextResponse.next()
     }
 
-    // Allow public routes
-    if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
+    // Allow public routes (exact match or starts with)
+    if (PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path))) {
+        return NextResponse.next()
+    }
+
+    // Allow all API routes (they handle their own auth via cookies)
+    if (pathname.startsWith('/api/')) {
         return NextResponse.next()
     }
 
@@ -57,8 +64,9 @@ export async function proxy(req: NextRequest) {
             cache: 'no-store',
         })
 
-        const data = await res.json().catch(() => null)
-        const user = data?.user ?? null
+        const responseData = await res.json().catch(() => null)
+        // Backend returns { message, data: { user, ... } } or { user: null }
+        const user = responseData?.data?.user || responseData?.user || null
 
         if (!user) {
             const redirect = NextResponse.redirect(new URL('/login', req.url))
@@ -86,3 +94,4 @@ export const config = {
         '/((?!_next/static|_next/image).*)',
     ],
 }
+

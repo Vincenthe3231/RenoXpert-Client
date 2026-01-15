@@ -10,3 +10,41 @@ dist-ssr
 .pnpm-store
 server/dist
 public/dist
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Yarn
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+/coverage
+
+# Build
+/build
+
+# Misc
+*.pem
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env*.local
+
+# Latest updates from origin/develop branch
+/modernize
+
+# Ignored markdown files
+RBAC_INTEGRATION_PLAN.md
+SPATIE_RBAC_MIGRATION.md
