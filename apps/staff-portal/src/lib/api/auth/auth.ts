@@ -74,6 +74,25 @@ export async function deactivateUser(identifier: string): Promise<User> {
     }
 }
 
+export async function activateUser(identifier: string): Promise<User> {
+    // Backend now accepts both integer ID and UUID string directly
+    try {
+        const { data } = await axios.post(API_ROUTES.AUTH.ACTIVATE_USER(identifier))
+        // Handle response format: { success: true, message: "...", data: { user: {...} } }
+        // Also support legacy formats: { message: "...", data: { user: {...} } } or { user: {...} }
+        const userData = data?.data?.user || data?.user || data
+        const result = userSchema.safeParse(userData)
+        if (!result.success) {
+            console.error('Activate user response validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(userData, null, 2))
+            throw new Error(`Invalid activate user response: ${result.error.message}`)
+        }
+        return result.data
+    } catch (error: any) {
+        throw error
+    }
+}
+
 export async function getUsers(params?: GetUsersParams): Promise<UserListResponse> {
     const { data } = await axios.get(API_ROUTES.AUTH.USERS, { params })
     const result = userListSchema.safeParse(data)

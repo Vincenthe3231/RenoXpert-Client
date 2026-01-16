@@ -199,8 +199,8 @@ const SidebarLayout = () => {
                       className='rounded-full'
                     />
                     <div>
-                      <h3 className='text-base font-semibold'>Mathew</h3>
-                      <p className='text-xs font-normal text-muted dark:text-darklink'>
+                      <h3 className='text-base font-semibold text-foreground'>Mathew</h3>
+                      <p className='text-xs font-normal text-muted-foreground dark:text-muted-foreground'>
                         Designer
                       </p>
                     </div>

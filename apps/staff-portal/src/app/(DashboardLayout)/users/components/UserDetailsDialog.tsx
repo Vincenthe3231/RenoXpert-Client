@@ -1,16 +1,19 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Loader2, Edit, UserCheck, UserX } from "lucide-react"
 import { StaffUser, OwnerUser } from "@/lib/api/auth/auth.schemas"
-import { useUser } from "@/lib/api/auth/auth.hooks"
+import { useUser, useActivateUser, useDeactivateUser } from "@/lib/api/auth/auth.hooks"
 import UserStatusBadge from "./UserStatusBadge"
 import RoleBadge from "./RoleBadge"
 import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 
 interface UserDetailsDialogProps {
   open: boolean
@@ -20,9 +23,56 @@ interface UserDetailsDialogProps {
 
 const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProps) => {
   const { data: user, isLoading, error } = useUser(userId)
+  const activateUser = useActivateUser()
+  const deactivateUser = useDeactivateUser()
+  const { toast } = useToast()
+  const router = useRouter()
 
   const getInitials = (name: string) => 
     name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+
+  const handleEdit = () => {
+    if (!user) return
+    onOpenChange(false)
+    // Navigate to edit page - adjust route based on your routing structure
+    router.push(`/users/${user.uuid}/edit`)
+  }
+
+  const handleActivate = async () => {
+    if (!user) return
+    try {
+      const identifier = user.id ? String(user.id) : user.uuid
+      await activateUser.mutateAsync(identifier)
+      toast({
+        title: 'User activated',
+        description: `${user.name} has been activated successfully.`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to activate user',
+        description: error?.response?.data?.message || error?.message || 'Please try again.',
+      })
+    }
+  }
+
+  const handleDeactivate = async () => {
+    if (!user) return
+    try {
+      const identifier = user.id ? String(user.id) : user.uuid
+      await deactivateUser.mutateAsync(identifier)
+      toast({
+        title: 'User deactivated',
+        description: `${user.name} has been deactivated successfully.`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to deactivate user',
+        description: error?.response?.data?.message || error?.message || 'Please try again.',
+      })
+    }
+  }
 
   if (!userId) return null
 
@@ -199,6 +249,52 @@ const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProp
             </div>
           </div>
         ) : null}
+        <DialogFooter className="flex items-center justify-between sm:justify-between">
+          <div className="flex gap-2">
+            {user && user.status === 'active' && (
+              <Button
+                variant="destructive"
+                onClick={handleDeactivate}
+                disabled={deactivateUser.isPending}
+              >
+                {deactivateUser.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deactivating...
+                  </>
+                ) : (
+                  <>
+                    <UserX className="mr-2 h-4 w-4" />
+                    Deactivate
+                  </>
+                )}
+              </Button>
+            )}
+            {user && user.status === 'deactivated' && (
+              <Button
+                variant="default"
+                onClick={handleActivate}
+                disabled={activateUser.isPending}
+              >
+                {activateUser.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Activating...
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    Activate
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          <Button onClick={handleEdit} disabled={!user}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit User
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

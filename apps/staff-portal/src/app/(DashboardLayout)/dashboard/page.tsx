@@ -2,12 +2,14 @@
 
 import { useAuth, useUsers } from "@/lib/api/auth"
 import { useOnboardings } from "@/lib/api/onboarding"
+import { useActivityLogs } from "@/lib/api/activity-logs"
 import { Loader2 } from "lucide-react"
 import DashboardHeader from "./components/DashboardHeader"
 import DashboardStatsCards from "./components/DashboardStatsCards"
 import QuickActionsCard from "./components/QuickActionsCard"
 import RecentActivityCard from "./components/RecentActivityCard"
 import RegularUserView from "./components/RegularUserView"
+import { AuditEntry, getAuditEntryTimestamp } from "../audit/types"
 
 export default function Dashboard() {
   const { data: user, isLoading: isAuthLoading } = useAuth()
@@ -44,9 +46,10 @@ export default function Dashboard() {
   // Check if user is super-admin
   const isSuperAdmin = hasRequiredRole('super-admin')
 
-  // Get all users for stats (only for super-admin)
+  // Get all users for stats and context (only for super-admin)
   const { data: usersData } = useUsers()
   const totalUsers = isSuperAdmin ? (usersData?.meta?.total || 0) : 0
+  const users = isSuperAdmin ? (usersData?.data || []) : []
 
   // Get all onboardings for stats (only for super-admin)
   const { data: allOnboardingsData } = useOnboardings()
@@ -55,6 +58,12 @@ export default function Dashboard() {
   // Get pending onboardings (only for super-admin)
   const { data: pendingOnboardingsData } = useOnboardings({ status: 'pending' })
   const pendingOnboardings = isSuperAdmin ? (pendingOnboardingsData?.data || []) : []
+
+  // Get user management activity logs (only for super-admin)
+  const { data: activityLogsData } = useActivityLogs(
+    isSuperAdmin ? { "filter[log_name]": "user" } : undefined
+  )
+  const activityLogs = isSuperAdmin ? (activityLogsData?.data || []) : []
 
   // Calculate stats (only for super-admin)
   const stats = {
@@ -65,12 +74,22 @@ export default function Dashboard() {
   }
 
   // Get recent decisions (only for super-admin)
-  const recentDecisions = allOnboardings
-    .filter(o => o.status === 'approved' || o.status === 'rejected')
+  const decisions = allOnboardings.filter(
+    o => o.status === 'approved' || o.status === 'rejected'
+  )
+
+  // Create unified audit entries (onboarding + activity logs)
+  const auditEntries: AuditEntry[] = [
+    ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
+    ...activityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
+  ]
+
+  // Sort by timestamp (most recent first) and take top 5
+  const recentActivities = auditEntries
     .sort((a, b) => {
-      const dateA = a.reviewedAt ? new Date(a.reviewedAt).getTime() : 0
-      const dateB = b.reviewedAt ? new Date(b.reviewedAt).getTime() : 0
-      return dateB - dateA
+      const timestampA = getAuditEntryTimestamp(a)
+      const timestampB = getAuditEntryTimestamp(b)
+      return timestampB - timestampA
     })
     .slice(0, 5)
 
@@ -99,8 +118,9 @@ export default function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <QuickActionsCard pendingCount={stats.pending} />
         <RecentActivityCard 
-          recentDecisions={recentDecisions}
+          recentActivities={recentActivities}
           getInitials={getInitials}
+          users={users}
         />
       </div>
     </div>

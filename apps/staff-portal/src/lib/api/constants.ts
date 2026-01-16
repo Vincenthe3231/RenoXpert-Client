@@ -21,6 +21,7 @@ export const API_ROUTES = {
     USER: (uuid: string) => `/api/auth/users/${uuid}`,
     RESUBMIT: '/api/auth/resubmit',
     DEACTIVATE_USER: (id: string) => `/api/auth/users/${id}/deactivate`,
+    ACTIVATE_USER: (id: string) => `/api/auth/users/${id}/activate`,
   },
   
   // Onboarding Workflow Domain
@@ -36,6 +37,12 @@ export const API_ROUTES = {
     GET: (id: number) => `/api/roles/${id}`,
     PERMISSIONS: '/api/permissions',
     UPDATE_PERMISSIONS: (id: number) => `/api/roles/${id}/permissions`,
+  },
+  
+  // Activity Logs Domain
+  ACTIVITY_LOGS: {
+    LIST: '/api/activity-logs',
+    GET: (id: number) => `/api/activity-logs/${id}`,
   },
 } as const
 

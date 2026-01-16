@@ -4,20 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Clock, CheckCircle2, XCircle, ExternalLink, ArrowRight } from "lucide-react"
+import { Clock, CheckCircle2, XCircle, ExternalLink, ArrowRight, UserX, UserCheck, UserCog, UserPen } from "lucide-react"
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import Link from "next/link"
-import { Onboarding } from "@/lib/api/onboarding"
+import { AuditEntry } from "@/app/(DashboardLayout)/audit/types"
+import { User } from "@/lib/api/auth"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 
 interface RecentActivityCardProps {
-  recentDecisions: Onboarding[]
+  recentActivities: AuditEntry[]
   getInitials: (name: string) => string
+  users: User[]
 }
 
-const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCardProps) => {
+const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActivityCardProps) => {
   const formatReviewDate = (dateString: string | null | undefined) => {
     if (!dateString) return "—"
     
@@ -35,20 +37,95 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
     }
   }
 
-  const getStatusConfig = (status: string | null | undefined) => {
-    if (status === "approved") {
-      return {
-        icon: CheckCircle2,
-        label: "Approved",
-        className: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
-        iconClassName: "text-green-600",
+  // Helper to get user from entry
+  const getUserFromEntry = (entry: AuditEntry) => {
+    if (entry.type === 'onboarding') {
+      return entry.data.user
+    } else {
+      const log = entry.data
+      if (log.subject) {
+        return log.subject
       }
-    } else if (status === "rejected") {
-      return {
-        icon: XCircle,
-        label: "Rejected",
-        className: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
-        iconClassName: "text-red-600",
+      if (log.subjectId) {
+        return users.find(u => u.id === log.subjectId) || null
+      }
+      return null
+    }
+  }
+
+  // Helper to get timestamp
+  const getTimestamp = (entry: AuditEntry) => {
+    if (entry.type === 'onboarding') {
+      return entry.data.reviewedAt || entry.data.createdAt
+    } else {
+      return entry.data.createdAt
+    }
+  }
+
+  // Helper to get activity config
+  const getActivityConfig = (entry: AuditEntry) => {
+    if (entry.type === 'onboarding') {
+      const status = entry.data.status
+      if (status === "approved") {
+        return {
+          icon: CheckCircle2,
+          label: "Approved",
+          className: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+          iconClassName: "text-green-600",
+          typeLabel: "Onboarding",
+        }
+      } else if (status === "rejected") {
+        return {
+          icon: XCircle,
+          label: "Rejected",
+          className: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+          iconClassName: "text-red-600",
+          typeLabel: "Onboarding",
+        }
+      }
+    } else {
+      const event = entry.data.event
+      switch (event) {
+        case 'deactivated':
+          return {
+            icon: UserX,
+            label: 'Deactivated',
+            className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100',
+            iconClassName: 'text-red-600',
+            typeLabel: 'User Management',
+          }
+        case 'activated':
+          return {
+            icon: UserCheck,
+            label: 'Activated',
+            className: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100',
+            iconClassName: 'text-green-600',
+            typeLabel: 'User Management',
+          }
+        case 'role_changed':
+          return {
+            icon: UserCog,
+            label: 'Role Changed',
+            className: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+            iconClassName: 'text-blue-600',
+            typeLabel: 'User Management',
+          }
+        case 'profile_updated':
+          return {
+            icon: UserPen,
+            label: 'Profile Updated',
+            className: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+            iconClassName: 'text-purple-600',
+            typeLabel: 'User Management',
+          }
+        default:
+          return {
+            icon: Clock,
+            label: event,
+            className: 'bg-gray-50 text-gray-700 border-gray-200',
+            iconClassName: 'text-gray-600',
+            typeLabel: 'User Management',
+          }
       }
     }
     return {
@@ -56,6 +133,7 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
       label: "Pending",
       className: "bg-gray-50 text-gray-700 border-gray-200",
       iconClassName: "text-gray-600",
+      typeLabel: "Onboarding",
     }
   }
 
@@ -65,7 +143,7 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
         <div>
           <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
           <CardDescription className="text-sm text-muted-foreground mt-1">
-            Latest onboarding decisions
+            Latest onboarding decisions and user management activities
           </CardDescription>
         </div>
         <Link href="/audit">
@@ -80,7 +158,7 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
         </Link>
       </CardHeader>
       <CardContent className="pt-6">
-        {recentDecisions.length === 0 ? (
+        {recentActivities.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -89,22 +167,22 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
               <Clock className="w-8 h-8 opacity-50" />
             </div>
-            <p className="text-sm font-medium">No recent decisions</p>
+            <p className="text-sm font-medium">No recent activity</p>
             <p className="text-xs mt-1 text-muted-foreground/80">
-              Approved and rejected requests will appear here
+              Onboarding decisions and user management activities will appear here
             </p>
           </motion.div>
         ) : (
-          <div className="space-y-0 divide-y divide-border/60">
-            {recentDecisions.map((decision, index) => {
-              const statusConfig = getStatusConfig(decision.status)
-              const StatusIcon = statusConfig.icon
-              const isStaff = decision.user?.userType === "staff"
-              const assignedRole = decision.assignedUserType
+          <div className="space-y-3">
+            {recentActivities.map((entry, index) => {
+              const activityConfig = getActivityConfig(entry)
+              const ActivityIcon = activityConfig.icon
+              const user = getUserFromEntry(entry)
+              const timestamp = getTimestamp(entry)
               
               return (
                 <motion.div
-                  key={decision.id}
+                  key={entry.type === 'onboarding' ? `onboarding-${entry.data.id}` : `activity-log-${entry.data.id}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -112,7 +190,7 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
                 >
                   <Link 
                     href="/audit" 
-                    className="block border border-transparent bg-transparent px-4 py-5 transition-all duration-200 hover:bg-muted/30 hover:-translate-y-0.5 hover:shadow-sm first:pt-0 last:pb-0"
+                    className="block border border-border/40 rounded-lg bg-card/50 px-5 py-4 transition-all duration-200 hover:bg-muted/40 hover:border-border hover:-translate-y-0.5 hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-6">
                       {/* Left: Avatar & User Info */}
@@ -121,41 +199,46 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
                           <Avatar className="h-11 w-11 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
                             <AvatarImage 
                               src={
-                                decision.user?.profile && 'avatarUrl' in decision.user.profile 
-                                  ? decision.user.profile.avatarUrl || undefined 
+                                user?.profile && 'avatarUrl' in user.profile 
+                                  ? user.profile.avatarUrl || undefined 
                                   : undefined
                               } 
                               className="object-cover"
                             />
                             <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium border-2 border-background">
-                              {decision.user?.name ? getInitials(decision.user.name) : "??"}
+                              {user?.name ? getInitials(user.name) : "??"}
                             </AvatarFallback>
                           </Avatar>
                           {/* Status indicator dot */}
                           <div className={cn(
                             "absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-background flex items-center justify-center",
-                            decision.status === "approved" && "bg-green-500",
-                            decision.status === "rejected" && "bg-red-500",
+                            activityConfig.iconClassName.includes('green') && "bg-green-500",
+                            activityConfig.iconClassName.includes('red') && "bg-red-500",
+                            activityConfig.iconClassName.includes('blue') && "bg-blue-500",
+                            activityConfig.iconClassName.includes('purple') && "bg-purple-500",
                           )}>
-                            <StatusIcon className={cn("h-2.5 w-2.5", statusConfig.iconClassName)} />
+                            <ActivityIcon className={cn("h-2.5 w-2.5", activityConfig.iconClassName)} />
                           </div>
                         </div>
                         
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2.5 mb-1.5">
                             <p className="text-sm font-semibold text-foreground truncate">
-                              {decision.user?.name || "Unknown User"}
+                              {user?.name || "Unknown User"}
                             </p>
-                            {assignedRole && isStaff && (
-                              <RoleBadge role={assignedRole} />
+                            {entry.type === 'onboarding' && entry.data.assignedUserType && user?.userType === "staff" && (
+                              <RoleBadge role={entry.data.assignedUserType} />
                             )}
+                            <Badge variant="outline" className="text-xs">
+                              {activityConfig.typeLabel}
+                            </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">
-                            {decision.user?.email || "No email"}
+                            {user?.email || "No email"}
                           </p>
-                          {decision.rejectionReason && (
+                          {entry.type === 'onboarding' && entry.data.rejectionReason && (
                             <p className="text-xs text-muted-foreground/80 mt-1.5 line-clamp-1 italic">
-                              "{decision.rejectionReason}"
+                              "{entry.data.rejectionReason}"
                             </p>
                           )}
                         </div>
@@ -165,19 +248,19 @@ const RecentActivityCard = ({ recentDecisions, getInitials }: RecentActivityCard
                       <div className="flex items-center gap-4 flex-shrink-0">
                         <Badge 
                           variant="outline"
-                          className={`gap-1 ${statusConfig.className}`}
+                          className={`gap-1 ${activityConfig.className}`}
                         >
-                          <StatusIcon size={12} />
-                          {statusConfig.label}
+                          <ActivityIcon size={12} />
+                          {activityConfig.label}
                         </Badge>
                         
                         <div className="text-right">
                           <p className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                            {formatReviewDate(decision.reviewedAt)}
+                            {formatReviewDate(timestamp)}
                           </p>
-                          {decision.reviewedAt && !isToday(new Date(decision.reviewedAt)) && !isYesterday(new Date(decision.reviewedAt)) && (
+                          {timestamp && !isToday(new Date(timestamp)) && !isYesterday(new Date(timestamp)) && (
                             <p className="text-xs text-muted-foreground/60 mt-0.5 whitespace-nowrap">
-                              {formatDistanceToNow(new Date(decision.reviewedAt), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
                             </p>
                           )}
                         </div>

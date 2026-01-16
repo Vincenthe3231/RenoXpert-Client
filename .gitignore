@@ -18,6 +18,8 @@ dist
 dist-ssr
 server/dist
 public/dist
+.cursor
+.vscode
 
 # Next.js
 /.next/

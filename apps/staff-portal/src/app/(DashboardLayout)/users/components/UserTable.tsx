@@ -119,8 +119,9 @@ const StaffTable = ({
                 {users.map((user, index) => (
                     <TableRow
                         key={user.uuid}
-                        className={cn("animate-fade-in transition-colors", "hover:bg-muted/10")}
+                        className={cn("animate-fade-in transition-all duration-200 ease-in-out cursor-pointer", "hover:bg-muted/50 hover:-translate-y-0.5")}
                         style={{ animationDelay: `${index * 50}ms` }}
+                        onClick={() => onView(user)}
                     >
                         <TableCell>
                             <div className="flex items-center gap-3">
@@ -144,7 +145,7 @@ const StaffTable = ({
                         <TableCell>
                             <span className="text-sm text-muted-foreground">{user.email}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <UserActions user={user} onView={onView} onDeactivate={onDeactivate} />
                         </TableCell>
                     </TableRow>
@@ -185,8 +186,9 @@ const OwnerTable = ({
                     return (
                         <TableRow
                             key={user.uuid}
-                            className={cn("animate-fade-in transition-colors", "hover:bg-muted/10")}
+                            className={cn("animate-fade-in transition-all duration-200 ease-in-out cursor-pointer", "hover:bg-muted/50 hover:-translate-y-0.5")}
                             style={{ animationDelay: `${index * 50}ms` }}
+                            onClick={() => onView(user)}
                         >
                             <TableCell>
                                 <div className="flex items-center gap-3">
@@ -227,7 +229,7 @@ const OwnerTable = ({
                             <TableCell>
                                 <span className="text-sm text-muted-foreground">{user.email}</span>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <UserActions user={user} onView={onView} onDeactivate={onDeactivate} />
                             </TableCell>
                         </TableRow>
@@ -263,8 +265,9 @@ const VendorTable = ({
                 {users.map((user, index) => (
                     <TableRow
                         key={user.uuid}
-                        className={cn("animate-fade-in transition-colors", "hover:bg-muted/10")}
+                        className={cn("animate-fade-in transition-all duration-200 ease-in-out cursor-pointer", "hover:bg-muted/50 hover:-translate-y-0.5")}
                         style={{ animationDelay: `${index * 50}ms` }}
+                        onClick={() => onView(user)}
                     >
                         <TableCell>
                             <div className="flex items-center gap-3">
@@ -283,7 +286,7 @@ const VendorTable = ({
                         <TableCell>
                             <span className="text-sm text-muted-foreground">{user.email}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <UserActions user={user} onView={onView} onDeactivate={onDeactivate} />
                         </TableCell>
                     </TableRow>
