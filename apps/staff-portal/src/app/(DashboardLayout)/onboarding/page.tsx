@@ -75,8 +75,8 @@ const OnboardingPage = () => {
             setRejectDialogOpen(false);
             setSelectedOnboarding(null);
             toast({
-                title: 'User rejected',
-                description: 'The onboarding request has been rejected.',
+                title: 'User rejected successfully',
+                description: 'The user has been rejected successfully.',
             });
         } catch (err: any) {
             // Handle different error types

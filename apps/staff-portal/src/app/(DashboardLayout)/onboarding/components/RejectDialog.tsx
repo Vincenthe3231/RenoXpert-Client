@@ -42,6 +42,8 @@ const RejectDialog = ({
         try {
             await onReject(onboardingId, data.rejectionReason);
             reset();
+            // Close dialog on successful rejection
+            onOpenChange(false);
         } catch (error) {
             // Error is surfaced by the parent handler via toast; keep dialog open.
         }

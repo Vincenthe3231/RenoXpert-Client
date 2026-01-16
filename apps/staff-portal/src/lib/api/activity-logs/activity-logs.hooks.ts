@@ -22,6 +22,16 @@ export function activityLogsQueryOptions(params?: GetActivityLogsParams) {
  * @returns React Query result with activity logs data
  */
 export function useActivityLogs(params?: GetActivityLogsParams) {
-  return useQuery(activityLogsQueryOptions(params));
+  return useQuery({
+    ...activityLogsQueryOptions(params),
+    // Don't retry on 401/403 errors (permission denied)
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status
+      if (status === 401 || status === 403) {
+        return false // Don't retry permission errors
+      }
+      return failureCount < 3 // Retry other errors up to 3 times
+    },
+  });
 }
 

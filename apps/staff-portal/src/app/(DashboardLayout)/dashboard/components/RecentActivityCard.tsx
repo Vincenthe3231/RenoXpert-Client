@@ -7,11 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Clock, CheckCircle2, XCircle, ExternalLink, ArrowRight, UserX, UserCheck, UserCog, UserPen } from "lucide-react"
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { AuditEntry } from "@/app/(DashboardLayout)/audit/types"
 import { User } from "@/lib/api/auth"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table"
 
 interface RecentActivityCardProps {
   recentActivities: AuditEntry[]
@@ -20,6 +27,8 @@ interface RecentActivityCardProps {
 }
 
 const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActivityCardProps) => {
+  const router = useRouter()
+  
   const formatReviewDate = (dateString: string | null | undefined) => {
     if (!dateString) return "—"
     
@@ -157,7 +166,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
           </Button>
         </Link>
       </CardHeader>
-      <CardContent className="pt-5">
+      <CardContent className="pt-4 px-4 pb-4">
         {recentActivities.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
@@ -173,103 +182,110 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
             </p>
           </motion.div>
         ) : (
-          <div className="space-y-2.5">
-            {recentActivities.map((entry, index) => {
-              const activityConfig = getActivityConfig(entry)
-              const ActivityIcon = activityConfig.icon
-              const user = getUserFromEntry(entry)
-              const timestamp = getTimestamp(entry)
-              
-              return (
-                <motion.div
-                  key={entry.type === 'onboarding' ? `onboarding-${entry.data.id}` : `activity-log-${entry.data.id}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="group relative"
-                >
-                  <Link 
-                    href="/audit" 
-                    className="block border border-border/40 rounded-lg bg-card/50 px-4 py-3.5 transition-all duration-200 hover:bg-muted/40 hover:border-border hover:-translate-y-0.5 hover:shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-5">
-                      {/* Left: Avatar & User Info */}
-                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        <div className="relative flex-shrink-0">
-                          <Avatar className="h-10 w-10 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
-                            <AvatarImage 
-                              src={
-                                user?.profile && 'avatarUrl' in user.profile 
-                                  ? user.profile.avatarUrl || undefined 
-                                  : undefined
-                              } 
-                              className="object-cover"
-                            />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold border-2 border-background">
-                              {user?.name ? getInitials(user.name) : "??"}
-                            </AvatarFallback>
-                          </Avatar>
-                          {/* Status indicator dot */}
-                          <div className={cn(
-                            "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background flex items-center justify-center",
-                            activityConfig.iconClassName.includes('green') && "bg-green-500",
-                            activityConfig.iconClassName.includes('red') && "bg-red-500",
-                            activityConfig.iconClassName.includes('blue') && "bg-blue-500",
-                            activityConfig.iconClassName.includes('purple') && "bg-purple-500",
-                          )}>
-                            <ActivityIcon className={cn("h-2 w-2 text-white")} />
+          <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+            <Table>
+              <TableBody>
+                {recentActivities.map((entry, index) => {
+                  const activityConfig = getActivityConfig(entry)
+                  const ActivityIcon = activityConfig.icon
+                  const user = getUserFromEntry(entry)
+                  const timestamp = getTimestamp(entry)
+                  
+                  return (
+                    <TableRow
+                      key={entry.type === 'onboarding' ? `onboarding-${entry.data.id}` : `activity-log-${entry.data.id}`}
+                      className={cn(
+                        "group transition-all duration-200 ease-in-out cursor-pointer animate-fade-in",
+                        "hover:bg-muted/50 hover:-translate-y-0.5"
+                      )}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => router.push('/audit')}
+                    >
+                      {/* Name Cell - matches UserTable structure */}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex-shrink-0">
+                            <Avatar className="h-10 w-10 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
+                              <AvatarImage 
+                                src={
+                                  user?.profile && 'avatarUrl' in user.profile 
+                                    ? user.profile.avatarUrl || undefined 
+                                    : undefined
+                                } 
+                                className="object-cover"
+                              />
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold border-2 border-background">
+                                {user?.name ? getInitials(user.name) : "??"}
+                              </AvatarFallback>
+                            </Avatar>
+                            {/* Status indicator dot */}
+                            <div className={cn(
+                              "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background flex items-center justify-center",
+                              activityConfig.iconClassName.includes('green') && "bg-green-500",
+                              activityConfig.iconClassName.includes('red') && "bg-red-500",
+                              activityConfig.iconClassName.includes('blue') && "bg-blue-500",
+                              activityConfig.iconClassName.includes('purple') && "bg-purple-500",
+                            )}>
+                              <ActivityIcon className={cn("h-2 w-2 text-white")} />
+                            </div>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{user?.name || "Unknown User"}</p>
+                            <p className="text-xs text-muted-foreground">{user?.email || "No email"}</p>
+                            {entry.type === 'onboarding' && entry.data.rejectionReason && (
+                              <p className="text-xs text-muted-foreground/80 mt-0.5 line-clamp-1 italic">
+                                "{entry.data.rejectionReason}"
+                              </p>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-semibold text-foreground truncate">
-                              {user?.name || "Unknown User"}
-                            </p>
-                            {entry.type === 'onboarding' && entry.data.assignedUserType && user?.userType === "staff" && (
-                              <RoleBadge role={entry.data.assignedUserType} />
-                            )}
-                            <Badge variant="outline" className="text-xs px-2 py-0.5 h-5">
-                              {activityConfig.typeLabel}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate leading-relaxed">
-                            {user?.email || "No email"}
-                          </p>
-                          {entry.type === 'onboarding' && entry.data.rejectionReason && (
-                            <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-1 italic">
-                              "{entry.data.rejectionReason}"
-                            </p>
+                      </TableCell>
+
+                      {/* Role Cell - separate cell like UserTable */}
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {entry.type === 'onboarding' && entry.data.assignedUserType && user?.userType === "staff" && (
+                            <RoleBadge role={entry.data.assignedUserType} />
                           )}
                         </div>
-                      </div>
+                      </TableCell>
 
-                      {/* Right: Status Badge & Date */}
-                      <div className="flex items-center gap-5 flex-shrink-0">
+                      {/* Activity Type Cell - separate cell */}
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5">
+                          {activityConfig.typeLabel}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Status Cell - matches UserTable structure */}
+                      <TableCell>
                         <Badge 
                           variant="outline"
-                          className={`gap-0 px-2.5 py-1 h-7 ${activityConfig.className}`}
+                          className={`gap-1 px-2.5 py-1 h-7 ${activityConfig.className}`}
                         >
                           <ActivityIcon size={12} />
                           <span className="text-xs font-medium">{activityConfig.label}</span>
                         </Badge>
-                        
-                        <div className="text-right min-w-[100px]">
-                          <p className="text-xs font-medium text-muted-foreground whitespace-nowrap leading-tight">
+                      </TableCell>
+                      
+                      {/* Date Cell - matches UserTable structure */}
+                      <TableCell>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground whitespace-nowrap">
                             {formatReviewDate(timestamp)}
                           </p>
                           {timestamp && !isToday(new Date(timestamp)) && !isYesterday(new Date(timestamp)) && (
-                            <p className="text-xs text-muted-foreground/60 mt-0.5 whitespace-nowrap leading-tight">
+                            <p className="text-xs text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                               {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
                             </p>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              )
-            })}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>

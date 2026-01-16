@@ -24,9 +24,9 @@ const baseUserSchema = {
     uuid: z.string().uuid(),
     name: z.string(),
     email: z.string().email(),
-    countryCode: z.string().nullable(),
-    phoneNo: z.string().nullable(),
-    emailVerifiedAt: z.string().datetime().nullable(),
+    countryCode: z.string().nullable().optional(),
+    phoneNo: z.string().nullable().optional(),
+    emailVerifiedAt: z.string().datetime().nullable().optional(),
     lastLoginAt: datetimeSchema, // Use the more lenient schema to accept both formats
     status: userStatusSchema,
 };
@@ -34,21 +34,22 @@ const baseUserSchema = {
 
 // Profile schemas (only extra fields)
 // Based on StaffResource: larksuiteOpenId, larksuiteUnionId, avatarUrl, avatarBig, status, roles, permissions
+// Made more lenient to handle variations in backend responses for staff users
 export const staffProfileSchema = z.object({
-    larksuiteOpenId: z.string().nullable(),
-    larksuiteUnionId: z.string().nullable(),
-    avatarUrl: z.string().nullable(), // Can be any string (URL, empty string) or null
-    avatarBig: z.string().nullable(), // Can be any string (URL, empty string) or null
-    status: z.string(),
-    roles: z.array(z.string()),
-    permissions: z.array(z.string()), // Always returned (even if empty array)
-});
+    larksuiteOpenId: z.string().nullable().optional(),
+    larksuiteUnionId: z.string().nullable().optional(),
+    avatarUrl: z.string().nullable().optional(), // Can be any string (URL, empty string) or null
+    avatarBig: z.string().nullable().optional(), // Can be any string (URL, empty string) or null
+    status: z.string().optional(),
+    roles: z.array(z.string()).optional().default([]),
+    permissions: z.array(z.string()).optional().default([]), // Always returned (even if empty array)
+}).passthrough(); // Allow extra fields that might be present
 
 export const staffUserSchema = z.object({
     ...baseUserSchema,
     userType: z.literal('staff'),
     profile: staffProfileSchema,
-});
+}).passthrough(); // Allow extra fields that might be present in backend response
 
 
 export const ownerProfileSchema = z.object({
@@ -93,8 +94,8 @@ export const LoginResponseSchema = z.object({
         accessStatus: z.string().optional(),
         rejectionReason: z.string().nullable().optional(),
         token: z.string().optional(),
-    }),
-})
+    }).passthrough(), // Allow extra fields
+}).passthrough(); // Allow extra fields at root level
 
 // Backend /me returns: { message: string, data: { user: UserResource, accessStatus: string, rejectionReason: string | null, token?: string } }
 // But frontend route handler returns { user: null } on error
@@ -107,12 +108,12 @@ export const MeResponseSchema = z.union([
             accessStatus: z.string().optional(),
             rejectionReason: z.string().nullable().optional(),
             token: z.string().optional(),
-        }),
-    }),
+        }).passthrough(), // Allow extra fields
+    }).passthrough(), // Allow extra fields at root level
     // Error case: { user: null }
     z.object({
         user: z.null(),
-    }),
+    }).passthrough(), // Allow extra fields
 ])
 
 export const userListSchema = z.object({

@@ -60,14 +60,8 @@ export async function getActivityLogs(
   // Merge filter params into query params
   Object.assign(queryParams, filterParams);
 
-  console.log("Fetching activity logs with params:", queryParams);
-  
   try {
     const { data } = await axios.get("/api/activity-logs", { params: queryParams });
-    
-    console.log("Raw activity logs response:", data);
-    console.log("Response type:", typeof data);
-    console.log("Response keys:", data && typeof data === 'object' ? Object.keys(data) : 'N/A');
     
     // Try to extract data array even if structure is different
     let dataArray = [];
@@ -77,21 +71,15 @@ export async function getActivityLogs(
       dataArray = data.data;
     }
     
-    console.log("Extracted data array length:", dataArray.length);
-    if (dataArray.length > 0) {
-      console.log("First item in array:", dataArray[0]);
-      console.log("First item keys:", Object.keys(dataArray[0]));
-    }
-    
     const result = activityLogListSchema.safeParse(data);
     if (!result.success) {
-      console.error("Activity logs data validation failed:");
-      console.error("Validation errors:", JSON.stringify(result.error.issues, null, 2));
-      console.error("Full received data:", JSON.stringify(data, null, 2));
+      // Only log validation errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Activity logs data validation failed:", result.error.issues);
+      }
       
       // Try to return a partial response if we can extract some data
       if (dataArray.length > 0) {
-        console.warn("Returning partial data despite validation failure");
         return {
           data: dataArray as any[], // Cast to any to bypass type checking
           links: data?.links || {
@@ -127,11 +115,35 @@ export async function getActivityLogs(
       };
     }
     
-    console.log("Validated activity logs count:", result.data.data.length);
     return result.data;
   } catch (error: any) {
-    console.error("Error fetching activity logs:", error);
-    console.error("Error response:", error?.response?.data);
+    // Handle 401/403 errors gracefully - user doesn't have permission
+    const status = error?.response?.status
+    if (status === 401 || status === 403) {
+      // Return empty response instead of throwing - this is expected for non-super-admin users
+      // Don't log these errors as they're expected behavior
+      return {
+        data: [],
+        links: {
+          first: null,
+          last: null,
+          prev: null,
+          next: null,
+        },
+        meta: {
+          currentPage: 1,
+          lastPage: 1,
+          perPage: 15,
+          total: 0,
+        },
+      }
+    }
+    
+    // Only log unexpected errors (not 401/403) in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error("Error fetching activity logs:", error);
+      console.error("Error response:", error?.response?.data);
+    }
     throw error; // Re-throw to let React Query handle it
   }
 }

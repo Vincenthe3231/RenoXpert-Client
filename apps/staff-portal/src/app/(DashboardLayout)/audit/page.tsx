@@ -295,16 +295,23 @@ export default function AuditPage() {
   return (
     <div className="space-y-6">
       <AuditHeader />
-      {activityLogsError && (
-        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-4">
-          <p className="text-sm text-yellow-800">
-            <strong>Warning:</strong> Unable to load activity logs. {activityLogsError instanceof Error ? activityLogsError.message : 'Unknown error'}
-          </p>
-          <p className="text-xs text-yellow-600 mt-1">
-            Check the browser console for more details.
-          </p>
-        </div>
-      )}
+      {activityLogsError && (() => {
+        // Don't show error banner for expected permission errors (401/403)
+        const status = (activityLogsError as any)?.response?.status
+        if (status === 401 || status === 403) {
+          return null
+        }
+        return (
+          <div className="rounded-md bg-yellow-50 border border-yellow-200 p-4">
+            <p className="text-sm text-yellow-800">
+              <strong>Warning:</strong> Unable to load activity logs. {activityLogsError instanceof Error ? activityLogsError.message : 'Unknown error'}
+            </p>
+            <p className="text-xs text-yellow-600 mt-1">
+              Check the browser console for more details.
+            </p>
+          </div>
+        )
+      })()}
       <AuditStatsCards 
         totalDecisions={decisions.length}
         approvedCount={approvedCount}

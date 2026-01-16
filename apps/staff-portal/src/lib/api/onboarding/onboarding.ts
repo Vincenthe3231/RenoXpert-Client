@@ -42,8 +42,9 @@ export async function onboardingApproval(
         payload
     )
 
-    // Backend might return the onboarding object directly or wrapped in a data property
-    const onboardingData = data?.data || data
+    // Backend returns: { message: "...", data: { onboarding: {...} } }
+    // Extract the onboarding object from the nested structure
+    const onboardingData = data?.data?.onboarding || data?.onboarding || data?.data || data
     
     // Use safeParse to handle validation errors gracefully
     const result = onboardingSchema.safeParse(onboardingData)
@@ -73,27 +74,22 @@ export async function onboardingRejection(
     )
 
     // Check if backend returned an error response
-    if (data?.error || data?.message) {
+    // Only treat it as an error if there's an 'error' field, not just a 'message' field
+    // Laravel often returns success responses with a 'message' field
+    if (data?.error) {
         // If it's an error response, throw it
-        const errorMessage = data.message || data.error || 'Failed to reject onboarding'
+        const errorMessage = data.error || data.message || 'Failed to reject onboarding'
         throw new Error(errorMessage)
     }
 
-    // Backend might return the onboarding object directly or wrapped in a data property
-    const onboardingData = data?.data || data
-    
-    // Log for debugging
-    console.log('[DEBUG] onboardingRejection response:', JSON.stringify({
-        hasData: !!data,
-        hasNestedData: !!data?.data,
-        dataKeys: onboardingData && typeof onboardingData === 'object' ? Object.keys(onboardingData) : [],
-        dataType: typeof onboardingData,
-        rawData: JSON.stringify(data).substring(0, 500)
-    }))
+    // Backend returns: { message: "...", data: { onboarding: {...} } }
+    // Extract the onboarding object from the nested structure
+    const onboardingData = data?.data?.onboarding || data?.onboarding || data?.data || data
     
     // Use safeParse to handle validation errors gracefully
     // The backend might return a partial object, so we make validation lenient
     const result = onboardingSchema.safeParse(onboardingData)
+    
     if (!result.success) {
         console.error('Onboarding rejection response validation failed:', result.error.issues)
         console.error('Received data:', JSON.stringify(data, null, 2))
