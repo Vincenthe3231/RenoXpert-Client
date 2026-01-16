@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Download } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
 import { Input } from "@/components/ui/input";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -127,17 +127,11 @@ const UsersPage = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">All Users</h2>
-                    <p className="text-muted-foreground">
-                        Manage and monitor all user accounts
-                    </p>
-                </div>
-                <Button variant="default">
-                    <Plus size={16} className="mr-2" />
-                    Add User
-                </Button>
+            <div>
+                <h2 className="text-2xl font-bold text-foreground">All Users</h2>
+                <p className="text-muted-foreground mt-1">
+                    Manage and monitor all user accounts
+                </p>
             </div>
 
             {/* Filters and Search */}

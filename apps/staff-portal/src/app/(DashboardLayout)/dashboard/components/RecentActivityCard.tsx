@@ -139,10 +139,10 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
 
   return (
     <Card className="shadow-card lg:col-span-2 rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4 px-6 pt-6">
         <div>
-          <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground mt-1">
+          <CardTitle className="text-lg font-semibold leading-tight">Recent Activity</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
             Latest onboarding decisions and user management activities
           </CardDescription>
         </div>
@@ -150,14 +150,14 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
           <Button 
             variant="ghost" 
             size="sm"
-            className="text-primary hover:text-primary hover:bg-primary/10"
+            className="text-primary hover:text-primary hover:bg-primary/10 h-9 px-3"
           >
-            View All
+            <span className="text-sm font-medium">View All</span>
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         </Link>
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="pt-5">
         {recentActivities.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
@@ -173,7 +173,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
             </p>
           </motion.div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {recentActivities.map((entry, index) => {
               const activityConfig = getActivityConfig(entry)
               const ActivityIcon = activityConfig.icon
@@ -190,13 +190,13 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                 >
                   <Link 
                     href="/audit" 
-                    className="block border border-border/40 rounded-lg bg-card/50 px-5 py-4 transition-all duration-200 hover:bg-muted/40 hover:border-border hover:-translate-y-0.5 hover:shadow-sm"
+                    className="block border border-border/40 rounded-lg bg-card/50 px-4 py-3.5 transition-all duration-200 hover:bg-muted/40 hover:border-border hover:-translate-y-0.5 hover:shadow-sm"
                   >
-                    <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center justify-between gap-5">
                       {/* Left: Avatar & User Info */}
-                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         <div className="relative flex-shrink-0">
-                          <Avatar className="h-11 w-11 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
+                          <Avatar className="h-10 w-10 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
                             <AvatarImage 
                               src={
                                 user?.profile && 'avatarUrl' in user.profile 
@@ -205,39 +205,39 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                               } 
                               className="object-cover"
                             />
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium border-2 border-background">
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold border-2 border-background">
                               {user?.name ? getInitials(user.name) : "??"}
                             </AvatarFallback>
                           </Avatar>
                           {/* Status indicator dot */}
                           <div className={cn(
-                            "absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-background flex items-center justify-center",
+                            "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background flex items-center justify-center",
                             activityConfig.iconClassName.includes('green') && "bg-green-500",
                             activityConfig.iconClassName.includes('red') && "bg-red-500",
                             activityConfig.iconClassName.includes('blue') && "bg-blue-500",
                             activityConfig.iconClassName.includes('purple') && "bg-purple-500",
                           )}>
-                            <ActivityIcon className={cn("h-2.5 w-2.5", activityConfig.iconClassName)} />
+                            <ActivityIcon className={cn("h-2 w-2 text-white")} />
                           </div>
                         </div>
                         
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2.5 mb-1.5">
+                          <div className="flex items-center gap-2 mb-1">
                             <p className="text-sm font-semibold text-foreground truncate">
                               {user?.name || "Unknown User"}
                             </p>
                             {entry.type === 'onboarding' && entry.data.assignedUserType && user?.userType === "staff" && (
                               <RoleBadge role={entry.data.assignedUserType} />
                             )}
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs px-2 py-0.5 h-5">
                               {activityConfig.typeLabel}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="text-xs text-muted-foreground truncate leading-relaxed">
                             {user?.email || "No email"}
                           </p>
                           {entry.type === 'onboarding' && entry.data.rejectionReason && (
-                            <p className="text-xs text-muted-foreground/80 mt-1.5 line-clamp-1 italic">
+                            <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-1 italic">
                               "{entry.data.rejectionReason}"
                             </p>
                           )}
@@ -245,21 +245,21 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                       </div>
 
                       {/* Right: Status Badge & Date */}
-                      <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="flex items-center gap-5 flex-shrink-0">
                         <Badge 
                           variant="outline"
-                          className={`gap-1 ${activityConfig.className}`}
+                          className={`gap-0 px-2.5 py-1 h-7 ${activityConfig.className}`}
                         >
                           <ActivityIcon size={12} />
-                          {activityConfig.label}
+                          <span className="text-xs font-medium">{activityConfig.label}</span>
                         </Badge>
                         
-                        <div className="text-right">
-                          <p className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                        <div className="text-right min-w-[100px]">
+                          <p className="text-xs font-medium text-muted-foreground whitespace-nowrap leading-tight">
                             {formatReviewDate(timestamp)}
                           </p>
                           {timestamp && !isToday(new Date(timestamp)) && !isYesterday(new Date(timestamp)) && (
-                            <p className="text-xs text-muted-foreground/60 mt-0.5 whitespace-nowrap">
+                            <p className="text-xs text-muted-foreground/60 mt-0.5 whitespace-nowrap leading-tight">
                               {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
                             </p>
                           )}

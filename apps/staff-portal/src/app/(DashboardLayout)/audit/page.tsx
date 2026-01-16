@@ -10,10 +10,9 @@ import AuditTable from "./AuditTable"
 import { AuditEntry, getAuditEntryTimestamp } from "./types"
 import { Pagination } from "@/components/ui/pagination"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
-import { Search, ArrowUpDown } from "lucide-react"
-import { Label } from "@/components/ui/label"
+import { Search, ArrowDown, ArrowUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { useDebounce } from "@/hooks/use-debounce"
 import { addToSearchHistory } from "@/lib/utils/search-history"
@@ -315,49 +314,51 @@ export default function AuditPage() {
       />
       
       {/* Search and Sort Controls */}
-      <Card className="p-4 rounded-full shadow-card">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex-1 w-full sm:max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                <Input
-                  type="text"
-                  placeholder="Search all columns (user, role, action, date, details...)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <SearchHistoryDropdown
-                    onSelectQuery={handleSearchHistorySelect}
-                    isOpen={searchHistoryOpen}
-                    onOpenChange={setSearchHistoryOpen}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <ColumnFilters
-                filters={columnFilters}
-                onFiltersChange={setColumnFilters}
+      <Card className="p-5 rounded-full shadow-card">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* Search Input */}
+          <div className="flex-1 w-full min-w-0">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Input
+                type="text"
+                placeholder="Search all columns (user, role, action, date, details...)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10 h-10 text-sm"
               />
-              <div className="flex items-center gap-2">
-                <Label htmlFor="sort-order" className="text-sm text-muted-foreground whitespace-nowrap">
-                  Sort by date:
-                </Label>
-                <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
-                  <SelectTrigger id="sort-order" className="w-[140px]">
-                    <ArrowUpDown className="mr-2 h-4 w-4" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                <SearchHistoryDropdown
+                  onSelectQuery={handleSearchHistorySelect}
+                  isOpen={searchHistoryOpen}
+                  onOpenChange={setSearchHistoryOpen}
+                />
               </div>
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <ColumnFilters
+              filters={columnFilters}
+              onFiltersChange={setColumnFilters}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3 gap-2"
+              onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+              title={sortOrder === "newest" ? "Sort: Newest First (Click to change)" : "Sort: Oldest First (Click to change)"}
+            >
+              {sortOrder === "newest" ? (
+                <ArrowDown className="h-4 w-4" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium hidden sm:inline">
+                {sortOrder === "newest" ? "Newest" : "Oldest"}
+              </span>
+            </Button>
           </div>
         </div>
       </Card>

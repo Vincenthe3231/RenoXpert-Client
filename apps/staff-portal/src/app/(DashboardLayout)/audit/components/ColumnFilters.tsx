@@ -82,14 +82,14 @@ export default function ColumnFilters({
         <Button
           variant="outline"
           size="sm"
-          className="relative"
+          className="relative h-10 px-3 gap-2"
         >
-          <Filter className="h-4 w-4 mr-2" />
-          Column Filters
-          {activeFilterCount > 0 && (
+          <Filter className="h-4 w-4" />
+          <span className="text-sm font-medium">Filters</span>
+          {activeFilterCount > 0 && activeFilterCount < 7 && (
             <Badge
               variant="secondary"
-              className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs font-semibold"
             >
               {activeFilterCount}
             </Badge>

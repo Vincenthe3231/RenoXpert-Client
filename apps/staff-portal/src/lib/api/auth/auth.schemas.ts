@@ -12,6 +12,13 @@ export const staffRoleSchema = z.enum(["super-admin", "admin", "staff"]);
 export const ownerRoleSchema = z.enum(["owner"]);
 export const userStatusSchema = z.enum(["active", "deactivated", "verifying", "rejected"]);
 
+// Custom datetime schema that accepts both ISO 8601 and space-separated formats
+// Backend may return: "2026-01-16T11:42:26.000000Z" (ISO 8601) or "2026-01-16 11:42:26" (space-separated)
+const datetimeSchema = z.union([
+  z.string().datetime(), // ISO 8601 format: "2026-01-16T11:42:26.000000Z"
+  z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/), // Space-separated: "2026-01-16 11:42:26"
+]).nullable()
+
 const baseUserSchema = {
     id: z.number().optional(), // Integer ID for endpoints that require it (deactivate, activate, etc.)
     uuid: z.string().uuid(),
@@ -20,7 +27,7 @@ const baseUserSchema = {
     countryCode: z.string().nullable(),
     phoneNo: z.string().nullable(),
     emailVerifiedAt: z.string().datetime().nullable(),
-    lastLoginAt: z.string().datetime().nullable(),
+    lastLoginAt: datetimeSchema, // Use the more lenient schema to accept both formats
     status: userStatusSchema,
 };
 
