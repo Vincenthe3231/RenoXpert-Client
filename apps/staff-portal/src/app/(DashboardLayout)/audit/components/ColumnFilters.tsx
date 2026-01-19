@@ -82,23 +82,27 @@ export default function ColumnFilters({
         <Button
           variant="outline"
           size="sm"
-          className="relative h-10 px-3 gap-2"
+          className="relative h-8 sm:h-9 px-1.5 sm:px-2.5 gap-1 sm:gap-1.5 flex-shrink-0"
         >
-          <Filter className="h-4 w-4" />
-          <span className="text-sm font-medium">Filters</span>
+          <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="text-xs sm:text-sm font-medium hidden md:inline whitespace-nowrap">Filters</span>
           {activeFilterCount > 0 && activeFilterCount < 7 && (
             <Badge
               variant="secondary"
-              className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs font-semibold"
+              className="h-4 w-4 sm:h-5 sm:w-5 rounded-full p-0 flex items-center justify-center text-[10px] sm:text-xs font-semibold flex-shrink-0"
             >
               {activeFilterCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent 
+        className="w-[min(calc(100vw-2rem),10rem)] sm:w-80 p-0" 
+        align="end"
+        sideOffset={5}
+      >
         <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-0">
             <h4 className="text-sm font-semibold">Search Columns</h4>
             <div className="flex gap-2">
               <Button

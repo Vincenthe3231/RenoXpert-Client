@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from "@/components/ui/input";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import UserFilters from "./components/UserFilters";
-import { useUsers } from "@/lib/api/auth/auth.hooks";
+import { useUsers, useAuth } from "@/lib/api/auth/auth.hooks";
 import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
 import UserTable from "./components/UserTable";
 
@@ -15,10 +15,70 @@ import UserTable from "./components/UserTable";
 const STATUS_FILTER_OPTIONS: (UserStatus | "all")[] = ["all", "active", "verifying", "deactivated", "rejected"];
 
 const UsersPage = () => {
+    const { data: currentUser } = useAuth();
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [typeFilter, setTypeFilter] = useState<string>("staff");
+    // For staff users, default to "owner" and don't allow changing
+    const [typeFilter, setTypeFilter] = useState<string>("owner");
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+    // Helper function to check if user has required role
+    const hasRequiredRole = useCallback((requiredRole: 'super-admin' | 'admin' | 'staff' | undefined): boolean => {
+        if (!requiredRole) return true;
+        if (!currentUser || !currentUser.profile) return false;
+
+        const userRoles = currentUser.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        const normalizedRequired = requiredRole.toLowerCase();
+
+        if (normalizedUserRoles.includes(normalizedRequired)) {
+            return true;
+        }
+
+        const isSuperAdmin = normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin'
+        );
+        
+        if (isSuperAdmin) {
+            return true;
+        }
+
+        if (normalizedRequired === 'admin' || normalizedRequired === 'staff') {
+            if (normalizedUserRoles.includes('admin')) {
+                return true;
+            }
+        }
+
+        if (normalizedRequired === 'staff') {
+            if (normalizedUserRoles.includes('staff')) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [currentUser]);
+
+    // Check if current user is staff (not admin or super-admin)
+    const isStaff = useMemo(() => {
+        if (!currentUser || !currentUser.profile) return false;
+        const userRoles = currentUser.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        const isSuperAdmin = normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin'
+        );
+        const isAdmin = normalizedUserRoles.includes('admin');
+        
+        // Staff if they have staff role but not admin or super-admin
+        return normalizedUserRoles.includes('staff') && !isAdmin && !isSuperAdmin;
+    }, [currentUser]);
 
     // Debounce search query to avoid excessive API calls
     useEffect(() => {
@@ -112,14 +172,14 @@ const UsersPage = () => {
         if (statusFilter !== "all") {
             params.status = statusFilter as UserStatus;
         }
-        // Always include type filter (defaults to "staff")
-        params.type = typeFilter as UserType;
+        // For staff users, always filter by "owner", otherwise use selected typeFilter
+        params.type = (isStaff ? "owner" : typeFilter) as UserType;
         if (debouncedSearchQuery.trim()) {
             params.search = debouncedSearchQuery.trim();
         }
 
         return params;
-    }, [statusFilter, typeFilter, debouncedSearchQuery]);
+    }, [statusFilter, typeFilter, debouncedSearchQuery, isStaff]);
 
     const { data: usersData, isLoading, error } = useUsers(filterParams);
     const users = usersData?.data ?? [];
@@ -149,17 +209,19 @@ const UsersPage = () => {
                         />
                     </div>
 
-                    {/* Type Filters */}
-                    <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">
-                            Filter by Type
-                        </p>
-                        <UserFilters
-                            activeFilter={typeFilter}
-                            onFilterChange={setTypeFilter}
-                            filterType="type"
-                        />
-                    </div>
+                    {/* Type Filters - Only show if not staff */}
+                    {!isStaff && (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Filter by Type
+                            </p>
+                            <UserFilters
+                                activeFilter={typeFilter}
+                                onFilterChange={setTypeFilter}
+                                filterType="type"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Search and Actions */}
@@ -203,7 +265,7 @@ const UsersPage = () => {
                 </div>
             ) : users.length > 0 ? (
                 <div className="rounded-full bg-card shadow-card">
-                    <UserTable users={users} />
+                    <UserTable users={users} isStaff={isStaff} />
                 </div>
             ) : (
                 <div className="rounded-full bg-card p-12 text-center shadow-card">

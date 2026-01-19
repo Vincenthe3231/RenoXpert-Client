@@ -48,7 +48,7 @@ const SidebarContent: MenuItem[] = [
         name: "Users",
         icon: "solar:user-linear",
         url: "/users",
-        requiredRole: 'super-admin',
+        requiredRole: 'staff',
       },
       {
         id: uniqueId(),

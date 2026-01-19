@@ -36,11 +36,17 @@ export async function getMe(): Promise<StaffUser | null> {
         throw new Error(`Invalid me response: ${result.error.message}`)
     }
     // Handle both response formats: nested data.user or null
-    if ('data' in result.data && result.data.data) {
-        const user = result.data.data.user
-        // Attach rejectionReason to user if available (for rejected users)
-        if (result.data.data.rejectionReason) {
-            (user as any).rejectionReason = result.data.data.rejectionReason
+    // The TypeScript error happens because result.data is inferred from the Zod parsed shape,
+    // but its type for `.data` is `{}` or unknown—so TS doesn't know that .user or .rejectionReason exist.
+    // This makes property access like result.data.data.user unsafe in TS's view.
+    // To fix, we can use `as any` or check for keys in a type-safe way.
+
+    const responseData = (result.data as any).data
+    if (responseData && typeof responseData === 'object' && 'user' in responseData) {
+        const user: StaffUser = responseData.user
+        // Optionally attach rejectionReason if present
+        if ('rejectionReason' in responseData && responseData.rejectionReason) {
+            (user as StaffUser & { rejectionReason?: string }).rejectionReason = responseData.rejectionReason
         }
         return user
     }

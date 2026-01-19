@@ -33,7 +33,9 @@ const DeactivateDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="max-w-lg">
+            <DialogContent 
+                className="max-w-lg bg-background dark:bg-darkgray border-2 border-border shadow-2xl"
+            >
                 <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-purple-500/20 dark:bg-purple-500/10 rounded-lg text-purple-500">

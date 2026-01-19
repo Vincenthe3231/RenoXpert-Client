@@ -321,20 +321,20 @@ export default function AuditPage() {
       />
       
       {/* Search and Sort Controls */}
-      <Card className="p-5 rounded-full shadow-card">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      <Card className="p-2.5 sm:p-3 rounded-full shadow-card overflow-hidden">
+        <div className="flex flex-row gap-2 sm:gap-2.5 items-center w-full min-w-0">
           {/* Search Input */}
-          <div className="flex-1 w-full min-w-0">
+          <div className="flex-1 min-w-0">
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground z-10 flex-shrink-0" />
               <Input
                 type="text"
-                placeholder="Search all columns (user, role, action, date, details...)"
+                placeholder="Search all columns..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10 h-10 text-sm"
+                className="pl-8 sm:pl-10 pr-8 sm:pr-10 h-8 sm:h-9 text-xs sm:text-sm w-full min-w-0"
               />
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex-shrink-0">
                 <SearchHistoryDropdown
                   onSelectQuery={handleSearchHistorySelect}
                   isOpen={searchHistoryOpen}
@@ -345,7 +345,7 @@ export default function AuditPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <ColumnFilters
               filters={columnFilters}
               onFiltersChange={setColumnFilters}
@@ -353,16 +353,16 @@ export default function AuditPage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-10 px-3 gap-2"
+              className="h-8 sm:h-9 px-1.5 sm:px-2.5 gap-1 sm:gap-1.5 flex-shrink-0"
               onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
               title={sortOrder === "newest" ? "Sort: Newest First (Click to change)" : "Sort: Oldest First (Click to change)"}
             >
               {sortOrder === "newest" ? (
-                <ArrowDown className="h-4 w-4" />
+                <ArrowDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               ) : (
-                <ArrowUp className="h-4 w-4" />
+                <ArrowUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               )}
-              <span className="text-sm font-medium hidden sm:inline">
+              <span className="text-xs sm:text-sm font-medium hidden md:inline whitespace-nowrap">
                 {sortOrder === "newest" ? "Newest" : "Oldest"}
               </span>
             </Button>

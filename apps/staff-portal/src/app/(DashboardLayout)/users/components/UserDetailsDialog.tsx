@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Loader2, Edit, UserCheck, UserX } from "lucide-react"
-import { StaffUser, OwnerUser } from "@/lib/api/auth/auth.schemas"
+import { StaffUser, OwnerUser, User } from "@/lib/api/auth/auth.schemas"
 import { useUser, useActivateUser, useDeactivateUser } from "@/lib/api/auth/auth.hooks"
 import UserStatusBadge from "./UserStatusBadge"
 import RoleBadge from "./RoleBadge"
@@ -13,29 +13,27 @@ import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
 import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
 
 interface UserDetailsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   userId: string | null
+  canEdit?: boolean
+  onEdit?: (user: User) => void
 }
 
-const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProps) => {
+const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit }: UserDetailsDialogProps) => {
   const { data: user, isLoading, error } = useUser(userId)
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
   const { toast } = useToast()
-  const router = useRouter()
 
   const getInitials = (name: string) => 
     name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
   const handleEdit = () => {
-    if (!user) return
-    onOpenChange(false)
-    // Navigate to edit page - adjust route based on your routing structure
-    router.push(`/users/${user.uuid}/edit`)
+    if (!user || !onEdit) return
+    onEdit(user)
   }
 
   const handleActivate = async () => {
@@ -78,7 +76,9 @@ const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-none">
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background dark:bg-darkgray border-2 border-border shadow-2xl"
+      >
         <DialogHeader>
           <DialogTitle>User Details</DialogTitle>
         </DialogHeader>
@@ -290,10 +290,12 @@ const UserDetailsDialog = ({ open, onOpenChange, userId }: UserDetailsDialogProp
               </Button>
             )}
           </div>
-          <Button onClick={handleEdit} disabled={!user}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit User
-          </Button>
+          {canEdit && onEdit && (
+            <Button onClick={handleEdit} disabled={!user}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit User
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
