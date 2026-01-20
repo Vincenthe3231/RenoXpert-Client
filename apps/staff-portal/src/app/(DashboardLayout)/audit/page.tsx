@@ -53,6 +53,8 @@ export default function AuditPage() {
     data: activityLogsData, 
     isLoading: isLoadingActivityLogs,
     error: activityLogsError,
+    dataUpdatedAt: activityLogsUpdatedAt,
+    status: activityLogsStatus,
   } = useActivityLogs({
     "filter[log_name]": "user",
   })
@@ -117,8 +119,17 @@ export default function AuditPage() {
           userEmail = user?.email || ""
         }
         
-        // Get role from user if available
-        if (log.subjectId) {
+        // Get role from log properties - prioritize new role (attributes) over old role (old)
+        // Backend uses "old" (old values) and "attributes" (new values) instead of "old_values" and "new_values"
+        // Show the latest/new role to reflect the user's role after the change
+        if (log.properties?.attributes?.roles?.[0]) {
+          // Prioritize "attributes" (new role after change) over "old" (old role before change)
+          searchableFields.role = log.properties.attributes.roles[0]
+        } else if (log.properties?.old?.roles?.[0]) {
+          // Fallback to "old" if "attributes" not available
+          searchableFields.role = log.properties.old.roles[0]
+        } else if (log.subjectId) {
+          // Last resort: use current user role
           const user = userMapById.get(log.subjectId)
           if (user?.userType === 'staff' && user.profile?.roles?.[0]) {
             searchableFields.role = user.profile.roles[0]

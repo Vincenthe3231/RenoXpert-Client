@@ -13,6 +13,7 @@ import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
 import { useToast } from "@/hooks/use-toast"
+import React from "react"
 
 interface UserDetailsDialogProps {
   open: boolean
@@ -23,7 +24,7 @@ interface UserDetailsDialogProps {
 }
 
 const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit }: UserDetailsDialogProps) => {
-  const { data: user, isLoading, error } = useUser(userId)
+  const { data: user, isLoading, error, dataUpdatedAt, status } = useUser(userId)
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
   const { toast } = useToast()
@@ -191,7 +192,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                    <p className="text-sm font-medium">
+                    <div className="text-sm font-medium">
                       {user.countryCode && user.phoneNo ? (
                         <div className="flex items-center gap-2">
                           {getFlagPath(user.countryCode) && (
@@ -206,7 +207,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                           <span>+{user.countryCode} {user.phoneNo}</span>
                         </div>
                       ) : "—"}
-                    </p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Email Verified</p>

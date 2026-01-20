@@ -132,6 +132,29 @@ export const userListSchema = z.object({
     }),
 });
 
+// More lenient schema for owners endpoint that may return different structure
+// This handles cases where the backend returns owner profile data directly
+export const ownersListSchema = z.object({
+    data: z.array(z.any()), // Accept any structure for now
+    links: z.object({
+        first: z.string().url().nullable(),
+        last: z.string().url().nullable(),
+        prev: z.string().url().nullable(),
+        next: z.string().url().nullable(),
+    }).optional(),
+    meta: z.object({
+        currentPage: z.number(),
+        lastPage: z.number().optional(),
+        perPage: z.number().optional(),
+        total: z.number().optional(),
+        from: z.number().optional(),
+        to: z.number().optional(),
+        path: z.string().optional(),
+        links: z.array(z.any()).optional(),
+    }).optional(),
+    message: z.string().optional(),
+}).passthrough();
+
 export const getUsersParamsSchema = z.object({
     status: userStatusSchema.optional(),
     type: userTypeSchema.optional(),

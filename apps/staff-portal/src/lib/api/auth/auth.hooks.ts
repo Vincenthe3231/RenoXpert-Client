@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser } from './auth'
+import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners } from './auth'
 import type {
     StaffUser,
     LoginInput,
@@ -66,6 +66,7 @@ export function usersQueryOptions(params?: GetUsersParams) {
     return queryOptions({
         queryKey: [...AUTH_QUERY_KEYS.USERS, params],
         queryFn: () => getUsers(params),
+        enabled: params !== undefined,
         placeholderData: keepPreviousData,
         staleTime: USER_QUERY_CONFIG.STALE_TIME,
     })
@@ -73,6 +74,27 @@ export function usersQueryOptions(params?: GetUsersParams) {
 
 export function useUsers(params?: GetUsersParams) {
     return useQuery(usersQueryOptions(params))
+}
+
+/**
+ * Query options factory for owners list (for staff users)
+ */
+export function ownersQueryOptions(params?: GetUsersParams) {
+    return queryOptions({
+        queryKey: ['owners', params],
+        queryFn: () => getOwners(params),
+        enabled: params !== undefined,
+        placeholderData: keepPreviousData,
+        staleTime: USER_QUERY_CONFIG.STALE_TIME,
+    })
+}
+
+/**
+ * Hook to fetch owners list
+ * Used by staff users who don't have permission to access /users endpoint
+ */
+export function useOwners(params?: GetUsersParams) {
+    return useQuery(ownersQueryOptions(params))
 }
 
 /**

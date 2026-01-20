@@ -257,11 +257,30 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {user?.userType === 'staff' && user.profile?.roles?.[0] ? (
-                            <RoleBadge role={user.profile.roles[0] as any} />
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
+                          {(() => {
+                            // For activity logs, try to extract historical role from log properties
+                            if (entry.type === 'activity_log') {
+                              const log = entry.data
+                              
+                              // Extract the latest/new role from activity log properties
+                              // Backend uses "old" (old values) and "attributes" (new values) instead of "old_values" and "new_values"
+                              // For role_changed events, prioritize "attributes" (new role after change) over "old" (old role before change)
+                              // Show the NEW role to reflect the user's role after the change
+                              if (log.properties?.attributes?.roles?.[0]) {
+                                return <RoleBadge role={log.properties.attributes.roles[0] as any} />
+                              }
+                              // Fallback: try "old" if attributes not available
+                              if (log.properties?.old?.roles?.[0]) {
+                                return <RoleBadge role={log.properties.old.roles[0] as any} />
+                              }
+                            }
+                            // Fallback to current user role if no historical data available
+                            return user?.userType === 'staff' && user.profile?.roles?.[0] ? (
+                              <RoleBadge role={user.profile.roles[0] as any} />
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{getActionPerformer(entry)}</span>

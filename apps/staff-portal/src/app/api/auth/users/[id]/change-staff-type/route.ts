@@ -15,6 +15,12 @@ export async function POST(
 
         const body = await request.json()
 
+        // Transform staffType value from "super-admin" to "super_admin" for backend compatibility
+        // Frontend uses "super-admin" (hyphen) but backend expects "super_admin" (underscore)
+        if (body.staffType === 'super-admin') {
+            body.staffType = 'super_admin'
+        }
+
         const laravelRes = await laravelApi.post(`/users/${id}/change-staff-type`, body, {
             headers: cookieString ? { cookie: cookieString } : undefined,
         })

@@ -13,6 +13,8 @@ import { useAuth } from "@/lib/api/auth/auth.hooks"
 import axios from "axios"
 import { useState, useEffect, useMemo } from "react"
 import { AUTH_QUERY_KEYS } from "@/lib/api/auth/constants"
+import { ACTIVITY_LOGS_QUERY_KEYS } from "@/lib/api/activity-logs/constants"
+import { useUser } from "@/lib/api/auth/auth.hooks"
 
 interface EditUserDialogProps {
   open: boolean
@@ -20,8 +22,13 @@ interface EditUserDialogProps {
   user: User | null
 }
 
-const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
+const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialogProps) => {
   const { data: currentUser } = useAuth()
+  // Fetch fresh user data that updates when queries are invalidated
+  const { data: freshUserData } = useUser(initialUser?.uuid || null)
+  // Use fresh user data if available, fallback to initial user prop
+  const user = freshUserData || initialUser
+  
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phoneNo, setPhoneNo] = useState("")
@@ -55,13 +62,16 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
         const roles = (user as StaffUser).profile.roles || []
         // Get the first role or default to 'staff'
         const firstRole = roles[0]?.toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-')
+        let newRole: StaffType = 'staff'
         if (firstRole === 'super-admin' || firstRole === 'superadmin' || firstRole === 'super_admin') {
-          setSelectedRole('super-admin')
+          newRole = 'super-admin'
         } else if (firstRole === 'admin') {
-          setSelectedRole('admin')
+          newRole = 'admin'
         } else {
-          setSelectedRole('staff')
+          newRole = 'staff'
         }
+        
+        setSelectedRole(newRole)
       }
     }
   }, [user])
@@ -71,9 +81,9 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
       if (!user) throw new Error("No user selected")
       
       const identifier = user.id ? String(user.id) : user.uuid
-      const endpoint = user.userType === 'staff' 
-        ? `/api/staff/${identifier}`
-        : `/api/owners/${identifier}`
+      // Use the correct endpoint: PUT /api/auth/users/{id}/profile (proxies to Laravel PUT /api/v1/users/{id}/profile)
+      // This endpoint handles profile updates: name, email, phone_no, country_code
+      const endpoint = `/api/auth/users/${identifier}/profile`
       
       const { data: response } = await axios.put(endpoint, data)
       return response
@@ -83,18 +93,11 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
       if (user) {
         queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
       }
-      toast({
-        title: 'User updated',
-        description: 'User information has been updated successfully.',
-      })
-      onOpenChange(false)
+      // Don't show toast here - handled in handleSubmit
     },
     onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to update user',
-        description: error?.response?.data?.message || error?.message || 'Please try again.',
-      })
+      // Don't show toast here - handled in handleSubmit
+      throw error // Re-throw so we can catch it in handleSubmit
     },
   })
 
@@ -109,32 +112,41 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
       if (user) {
+        // Invalidate and refetch user query to update UserDetailsDialog immediately
         queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+        queryClient.refetchQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
       }
-      toast({
-        title: 'Role updated',
-        description: 'User role has been updated successfully.',
-      })
+      // Refetch activity logs instead of invalidating to preserve previous data during refetch
+      // This prevents the audit log from temporarily showing empty during refetch
+      queryClient.refetchQueries({ queryKey: ACTIVITY_LOGS_QUERY_KEYS.LIST })
+      // Don't show toast here - handled in handleSubmit
     },
     onError: (error: any) => {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to update role',
-        description: error?.response?.data?.message || error?.message || 'Please try again.',
-      })
+      // Don't show toast here - handled in handleSubmit
+      throw error // Re-throw so we can catch it in handleSubmit
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
 
     const updateData: { name?: string; email?: string; phoneNo?: string } = {}
-    if (name !== user.name) updateData.name = name
-    if (email !== user.email) updateData.email = email
-    if (phoneNo !== user.phoneNo) updateData.phoneNo = phoneNo
+    // Only include fields that have actually changed and have non-empty values
+    // Treat null/undefined/empty string as equivalent to avoid false positives
+    if (name !== user.name && name.trim() !== '') updateData.name = name
+    if (email !== user.email && email.trim() !== '') updateData.email = email
+    // For phoneNo: only update if there's a meaningful change (handle null vs empty string)
+    const normalizedPhoneNo = phoneNo.trim() || null
+    const normalizedUserPhoneNo = user.phoneNo?.trim() || null
+    if (normalizedPhoneNo !== normalizedUserPhoneNo) {
+      // Only include phoneNo if it's not empty, or if we're clearing it (user had phone, now empty)
+      if (normalizedPhoneNo !== null || normalizedUserPhoneNo !== null) {
+        updateData.phoneNo = normalizedPhoneNo || ''
+      }
+    }
 
-    // Check for role changes
+    // Check for role changes - use fresh user data
     let normalizedCurrentRole: StaffType = 'staff'
     let hasRoleChange = false
     if (user.userType === 'staff' && isSuperAdmin) {
@@ -146,6 +158,15 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
         : 'staff'
       
       hasRoleChange = selectedRole !== normalizedCurrentRole
+      
+      // Prevent API call if role hasn't actually changed
+      if (!hasRoleChange && Object.keys(updateData).length === 0) {
+        toast({
+          title: 'No changes',
+          description: 'No changes were made.',
+        })
+        return
+      }
     }
 
     // If no changes at all
@@ -157,14 +178,42 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
       return
     }
 
-    // Update user info if there are changes
-    if (Object.keys(updateData).length > 0) {
-      updateUser.mutate(updateData)
-    }
+    const hasUserInfoChanges = Object.keys(updateData).length > 0
+    const mutations: Promise<any>[] = []
 
-    // Update role if it's a staff user and role changed
-    if (hasRoleChange) {
-      changeStaffType.mutate(selectedRole)
+    try {
+      // Collect all mutations
+      if (hasUserInfoChanges) {
+        mutations.push(updateUser.mutateAsync(updateData))
+      }
+      if (hasRoleChange) {
+        mutations.push(changeStaffType.mutateAsync(selectedRole))
+      }
+
+      // Wait for all mutations to complete
+      await Promise.all(mutations)
+
+      // All mutations succeeded - show single success toast
+      const changes: string[] = []
+      if (hasUserInfoChanges) changes.push('user information')
+      if (hasRoleChange) changes.push('role')
+      
+      toast({
+        title: 'User updated successfully',
+        description: `User ${changes.join(' and ')} has been updated.`,
+      })
+
+      // Close dialog on success
+      onOpenChange(false)
+    } catch (error: any) {
+      // One or more mutations failed - show error toast
+      const errorMessage = error?.response?.data?.message || error?.message || 'Please try again.'
+      
+      toast({
+        variant: 'destructive',
+        title: 'Failed to update user',
+        description: errorMessage,
+      })
     }
   }
 
@@ -177,13 +226,14 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
   const isStaff = user.userType === 'staff'
 
   const handleClose = () => {
-    if (updateUser.isPending) return
+    if (updateUser.isPending || changeStaffType.isPending) return
     onOpenChange(false)
-    // Reset form when closing
-    if (user) {
-      setName(user.name || "")
-      setEmail(user.email || "")
-      setPhoneNo(user.phoneNo || "")
+    // Reset form when closing - use fresh user data if available
+    const userToReset = freshUserData || initialUser
+    if (userToReset) {
+      setName(userToReset.name || "")
+      setEmail(userToReset.email || "")
+      setPhoneNo(userToReset.phoneNo || "")
     }
   }
 
@@ -285,7 +335,7 @@ const EditUserDialog = ({ open, onOpenChange, user }: EditUserDialogProps) => {
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={updateUser.isPending}
+              disabled={updateUser.isPending || changeStaffType.isPending}
             >
               <X className="mr-2 h-4 w-4" />
               Cancel

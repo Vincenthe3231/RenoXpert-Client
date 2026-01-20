@@ -129,3 +129,77 @@ export async function getUser(id: string): Promise<User> {
         throw error
     }
 }
+
+/**
+ * Get owners list (for staff users who don't have permission to access /users endpoint)
+ * Uses /api/owners which calls Laravel's /owners endpoint with staff-friendly permissions
+ */
+export async function getOwners(params?: GetUsersParams): Promise<UserListResponse> {
+    // Build params compatible with /api/owners endpoint
+    // The owners endpoint expects: filter[status], filter[search], page, per_page
+    const ownersParams: Record<string, any> = {}
+    
+    if (params?.status) {
+        ownersParams['filter[status]'] = params.status
+    }
+    if (params?.search) {
+        ownersParams['filter[search]'] = params.search
+    }
+    if (params?.page) {
+        ownersParams.page = params.page
+    }
+    if (params?.perPage) {
+        ownersParams.per_page = params.perPage
+    }
+    
+    const { data } = await axios.get('/api/owners', { params: ownersParams })
+    
+    // Transform the data to match the expected schema structure
+    // Backend returns profile fields (salutation, ic, address1, etc.) at top level,
+    // but schema expects them nested in a 'profile' object
+    const transformedData = {
+        ...data,
+        data: Array.isArray(data.data) ? data.data.map((item: any) => {
+            // Extract profile fields that should be nested
+            const profileFields = {
+                salutation: item.salutation ?? null,
+                ic: item.ic ?? null,
+                address1: item.address1 ?? null,
+                address2: item.address2 ?? null,
+                city: item.city ?? null,
+                state: item.state ?? null,
+                postcode: item.postcode ?? null,
+            }
+            
+            // Remove profile fields from top level and nest them in 'profile'
+            // Keep all other fields (uuid, name, email, status, etc.) at top level
+            const {
+                salutation,
+                ic,
+                address1,
+                address2,
+                city,
+                state,
+                postcode,
+                ...userFields
+            } = item
+            
+            return {
+                ...userFields,
+                profile: profileFields,
+            }
+        }) : [],
+    }
+    
+    // Now validate with the standard userListSchema
+    const userListResult = userListSchema.safeParse(transformedData)
+    if (userListResult.success) {
+        return userListResult.data
+    }
+    
+    // If validation fails, log detailed error information
+    console.error('Owner list data validation failed:', userListResult.error.issues)
+    console.error('Received data:', JSON.stringify(data, null, 2))
+    console.error('Transformed data:', JSON.stringify(transformedData, null, 2))
+    throw new Error(`Invalid owner list data: ${userListResult.error.message}`)
+}

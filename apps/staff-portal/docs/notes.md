@@ -74,3 +74,5 @@ Improve the cohesiveness of `audit` and `dashboard` and reduce their coupling by
 - Can wait if current patterns work
 
 Read SPATIE_RBAC_MIGRATION.md after integrating frontend with backend
+
+The change of role didn't update lively on user detail dialog and audit log records

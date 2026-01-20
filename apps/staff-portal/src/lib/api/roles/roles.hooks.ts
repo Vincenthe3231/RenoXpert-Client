@@ -20,11 +20,19 @@ export const ROLES_QUERY_KEYS = {
     PERMISSIONS: () => [...ROLES_QUERY_KEYS.ALL, 'permissions'] as const,
 } as const
 
-export function useRoles() {
+export function useRoles(options?: { enabled?: boolean }) {
     return useQuery<RolesListResponse, Error>({
         queryKey: ROLES_QUERY_KEYS.LIST(),
         queryFn: getRoles,
         staleTime: 5 * 60 * 1000, // 5 minutes - roles don't change often
+        enabled: options?.enabled !== undefined ? options.enabled : true,
+        // Don't retry on 403 errors (permission denied)
+        retry: (failureCount, error: any) => {
+            if (error?.response?.status === 403) {
+                return false; // Don't retry permission errors
+            }
+            return failureCount < 3; // Retry up to 3 times for other errors
+        },
     })
 }
 

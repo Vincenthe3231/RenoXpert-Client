@@ -41,15 +41,27 @@ const UserFilters = ({
     onFilterChange,
     filterType,
 }: UserFiltersProps) => {
-    // Fetch roles from API
-    const { data: rolesData, isLoading: rolesLoading } = useRoles();
+    // Only fetch roles when filterType is "role" to avoid unnecessary API calls
+    const { data: rolesData, isLoading: rolesLoading, error: rolesError } = useRoles({
+        enabled: filterType === "role",
+    });
 
     // Build role filters from API data
     const roleFilters = useMemo(() => {
         const allOption = { label: "All", value: "all" as const };
         
-        if (rolesLoading || !rolesData?.data) {
-            // Fallback to empty array with "All" option while loading
+        // If not fetching roles (filterType !== "role"), return just "All" option
+        if (filterType !== "role") {
+            return [allOption];
+        }
+        
+        // Handle loading state
+        if (rolesLoading) {
+            return [allOption];
+        }
+        
+        // Handle error state - return empty array with "All" option
+        if (rolesError || !rolesData?.data) {
             return [allOption];
         }
 
@@ -59,7 +71,7 @@ const UserFilters = ({
         }));
 
         return [allOption, ...roleOptions];
-    }, [rolesData, rolesLoading]);
+    }, [rolesData, rolesLoading, rolesError, filterType]);
 
     const filters =
         filterType === "status"
