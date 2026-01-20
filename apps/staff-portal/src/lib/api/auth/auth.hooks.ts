@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners } from './auth'
+import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners, getOwner } from './auth'
 import type {
     StaffUser,
     LoginInput,
@@ -98,6 +98,26 @@ export function useOwners(params?: GetUsersParams) {
 }
 
 /**
+ * Query options factory for single owner (for staff users)
+ */
+export function ownerQueryOptions(id: string | null) {
+    return queryOptions({
+        queryKey: ['owner', id],
+        queryFn: () => id ? getOwner(id) : null,
+        enabled: !!id,
+        staleTime: USER_QUERY_CONFIG.STALE_TIME,
+    })
+}
+
+/**
+ * Hook to fetch single owner by ID
+ * Used by staff users who don't have permission to access /api/auth/users/{id}
+ */
+export function useOwner(id: string | null) {
+    return useQuery(ownerQueryOptions(id))
+}
+
+/**
  * Query options factory for single user
  */
 export function userQueryOptions(id: string | null) {
@@ -121,8 +141,12 @@ export function useDeactivateUser() {
         onSuccess: (updatedUser, userId) => {
             // Invalidate users list to refresh the table
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+            // Invalidate owners list as well (for staff users)
+            queryClient.invalidateQueries({ queryKey: ['owners'] })
             // Update the specific user in cache if it exists
             queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedUser.uuid), updatedUser)
+            // Update owner cache as well
+            queryClient.setQueryData(['owner', updatedUser.uuid], updatedUser)
             // Invalidate auth/me in case the deactivated user is the current user
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
         },
@@ -137,8 +161,12 @@ export function useActivateUser() {
         onSuccess: (updatedUser, userId) => {
             // Invalidate users list to refresh the table
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+            // Invalidate owners list as well (for staff users)
+            queryClient.invalidateQueries({ queryKey: ['owners'] })
             // Update the specific user in cache if it exists
             queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedUser.uuid), updatedUser)
+            // Update owner cache as well
+            queryClient.setQueryData(['owner', updatedUser.uuid], updatedUser)
             // Invalidate auth/me in case the activated user is the current user
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
         },

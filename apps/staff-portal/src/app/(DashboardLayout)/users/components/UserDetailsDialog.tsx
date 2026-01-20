@@ -6,14 +6,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Loader2, Edit, UserCheck, UserX } from "lucide-react"
 import { StaffUser, OwnerUser, User } from "@/lib/api/auth/auth.schemas"
-import { useUser, useActivateUser, useDeactivateUser } from "@/lib/api/auth/auth.hooks"
+import { useUser, useActivateUser, useDeactivateUser, useAuth, useOwner } from "@/lib/api/auth/auth.hooks"
 import UserStatusBadge from "./UserStatusBadge"
 import RoleBadge from "./RoleBadge"
 import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
 import { useToast } from "@/hooks/use-toast"
-import React from "react"
+import React, { useMemo } from "react"
 
 interface UserDetailsDialogProps {
   open: boolean
@@ -24,7 +24,39 @@ interface UserDetailsDialogProps {
 }
 
 const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit }: UserDetailsDialogProps) => {
-  const { data: user, isLoading, error, dataUpdatedAt, status } = useUser(userId)
+  const { data: currentUser } = useAuth()
+  
+  // Check if current user is staff (not admin or super-admin)
+  const isStaff = useMemo(() => {
+    if (!currentUser || !currentUser.profile) return false
+    const userRoles = currentUser.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin'
+    )
+    const isAdmin = normalizedUserRoles.includes('admin')
+    
+    // Staff if they have staff role but not admin or super-admin
+    return normalizedUserRoles.includes('staff') && !isAdmin && !isSuperAdmin
+  }, [currentUser])
+
+  // Use useOwner for staff users, useUser for admin/super-admin
+  const { data: ownerData, isLoading: isOwnerLoading, error: ownerError } = useOwner(
+    isStaff && userId ? userId : null
+  )
+  const { data: userData, isLoading: isUserLoading, error: userError } = useUser(
+    !isStaff && userId ? userId : null
+  )
+
+  // Use the appropriate data based on user role
+  const user = isStaff ? ownerData : userData
+  const isLoading = isStaff ? isOwnerLoading : isUserLoading
+  const error = isStaff ? ownerError : userError
+
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
   const { toast } = useToast()

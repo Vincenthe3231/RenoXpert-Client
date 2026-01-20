@@ -6,16 +6,44 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     try {
-        const { id } = await params
         const cookieStore = await cookies()
         const cookieString = cookieStore.getAll()
             .map(c => `${c.name}=${c.value}`)
             .join('; ')
 
-        const laravelRes = await laravelApi.get(`/owners/${id}`, {
-            headers: cookieString ? { cookie: cookieString } : undefined,
-        })
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        
+        let laravelRes
+        if (isUuid) {
+            try {
+                laravelRes = await laravelApi.get(`/owners/${id}`, {
+                    headers: cookieString ? { cookie: cookieString } : undefined,
+                })
+            } catch (directError: any) {
+                const ownersRes = await laravelApi.get('/owners', {
+                    headers: cookieString ? { cookie: cookieString } : undefined,
+                    params: {
+                        per_page: 1000
+                    }
+                })
+                const owners = ownersRes.data?.data || ownersRes.data || []
+                const owner = Array.isArray(owners) ? owners.find((o: any) => o.uuid === id) : null
+                if (!owner) {
+                    throw { response: { status: 404, data: { message: `Owner with UUID ${id} not found` } } }
+                }
+                laravelRes = { 
+                    data: { data: { owner } },
+                    status: 200, 
+                    headers: ownersRes.headers 
+                }
+            }
+        } else {
+            laravelRes = await laravelApi.get(`/owners/${id}`, {
+                headers: cookieString ? { cookie: cookieString } : undefined,
+            })
+        }
 
         const res = NextResponse.json(laravelRes.data)
 
@@ -29,6 +57,12 @@ export async function GET(
 
         return res
     } catch (error: any) {
+        console.error('Error fetching owner:', {
+            id,
+            status: error?.response?.status,
+            message: error?.response?.data?.message,
+            data: error?.response?.data,
+        })
         const status = error?.response?.status || 500
         const message = error?.response?.data?.message || 'Failed to fetch owner'
         return NextResponse.json({ error: message }, { status })

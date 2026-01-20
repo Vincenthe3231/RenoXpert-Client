@@ -131,6 +131,60 @@ export async function getUser(id: string): Promise<User> {
 }
 
 /**
+ * Get single owner by ID (for staff users who don't have permission to access /api/auth/users/{id})
+ * Uses /api/owners/{id} which calls Laravel's /owners/{id} endpoint with staff-friendly permissions
+ */
+export async function getOwner(id: string): Promise<User> {
+    try {
+        const { data } = await axios.get(`/api/owners/${id}`)
+        
+        const ownerData = data?.data?.owner || data?.owner || data?.data || data
+        
+        if (!ownerData) {
+            throw new Error('Owner data not found in response')
+        }
+        
+        const profileFields = {
+            salutation: ownerData.salutation ?? null,
+            ic: ownerData.ic ?? null,
+            address1: ownerData.address1 ?? null,
+            address2: ownerData.address2 ?? null,
+            city: ownerData.city ?? null,
+            state: ownerData.state ?? null,
+            postcode: ownerData.postcode ?? null,
+        }
+        
+        const {
+            salutation,
+            ic,
+            address1,
+            address2,
+            city,
+            state,
+            postcode,
+            ...userFields
+        } = ownerData
+        
+        const transformedUser = {
+            ...userFields,
+            profile: profileFields,
+        }
+        
+        const result = userSchema.safeParse(transformedUser)
+        if (!result.success) {
+            console.error('Owner data validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(data, null, 2))
+            console.error('Owner data:', JSON.stringify(ownerData, null, 2))
+            console.error('Transformed data:', JSON.stringify(transformedUser, null, 2))
+            throw new Error(`Invalid owner data: ${result.error.message}`)
+        }
+        return result.data
+    } catch (error: any) {
+        throw error
+    }
+}
+
+/**
  * Get owners list (for staff users who don't have permission to access /users endpoint)
  * Uses /api/owners which calls Laravel's /owners endpoint with staff-friendly permissions
  */
