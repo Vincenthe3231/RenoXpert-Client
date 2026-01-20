@@ -1,11 +1,10 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Save, X } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Loader2, Save, X, User as UserIcon, Phone, Mail, MapPin, Shield } from "lucide-react"
 import { StaffUser, OwnerUser, User, StaffType } from "@/lib/api/auth/auth.schemas"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
@@ -15,6 +14,10 @@ import { useState, useEffect, useMemo } from "react"
 import { AUTH_QUERY_KEYS } from "@/lib/api/auth/constants"
 import { ACTIVITY_LOGS_QUERY_KEYS } from "@/lib/api/activity-logs/constants"
 import { useUser } from "@/lib/api/auth/auth.hooks"
+import { AdminDialogHeader } from "./AdminDialogHeader"
+import { AdminSection } from "./AdminSection"
+import { AdminFormField } from "./AdminFormField"
+import UserStatusBadge from "./UserStatusBadge"
 
 interface EditUserDialogProps {
   open: boolean
@@ -32,6 +35,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phoneNo, setPhoneNo] = useState("")
+  const [location, setLocation] = useState("")
   const [selectedRole, setSelectedRole] = useState<StaffType>("staff")
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -56,6 +60,19 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       setName(user.name || "")
       setEmail(user.email || "")
       setPhoneNo(user.phoneNo || "")
+      
+      // Format location from owner address fields
+      if (user.userType === 'owner') {
+        const owner = user as OwnerUser
+        const addressParts = [
+          owner.profile.address1,
+          owner.profile.address2,
+          owner.profile.city,
+          owner.profile.state,
+          owner.profile.postcode,
+        ].filter(Boolean)
+        setLocation(addressParts.join(", ") || "")
+      }
       
       // Initialize role for staff users
       if (user.userType === 'staff' && (user as StaffUser).profile.roles) {
@@ -224,6 +241,8 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   if (!user) return null
 
   const isStaff = user.userType === 'staff'
+  const getInitials = (name: string) => 
+    name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
   const handleClose = () => {
     if (updateUser.isPending || changeStaffType.isPending) return
@@ -234,124 +253,138 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       setName(userToReset.name || "")
       setEmail(userToReset.email || "")
       setPhoneNo(userToReset.phoneNo || "")
+      if (userToReset.userType === 'owner') {
+        const owner = userToReset as OwnerUser
+        const addressParts = [
+          owner.profile.address1,
+          owner.profile.address2,
+          owner.profile.city,
+          owner.profile.state,
+          owner.profile.postcode,
+        ].filter(Boolean)
+        setLocation(addressParts.join(", ") || "")
+      }
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent 
-        className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background dark:bg-darkgray border-2 border-border shadow-2xl"
+        className="max-w-lg overflow-hidden p-0 sm:max-w-xl rounded-lg shadow-2xl bg-background dark:bg-darkgray border-2 border-border"
       >
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Edit User</DialogTitle>
-        </DialogHeader>
+        <AdminDialogHeader
+          title="EDIT USER"
+          name={user.name}
+          email={user.email}
+          avatarUrl={isStaff ? (user as StaffUser).profile.avatarUrl || undefined : undefined}
+          className="mb-0"
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              disabled={updateUser.isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={updateUser.isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phoneNo">Phone Number</Label>
-            <Input
-              id="phoneNo"
-              value={phoneNo}
-              onChange={(e) => setPhoneNo(e.target.value)}
-              disabled={updateUser.isPending}
-            />
-          </div>
-
-          {isStaff && isSuperAdmin && (
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select 
-                value={selectedRole} 
-                onValueChange={handleRoleChange}
-                disabled={updateUser.isPending || changeStaffType.isPending}
-              >
-                <SelectTrigger id="role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="super-admin">Super Admin</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {selectedRole === "super-admin"
-                  ? "Super Admins have full system access and can manage all users."
-                  : selectedRole === "admin"
-                  ? "Admins have elevated permissions to manage users and settings."
-                  : "Staff members have standard access to the system."}
-              </p>
-            </div>
-          )}
-
-          {!isStaff && (user as OwnerUser).profile && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="salutation">Salutation</Label>
-                <Input
-                  id="salutation"
-                  value={(user as OwnerUser).profile.salutation || ""}
-                  disabled
-                  className="bg-muted"
+        <form onSubmit={handleSubmit}>
+          <div className="max-h-[60vh] space-y-6 overflow-y-auto p-6 pt-4">
+            <AdminSection title="Personal Information">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <AdminFormField
+                  id="name"
+                  label="Full Name"
+                  icon={UserIcon}
+                  value={name}
+                  onChange={setName}
+                  placeholder="Enter full name"
+                  disabled={updateUser.isPending}
+                />
+                <AdminFormField
+                  id="email"
+                  label="Email Address"
+                  icon={Mail}
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="Enter email address"
+                  disabled={updateUser.isPending}
+                />
+                <AdminFormField
+                  id="phone"
+                  label="Phone Number"
+                  icon={Phone}
+                  type="tel"
+                  value={phoneNo || ""}
+                  onChange={setPhoneNo}
+                  placeholder="Enter phone number"
+                  disabled={updateUser.isPending}
+                />
+                <AdminFormField
+                  id="location"
+                  label="Location"
+                  icon={MapPin}
+                  value={location || ""}
+                  onChange={setLocation}
+                  placeholder="Enter location"
+                  disabled={updateUser.isPending}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ic">IC Number</Label>
-                <Input
-                  id="ic"
-                  value={(user as OwnerUser).profile.ic || ""}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-            </>
-          )}
+            </AdminSection>
 
-          <DialogFooter className="flex items-center justify-between sm:justify-between gap-2">
+            {isStaff && isSuperAdmin && (
+              <AdminSection title="Account Information">
+                <div className="space-y-4">
+                  {/* Role Select */}
+                  <div className="group space-y-2">
+                    <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors group-focus-within:text-primary">
+                      <Shield className="h-4 w-4" />
+                      Role
+                    </Label>
+                    <Select
+                      value={selectedRole}
+                      onValueChange={handleRoleChange}
+                      disabled={updateUser.isPending || changeStaffType.isPending}
+                    >
+                      <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Current Status Preview */}
+                  <div className="flex items-center gap-3 rounded-lg border border-dashed border-border/50 bg-muted/30 p-3">
+                    <span className="text-sm text-muted-foreground">
+                      Current status:
+                    </span>
+                    <UserStatusBadge status={user.status} />
+                  </div>
+                </div>
+              </AdminSection>
+            )}
+          </div>
+
+          <DialogFooter className="flex-row justify-end gap-2 border-t bg-muted/30 px-6 py-4">
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               disabled={updateUser.isPending || changeStaffType.isPending}
+              className="gap-2 transition-all duration-200 hover:bg-muted"
             >
-              <X className="mr-2 h-4 w-4" />
+              <X className="h-4 w-4" />
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={updateUser.isPending || changeStaffType.isPending}
+              className="gap-2 bg-gradient-to-r from-primary to-secondary text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg"
             >
               {updateUser.isPending || changeStaffType.isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" />
+                  <Save className="h-4 w-4" />
                   Save Changes
                 </>
               )}
@@ -364,4 +397,3 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
 }
 
 export default EditUserDialog
-

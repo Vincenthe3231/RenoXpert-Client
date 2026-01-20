@@ -170,6 +170,10 @@
   --light-emphasis: #dfe5ef;
   --destructive-foreground: var(--color-white);
 
+  /* User Details Card Design Tokens */
+  --field-bg: #f8fafc;
+  --field-border: #e2e8f0;
+
   /* ----------- generate emphasis and lighter color of primary and secondary -------------- */
 
   /* Lighter/opacity-like versions */
@@ -263,6 +267,10 @@
   --lightmuted: #5d7287;
   --light-emphasis: #dfe5ef;
   --destructive-foreground: var(--color-white);
+
+  /* User Details Card Design Tokens */
+  --field-bg: #1e293b;
+  --field-border: #334155;
 
   /* ----------- generate emphasis and lighter color of primary and secondary -------------- */
 

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogFooter, DialogHeader, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
-import { Ban } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
 
 interface DeactivateDialogProps {
     open: boolean
@@ -34,20 +34,22 @@ const DeactivateDialog = ({
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent 
-                className="max-w-lg bg-background dark:bg-darkgray border-2 border-border shadow-2xl"
+                className="max-w-lg bg-background dark:bg-darkgray border-2 border-border shadow-2xl rounded-2xl"
             >
                 <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-purple-500/20 dark:bg-purple-500/10 rounded-lg text-purple-500">
-                            <Ban size={20} />
+                        <div className="p-2 bg-destructive/20 dark:bg-destructive/10 rounded-lg text-destructive">
+                            <AlertTriangle size={20} />
                         </div>
                         <DialogTitle className="text-lg font-bold text-foreground">
                             Deactivate User
                         </DialogTitle>
                     </div>
                     <DialogDescription className="text-sm text-muted-foreground">
-                        Are you sure you want to deactivate <span className="font-medium text-foreground">{userName}</span>? 
-                        This will prevent them from accessing the system. You can reactivate them later if needed.
+                        <span className="flex items-center gap-2 font-medium text-foreground mb-2">
+                            <AlertTriangle size={16} className="text-destructive" />
+                            Warning: This will disable user access. Are you sure?
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
 
@@ -66,7 +68,7 @@ const DeactivateDialog = ({
                         disabled={isLoading}
                         className="w-full"
                     >
-                        {isLoading ? 'Deactivating...' : 'Confirm Deactivation'}
+                        {isLoading ? 'Deactivating...' : 'Confirm Deactivate'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -75,4 +77,3 @@ const DeactivateDialog = ({
 }
 
 export default DeactivateDialog
-

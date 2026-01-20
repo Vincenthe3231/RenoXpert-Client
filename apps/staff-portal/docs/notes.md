@@ -75,4 +75,7 @@ Improve the cohesiveness of `audit` and `dashboard` and reduce their coupling by
 
 Read SPATIE_RBAC_MIGRATION.md after integrating frontend with backend
 
-The change of role didn't update lively on user detail dialog and audit log records
+The change of role didn't update lively on user detail dialog and audit log records - FIXED
+
+After updating the profile of a owner, the record showed as Unknown User in both RecentActivityTable and AuditLogTable
+Remove deactivate button from user role who is staff and admin

@@ -3,7 +3,7 @@ import { User, StaffUser, OwnerUser } from "@/lib/api/auth/auth.schemas";
 import { useDeactivateUser, useAuth } from "@/lib/api/auth/auth.hooks";
 import { useToast } from "@/hooks/use-toast";
 import UserDetailsDialog from "./UserDetailsDialog";
-import DeactivateDialog from "./DeactivateDialog";
+import { DeactivateUserDialog } from "./DeactivateUserDialog";
 import EditUserDialog from "./EditUserDialog";
 import { StaffTable } from "./StaffTable";
 import { OwnerTable } from "./OwnerTable";
@@ -131,13 +131,12 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
                 />
             )}
 
-            {userToDeactivate && (
-                <DeactivateDialog
+            {userToDeactivate && isSuperAdmin && (
+                <DeactivateUserDialog
                     open={deactivateDialogOpen}
                     onOpenChange={setDeactivateDialogOpen}
-                    onDeactivate={handleDeactivateConfirm}
-                    userName={userToDeactivate.name}
-                    isLoading={deactivateUser.isPending}
+                    user={userToDeactivate}
+                    onConfirm={handleDeactivateConfirm}
                 />
             )}
         </>

@@ -1,19 +1,32 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Loader2, Edit, UserCheck, UserX } from "lucide-react"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import {
+  Calendar,
+  Clock,
+  Hash,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Shield,
+  User as UserIcon,
+  UserCheck,
+  UserX,
+} from "lucide-react"
 import { StaffUser, OwnerUser, User } from "@/lib/api/auth/auth.schemas"
 import { useUser, useActivateUser, useDeactivateUser, useAuth, useOwner } from "@/lib/api/auth/auth.hooks"
 import UserStatusBadge from "./UserStatusBadge"
-import RoleBadge from "./RoleBadge"
 import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
 import { useToast } from "@/hooks/use-toast"
-import React, { useMemo } from "react"
+import React, { useMemo, useState } from "react"
+import { AdminDialogHeader } from "./AdminDialogHeader"
+import { AdminSection } from "./AdminSection"
+import { AdminInfoCard } from "./AdminInfoCard"
+import { DeactivateUserDialog } from "./DeactivateUserDialog"
 
 interface UserDetailsDialogProps {
   open: boolean
@@ -25,6 +38,7 @@ interface UserDetailsDialogProps {
 
 const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit }: UserDetailsDialogProps) => {
   const { data: currentUser } = useAuth()
+  const [deactivateOpen, setDeactivateOpen] = useState(false)
   
   // Check if current user is staff (not admin or super-admin)
   const isStaff = useMemo(() => {
@@ -60,9 +74,6 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
   const { toast } = useToast()
-
-  const getInitials = (name: string) => 
-    name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
   const handleEdit = () => {
     if (!user || !onEdit) return
@@ -107,233 +118,163 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
 
   if (!userId) return null
 
+  // Format phone number
+  const formatPhone = (countryCode?: string | null, phoneNo?: string | null) => {
+    if (!countryCode || !phoneNo) return "—"
+    return `+${countryCode} ${phoneNo}`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background dark:bg-darkgray border-2 border-border shadow-2xl"
+        className="max-w-md overflow-hidden p-0 sm:max-w-lg rounded-lg shadow-2xl bg-background dark:bg-darkgray border-2 border-border max-h-[85vh] overflow-y-auto"
       >
-        <DialogHeader>
-          <DialogTitle>User Details</DialogTitle>
-        </DialogHeader>
-
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <div className="w-6 h-6 animate-spin border-2 border-primary/30 border-t-primary rounded-full" />
           </div>
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-8">
             <p className="text-lg font-medium text-destructive">Failed to load user details</p>
             <p className="mt-2 text-sm text-muted-foreground">
               {error.message || "Please try again later"}
             </p>
           </div>
         ) : user ? (
-          <div className="space-y-6">
-            {/* Profile Header */}
-            <div className="flex items-start gap-4 border-b border-border pb-6">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={
-                  user.userType === 'staff' 
-                    ? (user as StaffUser).profile.avatarUrl || undefined 
-                    : undefined
-                } />
-                <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                  {getInitials(user.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold">{user.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
-                  </div>
-                  <UserStatusBadge status={user.status} />
-                </div>
-              </div>
-            </div>
+          <>
+            <AdminDialogHeader
+              name={user.name}
+              email={user.email}
+              avatarUrl={user.userType === "staff" ? (user as StaffUser).profile.avatarUrl || undefined : undefined}
+              rightContent={<UserStatusBadge status={user.status} />}
+            />
 
-            {/* Staff User Details */}
-            {user.userType === 'staff' && (
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-3 text-sm text-muted-foreground uppercase">Roles</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {(user as StaffUser).profile.roles.map((role) => (
-                      <RoleBadge key={role} role={role} />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                    <p className="text-sm font-medium">
-                      {user.countryCode && user.phoneNo 
-                        ? `+${user.countryCode} ${user.phoneNo}`
-                        : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Email Verified</p>
-                    <p className="text-sm font-medium">
-                      {user.emailVerifiedAt 
-                        ? format(new Date(user.emailVerifiedAt), "MMM d, yyyy")
-                        : "Not verified"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Last Login</p>
-                    <p className="text-sm font-medium">
-                      {user.lastLoginAt 
-                        ? format(new Date(user.lastLoginAt), "MMM d, yyyy 'at' h:mm a")
-                        : "Never"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">User Type</p>
-                    <Badge variant="outline" className="capitalize">{user.userType}</Badge>
-                  </div>
-                </div>
-
-                {(user as StaffUser).profile.larksuiteOpenId && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Larksuite Open ID</p>
-                    <p className="text-sm font-medium font-mono break-all">
-                      {(user as StaffUser).profile.larksuiteOpenId}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Owner User Details */}
-            {user.userType === 'owner' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Salutation</p>
-                    <p className="text-sm font-medium">
-                      {(user as OwnerUser).profile.salutation || "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">IC Number</p>
-                    <p className="text-sm font-medium">
-                      {(user as OwnerUser).profile.ic || "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                    <div className="text-sm font-medium">
-                      {user.countryCode && user.phoneNo ? (
-                        <div className="flex items-center gap-2">
+            <div className="space-y-5 px-6 py-5">
+              <AdminSection title="Personal Information">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <AdminInfoCard icon={UserIcon} label="Full Name" value={user.name} index={0} />
+                  <AdminInfoCard icon={Mail} label="Email" value={user.email} index={1} />
+                  <AdminInfoCard
+                    icon={Phone}
+                    label="Phone"
+                    value={
+                      user.countryCode && user.phoneNo ? (
+                        <div className="flex items-center gap-2 min-w-0">
                           {getFlagPath(user.countryCode) && (
                             <Image
                               src={getFlagPath(user.countryCode)!}
                               alt={`Flag ${user.countryCode}`}
                               width={16}
                               height={12}
-                              className="rounded-sm"
+                              className="rounded-sm shrink-0"
                             />
                           )}
-                          <span>+{user.countryCode} {user.phoneNo}</span>
+                          <span className="truncate">{formatPhone(user.countryCode, user.phoneNo)}</span>
                         </div>
-                      ) : "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Email Verified</p>
-                    <p className="text-sm font-medium">
-                      {user.emailVerifiedAt 
-                        ? format(new Date(user.emailVerifiedAt), "MMM d, yyyy")
-                        : "Not verified"}
-                    </p>
-                  </div>
+                      ) : (
+                        "Not provided"
+                      )
+                    }
+                    index={2}
+                  />
+                  <AdminInfoCard
+                    icon={MapPin}
+                    label="Location"
+                    value={
+                      user.userType === "owner"
+                        ? ([
+                            (user as OwnerUser).profile.address1,
+                            (user as OwnerUser).profile.address2,
+                            (user as OwnerUser).profile.city,
+                            (user as OwnerUser).profile.state,
+                            (user as OwnerUser).profile.postcode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ") || "Not provided")
+                        : "—"
+                    }
+                    index={3}
+                  />
                 </div>
+              </AdminSection>
 
-                {(user as OwnerUser).profile.address1 && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Address</p>
-                    <p className="text-sm font-medium">
-                      {(user as OwnerUser).profile.address1}
-                      {(user as OwnerUser).profile.address2 && `, ${(user as OwnerUser).profile.address2}`}
-                      {(user as OwnerUser).profile.city && `, ${(user as OwnerUser).profile.city}`}
-                      {(user as OwnerUser).profile.state && `, ${(user as OwnerUser).profile.state}`}
-                      {(user as OwnerUser).profile.postcode && ` ${(user as OwnerUser).profile.postcode}`}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Common Info */}
-            <div className="border-t border-border pt-4">
-              <h4 className="font-semibold mb-3 text-sm text-muted-foreground uppercase">Account Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">UUID</p>
-                  <p className="text-sm font-medium font-mono break-all">{user.uuid}</p>
+              <AdminSection title="Account Information">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <AdminInfoCard icon={Hash} label="User ID" value={user.uuid} index={4} />
+                  <AdminInfoCard
+                    icon={Shield}
+                    label="Role"
+                    value={
+                      user.userType === "staff"
+                        ? (user as StaffUser).profile.roles?.join(", ") || "—"
+                        : "Owner"
+                    }
+                    index={5}
+                  />
+                  <AdminInfoCard
+                    icon={Calendar}
+                    label="Member Since"
+                    value={(user as any).createdAt ? format(new Date((user as any).createdAt), "MMM d, yyyy") : "—"}
+                    index={6}
+                  />
+                  <AdminInfoCard
+                    icon={Clock}
+                    label="Last Active"
+                    value={user.lastLoginAt ? format(new Date(user.lastLoginAt), "MMM d, yyyy 'at' h:mm a") : "Never"}
+                    index={7}
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Status</p>
-                  <UserStatusBadge status={user.status} />
-                </div>
-              </div>
+              </AdminSection>
             </div>
-          </div>
-        ) : null}
-        <DialogFooter className="flex items-center justify-between sm:justify-between">
-          <div className="flex gap-2">
-            {user && user.status === 'active' && (
-              <Button
-                variant="destructive"
-                onClick={handleDeactivate}
-                disabled={deactivateUser.isPending}
-              >
-                {deactivateUser.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deactivating...
-                  </>
-                ) : (
-                  <>
-                    <UserX className="mr-2 h-4 w-4" />
+
+            <DialogFooter className="flex-row justify-between gap-2 border-t bg-muted/20 px-6 py-4">
+              <div className="flex gap-2">
+                {user.status === "active" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setDeactivateOpen(true)}
+                    disabled={deactivateUser.isPending}
+                  >
+                    <UserX className="h-3.5 w-3.5" />
                     Deactivate
-                  </>
+                  </Button>
                 )}
-              </Button>
-            )}
-            {user && user.status === 'deactivated' && (
-              <Button
-                variant="default"
-                onClick={handleActivate}
-                disabled={activateUser.isPending}
-              >
-                {activateUser.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Activating...
-                  </>
-                ) : (
-                  <>
-                    <UserCheck className="mr-2 h-4 w-4" />
+                {user.status === "deactivated" && (
+                  <Button size="sm" className="gap-1.5" onClick={handleActivate} disabled={activateUser.isPending}>
+                    <UserCheck className="h-3.5 w-3.5" />
                     Activate
-                  </>
+                  </Button>
                 )}
-              </Button>
-            )}
-          </div>
-          {canEdit && onEdit && (
-            <Button onClick={handleEdit} disabled={!user}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit User
-            </Button>
-          )}
-        </DialogFooter>
+              </div>
+
+              {canEdit && onEdit && (
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    onOpenChange(false)
+                    handleEdit()
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit User
+                </Button>
+              )}
+            </DialogFooter>
+
+            <DeactivateUserDialog
+              open={deactivateOpen}
+              onOpenChange={setDeactivateOpen}
+              user={user}
+              onConfirm={handleDeactivate}
+            />
+          </>
+        ) : null}
       </DialogContent>
     </Dialog>
   )
 }
 
 export default UserDetailsDialog
-
