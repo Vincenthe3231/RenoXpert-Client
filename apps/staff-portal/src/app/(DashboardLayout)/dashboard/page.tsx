@@ -1,6 +1,7 @@
 "use client"
 
-import { useAuth, useUsers } from "@/lib/api/auth"
+import { useMemo } from "react"
+import { useAuth, useOwners, useUsers, type User } from "@/lib/api/auth"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { useActivityLogs } from "@/lib/api/activity-logs"
 import { Loader2 } from "lucide-react"
@@ -46,10 +47,26 @@ export default function Dashboard() {
   // Check if user is super-admin
   const isSuperAdmin = hasRequiredRole('super-admin')
 
-  // Get all users for stats and context (only for super-admin)
-  const { data: usersData } = useUsers()
+  // Get users for stats and context (only for super-admin)
+  // NOTE: /users returns staff users; /owners returns owners. We need both for activity log subject resolution.
+  const { data: usersData } = useUsers(isSuperAdmin ? { per_page: 1000 } : undefined)
   const totalUsers = isSuperAdmin ? (usersData?.meta?.total || 0) : 0
-  const users = isSuperAdmin ? (usersData?.data || []) : []
+  const staffUsers = isSuperAdmin ? (usersData?.data || []) : []
+
+  const { data: ownersData } = useOwners(isSuperAdmin ? { per_page: 1000 } : undefined)
+  const owners = isSuperAdmin ? (ownersData?.data || []) : []
+
+  const users = useMemo(() => {
+    if (!isSuperAdmin) return []
+    const allUsers = [...staffUsers, ...owners]
+    const uniqueUsers = new Map<string, User>()
+    allUsers.forEach((u) => {
+      if (u?.uuid && !uniqueUsers.has(u.uuid)) {
+        uniqueUsers.set(u.uuid, u)
+      }
+    })
+    return Array.from(uniqueUsers.values())
+  }, [isSuperAdmin, staffUsers, owners])
 
   // Get all onboardings for stats (only for super-admin)
   const { data: allOnboardingsData } = useOnboardings()

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOnboardings } from "@/lib/api/onboarding"
-import { useUsers, type User } from "@/lib/api/auth"
+import { useUsers, useOwners, type User } from "@/lib/api/auth"
 import { useActivityLogs } from "@/lib/api/activity-logs"
 import AuditHeader from "./components/AuditHeader"
 import AuditStatsCards from "./components/AuditStatsCards"
@@ -60,9 +60,49 @@ export default function AuditPage() {
   })
   const activityLogs = activityLogsData?.data || []
 
-  // Get all users for additional context
+  // Get all users (staff) for additional context
   const { data: usersData } = useUsers()
-  const users = usersData?.data || []
+  const staffUsers = usersData?.data || []
+  
+  // Get all owners for additional context (owners might not be in users list)
+  // Only fetch owners if we're allowed to (useOwners might not work for all users)
+  const { data: ownersData } = useOwners({})
+  const owners = ownersData?.data || []
+  
+  // Extract users from onboarding entries (users referenced in activity logs might not be in users list)
+  const usersFromOnboardings = useMemo(() => {
+    const onboardingUsers: User[] = []
+    onboardings.forEach(onboarding => {
+      if (onboarding.user && onboarding.user.uuid) {
+        onboardingUsers.push(onboarding.user as User)
+      }
+    })
+    return onboardingUsers
+  }, [onboardings])
+
+  // Merge staff users, owners, and users from onboarding entries into a single list for lookup
+  const users = useMemo(() => {
+    const allUsers = [...staffUsers, ...owners, ...usersFromOnboardings]
+    // Deduplicate by UUID (in case a user appears in multiple lists)
+    const uniqueUsers = new Map<string, User>()
+    // Also deduplicate by ID to handle cases where we have the same user with different identifiers
+    const uniqueUsersById = new Map<number, User>()
+    allUsers.forEach(user => {
+      if (user.uuid && !uniqueUsers.has(user.uuid)) {
+        uniqueUsers.set(user.uuid, user)
+        if (user.id) {
+          uniqueUsersById.set(user.id, user)
+        }
+      } else if (user.id && !uniqueUsersById.has(user.id)) {
+        uniqueUsersById.set(user.id, user)
+        // If we have an ID but no UUID match, add it anyway
+        if (!user.uuid || Array.from(uniqueUsers.values()).every(u => u.uuid !== user.uuid)) {
+          uniqueUsers.set(user.uuid || `id-${user.id}`, user)
+        }
+      }
+    })
+    return Array.from(uniqueUsers.values())
+  }, [staffUsers, owners, usersFromOnboardings])
 
   // Create user lookup maps for O(1) access
   const userMapById = useMemo(() => {
@@ -114,7 +154,17 @@ export default function AuditPage() {
         if (log.subject?.name) {
           userName = log.subject.name
         } else if (log.subjectId) {
-          const user = userMapById.get(log.subjectId)
+          // Try to find by integer ID first
+          let user = userMapById.get(log.subjectId)
+          // If not found, try to find by UUID (for owners, subjectId might be a UUID string)
+          if (!user) {
+            const subjectIdStr = String(log.subjectId)
+            user = userMapByUuid.get(subjectIdStr)
+            // Also try matching string representation of ID
+            if (!user) {
+              user = Array.from(userMapById.values()).find(u => String(u.id) === subjectIdStr) || null
+            }
+          }
           userName = user?.name || ""
           userEmail = user?.email || ""
         }
@@ -130,7 +180,15 @@ export default function AuditPage() {
           searchableFields.role = log.properties.old.roles[0]
         } else if (log.subjectId) {
           // Last resort: use current user role
-          const user = userMapById.get(log.subjectId)
+          let user = userMapById.get(log.subjectId)
+          // If not found, try to find by UUID
+          if (!user) {
+            const subjectIdStr = String(log.subjectId)
+            user = userMapByUuid.get(subjectIdStr)
+            if (!user) {
+              user = Array.from(userMapById.values()).find(u => String(u.id) === subjectIdStr) || null
+            }
+          }
           if (user?.userType === 'staff' && user.profile?.roles?.[0]) {
             searchableFields.role = user.profile.roles[0]
           }

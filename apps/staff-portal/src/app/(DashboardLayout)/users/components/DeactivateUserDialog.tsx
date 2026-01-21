@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, StaffUser, OwnerUser } from "@/lib/api/auth/auth.schemas"
 import UserStatusBadge from "./UserStatusBadge"
@@ -234,26 +235,21 @@ export function DeactivateUserDialog({
 
               {/* Footer Actions */}
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                <AlertDialogFooter className="px-6 pb-6 flex-row gap-3 sm:gap-3 border-t border-border pt-4">
+                <AlertDialogFooter className="px-6 pb-6 flex-row gap-2 border-t border-border pt-4">
                   <AlertDialogCancel asChild>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex-1 h-10 px-4 rounded-md border border-border bg-background text-foreground text-sm font-medium hover:bg-muted transition-colors"
-                    >
+                    <Button variant="outline" className="gap-2 transition-all duration-200 hover:bg-muted">
                       Cancel
-                    </motion.button>
+                    </Button>
                   </AlertDialogCancel>
                   <AlertDialogAction asChild>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <Button
+                      variant="outlineerror"
                       onClick={handleConfirm}
-                      className="flex-1 h-10 px-4 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors"
+                      className="gap-2 text-destructive hover:bg-destructive hover:text-white bg-transparent"
                     >
-                      <UserX className="h-4 w-4 mr-2 inline" />
+                      <UserX className="h-4 w-4" />
                       Deactivate Account
-                    </motion.button>
+                    </Button>
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </motion.div>

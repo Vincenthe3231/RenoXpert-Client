@@ -6,6 +6,7 @@ import { Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
 import { Input } from "@/components/ui/input";
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import UserFilters from "./components/UserFilters";
 import { useUsers, useAuth, useOwners } from "@/lib/api/auth/auth.hooks";
 import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
@@ -16,9 +17,14 @@ const STATUS_FILTER_OPTIONS: (UserStatus | "all")[] = ["all", "active", "verifyi
 
 const UsersPage = () => {
     const { data: currentUser } = useAuth();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    // For staff users, default to "owner" and don't allow changing
-    const [typeFilter, setTypeFilter] = useState<string>("owner");
+    // Get initial type filter from URL or default to "staff" for admin/super-admin, "owner" for staff users
+    const typeFilterFromUrl = searchParams.get("type");
+    const [typeFilter, setTypeFilter] = useState<string>(typeFilterFromUrl || "staff");
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
@@ -79,6 +85,33 @@ const UsersPage = () => {
         // Staff if they have staff role but not admin or super-admin
         return normalizedUserRoles.includes('staff') && !isAdmin && !isSuperAdmin;
     }, [currentUser]);
+
+    // Sync typeFilter with URL when URL changes (e.g., browser back/forward) or when isStaff changes
+    useEffect(() => {
+        // For staff users, always use "owner" and update URL if needed
+        if (isStaff) {
+            const params = new URLSearchParams(searchParams.toString());
+            const currentUrlType = params.get("type");
+            if (currentUrlType !== "owner") {
+                params.set("type", "owner");
+                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            }
+            setTypeFilter("owner");
+        } else {
+            // For admin/super-admin, sync with URL or default to "staff"
+            const urlTypeFilter = searchParams.get("type") || "staff";
+            setTypeFilter(urlTypeFilter);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, isStaff]);
+
+    // Update URL when typeFilter changes (only for admin/super-admin)
+    const handleTypeFilterChange = useCallback((value: string) => {
+        setTypeFilter(value);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("type", value);
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [searchParams, router, pathname]);
 
     // Debounce search query to avoid excessive API calls
     useEffect(() => {
@@ -235,7 +268,7 @@ const UsersPage = () => {
                             </p>
                             <UserFilters
                                 activeFilter={typeFilter}
-                                onFilterChange={setTypeFilter}
+                                onFilterChange={handleTypeFilterChange}
                                 filterType="type"
                             />
                         </div>

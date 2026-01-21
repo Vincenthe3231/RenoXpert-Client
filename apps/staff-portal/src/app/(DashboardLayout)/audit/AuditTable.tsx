@@ -77,14 +77,72 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     } else {
       const log = entry.data
       // If subject object exists, use it
-      if (log.subject) {
-        return log.subject
+      if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
+        if ((log.subject as any).name || (log.subject as any).email || (log.subject as any).id) {
+          return log.subject as any
+        }
       }
       // Otherwise, look up by subjectId from users list
       if (log.subjectId) {
-        const user = users.find(u => u.id === log.subjectId)
-        return user || null
+        // Try to find by integer ID first
+        const userById = users.find(u => u.id === log.subjectId)
+        if (userById) return userById
+        
+        // If not found, try to find by UUID (for owners, subjectId might be a UUID string)
+        // Check if subjectId is a string UUID
+        const subjectIdStr = String(log.subjectId)
+        const userByUuid = users.find(u => {
+          // Try matching UUID directly
+          if (u.uuid === subjectIdStr) return true
+          // Also try matching string representation of ID
+          if (String(u.id) === subjectIdStr) return true
+          return false
+        })
+        if (userByUuid) return userByUuid
       }
+
+      // Fallback: extract user-like information from activity log properties (common for role_changed)
+      if (log.properties && typeof log.properties === 'object') {
+        const props: any = log.properties
+
+        const tryBuildUser = (source: any) => {
+          if (!source || typeof source !== 'object') return null
+          if (source.name || source.email) {
+            return {
+              name: source.name || 'Unknown User',
+              email: source.email || null,
+              id: (log as any).subjectId ?? source.id ?? null,
+              uuid: source.uuid ?? null,
+              status: source.status ?? null,
+              userType: source.user_type ?? source.userType ?? null,
+            } as any
+          }
+          if (source.user && typeof source.user === 'object' && (source.user.name || source.user.email)) {
+            return source.user
+          }
+          if (source.profile && typeof source.profile === 'object' && (source.profile.name || source.profile.email)) {
+            return {
+              name: source.profile.name || 'Unknown User',
+              email: source.profile.email || null,
+              id: (log as any).subjectId ?? source.profile.user_id ?? source.profile.id ?? source.id ?? null,
+              uuid: source.profile.uuid ?? source.uuid ?? null,
+              status: source.profile.status ?? source.status ?? null,
+              userType: source.profile.user_type ?? source.user_type ?? source.userType ?? null,
+            } as any
+          }
+          return null
+        }
+
+        const fromAttributes = tryBuildUser(props.attributes)
+        if (fromAttributes) return fromAttributes as any
+
+        const fromOld = tryBuildUser(props.old)
+        if (fromOld) return fromOld as any
+
+        const fromSubject = tryBuildUser(props.subject)
+        if (fromSubject) return fromSubject as any
+      }
+
       return null
     }
   }

@@ -1,6 +1,7 @@
 "use client"
 
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -54,6 +55,20 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     )
   }, [currentUser])
 
+  // Check if the user being edited is a super admin
+  const isEditedUserSuperAdmin = useMemo(() => {
+    if (!user || user.userType !== 'staff') return false
+    const viewedUserRoles = (user as StaffUser).profile?.roles || []
+    const normalizedRoles = viewedUserRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    return normalizedRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+  }, [user])
+
   // Initialize form when user changes
   useEffect(() => {
     if (user) {
@@ -97,18 +112,39 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     mutationFn: async (data: { name?: string; email?: string; phoneNo?: string; staffType?: StaffType }) => {
       if (!user) throw new Error("No user selected")
       
-      const identifier = user.id ? String(user.id) : user.uuid
-      // Use the correct endpoint: PUT /api/auth/users/{id}/profile (proxies to Laravel PUT /api/v1/users/{id}/profile)
-      // This endpoint handles profile updates: name, email, phone_no, country_code
-      const endpoint = `/api/auth/users/${identifier}/profile`
+      // For owners, prefer UUID (more reliable and universal)
+      // For staff, use ID if available, otherwise UUID
+      const identifier = user.userType === 'owner'
+        ? (user.uuid || (user.id ? String(user.id) : ''))
+        : (user.id ? String(user.id) : user.uuid)
+      
+      if (!identifier) {
+        throw new Error("No valid identifier found for user")
+      }
+      
+      // IMPORTANT:
+      // Backend does NOT implement PUT /owners/{id} (OwnerController::update() missing), so owner updates must go through /users/{id}/profile.
+      // Use /api/users/{id}/profile for owner profiles
+      // Use /api/auth/users/{id}/profile for staff profiles (super-admin/admin only)
+      const endpoint = user.userType === 'owner'
+        ? `/api/users/${identifier}/profile`
+        : `/api/auth/users/${identifier}/profile`
       
       const { data: response } = await axios.put(endpoint, data)
       return response
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+      // Invalidate user/owner queries based on user type
       if (user) {
-        queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+        if (user.userType === 'owner') {
+          // Invalidate owner-specific queries
+          queryClient.invalidateQueries({ queryKey: ['owners'] })
+          queryClient.invalidateQueries({ queryKey: ['owner', user.uuid] })
+        } else {
+          // Invalidate staff user queries
+          queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+          queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+        }
       }
       // Don't show toast here - handled in handleSubmit
     },
@@ -164,9 +200,10 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     }
 
     // Check for role changes - use fresh user data
+    // Skip role change logic if editing a super admin (they cannot have their role changed)
     let normalizedCurrentRole: StaffType = 'staff'
     let hasRoleChange = false
-    if (user.userType === 'staff' && isSuperAdmin) {
+    if (user.userType === 'staff' && isSuperAdmin && !isEditedUserSuperAdmin) {
       const currentRole = (user as StaffUser).profile.roles?.[0]?.toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-')
       normalizedCurrentRole = currentRole === 'super-admin' || currentRole === 'superadmin' || currentRole === 'super_admin' 
         ? 'super-admin' 
@@ -272,6 +309,9 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       <DialogContent 
         className="max-w-lg overflow-hidden p-0 sm:max-w-xl rounded-lg shadow-2xl bg-background dark:bg-darkgray border-2 border-border"
       >
+        <VisuallyHidden>
+          <DialogTitle>Edit User</DialogTitle>
+        </VisuallyHidden>
         <AdminDialogHeader
           title="EDIT USER"
           name={user.name}
@@ -334,19 +374,25 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
                       <Shield className="h-4 w-4" />
                       Role
                     </Label>
-                    <Select
-                      value={selectedRole}
-                      onValueChange={handleRoleChange}
-                      disabled={updateUser.isPending || changeStaffType.isPending}
-                    >
-                      <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover">
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {isEditedUserSuperAdmin ? (
+                      <div className="h-11 flex items-center px-3 rounded-md border border-border/50 bg-muted/50 text-sm text-muted-foreground cursor-not-allowed">
+                        Super Admin
+                      </div>
+                    ) : (
+                      <Select
+                        value={selectedRole}
+                        onValueChange={handleRoleChange}
+                        disabled={updateUser.isPending || changeStaffType.isPending}
+                      >
+                        <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover">
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="staff">Staff</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
 
                   {/* Current Status Preview */}
@@ -367,7 +413,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
               variant="outline"
               onClick={handleClose}
               disabled={updateUser.isPending || changeStaffType.isPending}
-              className="gap-2 transition-all duration-200 hover:bg-muted"
+              className="gap-2 transition-all duration-200 hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
               Cancel

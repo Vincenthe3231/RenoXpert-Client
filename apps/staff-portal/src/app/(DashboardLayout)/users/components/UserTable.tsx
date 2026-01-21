@@ -43,6 +43,37 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
         );
     }, [currentUser]);
 
+    // Check if current user is admin or staff (not super-admin) - these users can manage owner profiles
+    const isCurrentUserAdminOrStaff = useMemo(() => {
+        if (!currentUser || !currentUser.profile) return false;
+        const userRoles = currentUser.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        const isSuperAdmin = normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+        );
+        const isAdmin = normalizedUserRoles.includes('admin');
+        const isStaff = normalizedUserRoles.includes('staff');
+        
+        // Return true if user is admin or staff (but not super-admin)
+        return (isAdmin || isStaff) && !isSuperAdmin;
+    }, [currentUser]);
+
+    // Check if current user has "manage owners" permission
+    const canManageOwners = useMemo(() => {
+        if (!currentUser || !currentUser.profile) return false;
+        const permissions = currentUser.profile.permissions || [];
+        return permissions.includes("manage owners");
+    }, [currentUser]);
+
+    // Check if user can edit owner profiles (super-admin or staff/admin with "manage owners" permission)
+    const canEditOwners = useMemo(() => {
+        return isSuperAdmin || (isCurrentUserAdminOrStaff && canManageOwners);
+    }, [isSuperAdmin, isCurrentUserAdminOrStaff, canManageOwners]);
+
     const handleViewDetails = (user: User) => {
         setSelectedUserId(user.uuid);
         setDetailsOpen(true);
@@ -104,9 +135,9 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
                         users={ownerUsers} 
                         onView={handleViewDetails} 
                         onDeactivate={handleDeactivateClick}
-                        onEdit={isSuperAdmin ? handleEditClick : undefined}
+                        onEdit={canEditOwners ? handleEditClick : undefined}
                         hideDeactivate={isStaff}
-                        canEdit={isSuperAdmin}
+                        canEdit={canEditOwners}
                     />
                 )}
             </div>
@@ -115,8 +146,8 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
                 open={detailsOpen}
                 onOpenChange={setDetailsOpen}
                 userId={selectedUserId}
-                canEdit={isSuperAdmin}
-                onEdit={isSuperAdmin ? (user) => {
+                canEdit={isSuperAdmin || (isCurrentUserAdminOrStaff && canManageOwners)}
+                onEdit={(isSuperAdmin || (isCurrentUserAdminOrStaff && canManageOwners)) ? (user) => {
                     // Don't close the details dialog - keep it open
                     setUserToEdit(user);
                     setEditDialogOpen(true);

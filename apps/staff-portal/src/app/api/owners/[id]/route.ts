@@ -82,9 +82,41 @@ export async function PUT(
 
         const body = await request.json()
 
-        const laravelRes = await laravelApi.put(`/owners/${id}`, body, {
-            headers: cookieString ? { cookie: cookieString } : undefined,
-        })
+        // Detect if ID is UUID format
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        
+        let laravelRes
+        if (isUuid) {
+            // Try direct call with UUID first
+            try {
+                laravelRes = await laravelApi.put(`/owners/${id}`, body, {
+                    headers: cookieString ? { cookie: cookieString } : undefined,
+                })
+            } catch (directError: any) {
+                // If UUID direct call fails, try to find owner by UUID and use their ID
+                const ownersRes = await laravelApi.get('/owners', {
+                    headers: cookieString ? { cookie: cookieString } : undefined,
+                    params: {
+                        per_page: 1000
+                    }
+                })
+                const owners = ownersRes.data?.data || ownersRes.data || []
+                const owner = Array.isArray(owners) ? owners.find((o: any) => o.uuid === id) : null
+                if (!owner) {
+                    throw { response: { status: 404, data: { message: `Owner with UUID ${id} not found` } } }
+                }
+                // Use the owner's ID (integer) for the update
+                const ownerId = owner.id || owner.uuid
+                laravelRes = await laravelApi.put(`/owners/${ownerId}`, body, {
+                    headers: cookieString ? { cookie: cookieString } : undefined,
+                })
+            }
+        } else {
+            // Numeric ID: Use direct endpoint
+            laravelRes = await laravelApi.put(`/owners/${id}`, body, {
+                headers: cookieString ? { cookie: cookieString } : undefined,
+            })
+        }
 
         const res = NextResponse.json(laravelRes.data)
 
@@ -98,6 +130,12 @@ export async function PUT(
 
         return res
     } catch (error: any) {
+        console.error('Error updating owner:', {
+            id,
+            status: error?.response?.status,
+            message: error?.response?.data?.message,
+            data: error?.response?.data,
+        })
         const status = error?.response?.status || 500
         const message = error?.response?.data?.message || 'Failed to update owner'
         return NextResponse.json({ error: message }, { status })

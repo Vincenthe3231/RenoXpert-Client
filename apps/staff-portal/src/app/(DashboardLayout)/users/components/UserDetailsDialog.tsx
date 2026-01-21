@@ -1,9 +1,10 @@
 "use client"
 
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
 import {
-  Calendar,
+  Activity,
   Clock,
   Hash,
   Mail,
@@ -58,6 +59,25 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
     return normalizedUserRoles.includes('staff') && !isAdmin && !isSuperAdmin
   }, [currentUser])
 
+  // Check if current user is admin or staff (not super-admin) - these users cannot deactivate anyone
+  const isCurrentUserAdminOrStaff = useMemo(() => {
+    if (!currentUser || !currentUser.profile) return false
+    const userRoles = currentUser.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+    const isAdmin = normalizedUserRoles.includes('admin')
+    const isStaff = normalizedUserRoles.includes('staff')
+    
+    // Return true if user is admin or staff (but not super-admin)
+    return (isAdmin || isStaff) && !isSuperAdmin
+  }, [currentUser])
+
   // Use useOwner for staff users, useUser for admin/super-admin
   const { data: ownerData, isLoading: isOwnerLoading, error: ownerError } = useOwner(
     isStaff && userId ? userId : null
@@ -70,6 +90,20 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
   const user = isStaff ? ownerData : userData
   const isLoading = isStaff ? isOwnerLoading : isUserLoading
   const error = isStaff ? ownerError : userError
+
+  // Check if the viewed user is a super admin
+  const isViewedUserSuperAdmin = useMemo(() => {
+    if (!user || user.userType !== 'staff') return false
+    const viewedUserRoles = (user as StaffUser).profile?.roles || []
+    const normalizedRoles = viewedUserRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    return normalizedRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+  }, [user])
 
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
@@ -129,6 +163,9 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
       <DialogContent 
         className="max-w-md overflow-hidden p-0 sm:max-w-lg rounded-lg shadow-2xl bg-background dark:bg-darkgray border-2 border-border max-h-[85vh] overflow-y-auto"
       >
+        <VisuallyHidden>
+          <DialogTitle>User Details</DialogTitle>
+        </VisuallyHidden>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-6 h-6 animate-spin border-2 border-primary/30 border-t-primary rounded-full" />
@@ -212,9 +249,9 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     index={5}
                   />
                   <AdminInfoCard
-                    icon={Calendar}
-                    label="Member Since"
-                    value={(user as any).createdAt ? format(new Date((user as any).createdAt), "MMM d, yyyy") : "—"}
+                    icon={Activity}
+                    label="Status"
+                    value={<UserStatusBadge status={user.status} />}
                     index={6}
                   />
                   <AdminInfoCard
@@ -229,11 +266,11 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
 
             <DialogFooter className="flex-row justify-between gap-2 border-t bg-muted/20 px-6 py-4">
               <div className="flex gap-2">
-                {user.status === "active" && (
+                {user.status === "active" && !isCurrentUserAdminOrStaff && !isViewedUserSuperAdmin && (
                   <Button
-                    variant="outline"
+                    variant="outlineerror"
                     size="sm"
-                    className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="gap-1.5 text-destructive hover:bg-destructive hover:text-white"
                     onClick={() => setDeactivateOpen(true)}
                     disabled={deactivateUser.isPending}
                   >
@@ -241,18 +278,31 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     Deactivate
                   </Button>
                 )}
-                {user.status === "deactivated" && (
+                {user.status === "deactivated" && !isCurrentUserAdminOrStaff && (
                   <Button size="sm" className="gap-1.5" onClick={handleActivate} disabled={activateUser.isPending}>
                     <UserCheck className="h-3.5 w-3.5" />
                     Activate
                   </Button>
                 )}
+                {isCurrentUserAdminOrStaff && user.userType === "owner" && canEdit && onEdit && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-gradient-to-r from-primary to-secondary text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg"
+                    onClick={() => {
+                      onOpenChange(false)
+                      handleEdit()
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit Profile
+                  </Button>
+                )}
               </div>
 
-              {canEdit && onEdit && (
+              {canEdit && onEdit && !isCurrentUserAdminOrStaff && (
                 <Button
                   size="sm"
-                  className="gap-1.5"
+                  className="gap-1.5 bg-gradient-to-r from-primary to-secondary text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg"
                   onClick={() => {
                     onOpenChange(false)
                     handleEdit()
@@ -264,12 +314,14 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
               )}
             </DialogFooter>
 
-            <DeactivateUserDialog
-              open={deactivateOpen}
-              onOpenChange={setDeactivateOpen}
-              user={user}
-              onConfirm={handleDeactivate}
-            />
+            {!isCurrentUserAdminOrStaff && !isViewedUserSuperAdmin && (
+              <DeactivateUserDialog
+                open={deactivateOpen}
+                onOpenChange={setDeactivateOpen}
+                user={user}
+                onConfirm={handleDeactivate}
+              />
+            )}
           </>
         ) : null}
       </DialogContent>
