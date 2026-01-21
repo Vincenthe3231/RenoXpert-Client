@@ -82,27 +82,12 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           return log.subject as any
         }
       }
-      // Otherwise, look up by subjectId from users list
-      if (log.subjectId) {
-        // Try to find by integer ID first
-        const userById = users.find(u => u.id === log.subjectId)
-        if (userById) return userById
-        
-        // If not found, try to find by UUID (for owners, subjectId might be a UUID string)
-        // Check if subjectId is a string UUID
-        const subjectIdStr = String(log.subjectId)
-        const userByUuid = users.find(u => {
-          // Try matching UUID directly
-          if (u.uuid === subjectIdStr) return true
-          // Also try matching string representation of ID
-          if (String(u.id) === subjectIdStr) return true
-          return false
-        })
-        if (userByUuid) return userByUuid
-      }
 
-      // Fallback: extract user-like information from activity log properties (common for role_changed)
-      if (log.properties && typeof log.properties === 'object') {
+      // For profile update events, check properties FIRST to get historical name
+      // This prevents showing the current name instead of the historical name
+      const isProfileUpdate = log.event === 'profile_updated' || log.event === 'updated'
+      
+      if (isProfileUpdate && log.properties && typeof log.properties === 'object') {
         const props: any = log.properties
 
         const tryBuildUser = (source: any) => {
@@ -133,11 +118,168 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           return null
         }
 
-        const fromAttributes = tryBuildUser(props.attributes)
-        if (fromAttributes) return fromAttributes as any
-
+        // For profile updates: show the name AFTER the change (attributes)
+        // This shows what the name BECAME after this change, not what it was before
+        // Each log entry shows the value that was set by that specific change
+        let fromAttributes: any = null
+        
+        // Direct check: props.attributes might have name directly
+        if (props.attributes && typeof props.attributes === 'object') {
+          if (props.attributes.name) {
+            // We have a name in attributes - use it (this is the new value after change)
+            fromAttributes = {
+              name: props.attributes.name || 'Unknown User',
+              email: props.attributes.email || null,
+              id: (log as any).subjectId ?? props.attributes.id ?? null,
+              uuid: props.attributes.uuid ?? null,
+              status: props.attributes.status ?? null,
+              userType: props.attributes.user_type ?? props.attributes.userType ?? null,
+            }
+          } else {
+            // Try the tryBuildUser helper for nested structures
+            fromAttributes = tryBuildUser(props.attributes)
+          }
+        }
+        
+        if (fromAttributes && fromAttributes.name) {
+          // We have the new name from attributes - use it
+          // If email is missing, try to get email from old or users list
+          if (!fromAttributes.email) {
+            const fromOld = tryBuildUser(props.old)
+            if (fromOld?.email) {
+              fromAttributes.email = fromOld.email
+            } else if (log.subjectId) {
+              // Try to get email from users list lookup
+              const subjectId = log.subjectId as any
+              const subjectIdStr = String(subjectId)
+              const foundUser = users.find((u) => {
+                if (u.id != null && Number(u.id) === Number(subjectId)) return true
+                if (u.id != null && String(u.id) === subjectIdStr) return true
+                if (u.uuid && String(u.uuid) === subjectIdStr) return true
+                // eslint-disable-next-line eqeqeq
+                if (u.id != null && (u.id as any) == subjectId) return true
+                return false
+              })
+              if (foundUser?.email) {
+                fromAttributes.email = foundUser.email
+              }
+            }
+          }
+          return fromAttributes as any
+        }
+        
+        // Fallback to old if attributes doesn't have name
         const fromOld = tryBuildUser(props.old)
         if (fromOld) return fromOld as any
+
+        const fromSubject = tryBuildUser(props.subject)
+        if (fromSubject) return fromSubject as any
+      }
+
+      // Look up by subjectId from users list (returns CURRENT user data)
+      // Skip this for profile updates since we already checked properties above
+      if (log.subjectId) {
+        // Try to find by integer ID first
+        const userById = users.find(u => u.id === log.subjectId)
+        if (userById) return userById
+        
+        // If not found, try to find by UUID (for owners, subjectId might be a UUID string)
+        // Check if subjectId is a string UUID
+        const subjectIdStr = String(log.subjectId)
+        const userByUuid = users.find(u => {
+          // Try matching UUID directly
+          if (u.uuid === subjectIdStr) return true
+          // Also try matching string representation of ID
+          if (String(u.id) === subjectIdStr) return true
+          return false
+        })
+        if (userByUuid) return userByUuid
+      }
+
+      // Fallback: extract user-like information from activity log properties (for non-profile-update events)
+      if (!isProfileUpdate && log.properties && typeof log.properties === 'object') {
+        const props: any = log.properties
+
+        const tryBuildUser = (source: any) => {
+          if (!source || typeof source !== 'object') return null
+          if (source.name || source.email) {
+            return {
+              name: source.name || 'Unknown User',
+              email: source.email || null,
+              id: (log as any).subjectId ?? source.id ?? null,
+              uuid: source.uuid ?? null,
+              status: source.status ?? null,
+              userType: source.user_type ?? source.userType ?? null,
+            } as any
+          }
+          if (source.user && typeof source.user === 'object' && (source.user.name || source.user.email)) {
+            return source.user
+          }
+          if (source.profile && typeof source.profile === 'object' && (source.profile.name || source.profile.email)) {
+            return {
+              name: source.profile.name || 'Unknown User',
+              email: source.profile.email || null,
+              id: (log as any).subjectId ?? source.profile.user_id ?? source.profile.id ?? source.id ?? null,
+              uuid: source.profile.uuid ?? source.uuid ?? null,
+              status: source.profile.status ?? source.status ?? null,
+              userType: source.profile.user_type ?? source.user_type ?? source.userType ?? null,
+            } as any
+          }
+          return null
+        }
+
+        // For other events: try attributes first, then old
+        const fromAttributes = tryBuildUser(props.attributes)
+        if (fromAttributes) {
+          // If email is missing, try to get it from old or users list
+          if (fromAttributes.name && !fromAttributes.email) {
+            const fromOld = tryBuildUser(props.old)
+            if (fromOld?.email) {
+              fromAttributes.email = fromOld.email
+            } else if (log.subjectId) {
+              const subjectId = log.subjectId as any
+              const subjectIdStr = String(subjectId)
+              const foundUser = users.find((u) => {
+                if (u.id != null && Number(u.id) === Number(subjectId)) return true
+                if (u.id != null && String(u.id) === subjectIdStr) return true
+                if (u.uuid && String(u.uuid) === subjectIdStr) return true
+                // eslint-disable-next-line eqeqeq
+                if (u.id != null && (u.id as any) == subjectId) return true
+                return false
+              })
+              if (foundUser?.email) {
+                fromAttributes.email = foundUser.email
+              }
+            }
+          }
+          return fromAttributes as any
+        }
+        
+        const fromOld = tryBuildUser(props.old)
+        if (fromOld) {
+          // If email is missing, try to get it from attributes or users list
+          if (fromOld.name && !fromOld.email) {
+            const fromAttributes = tryBuildUser(props.attributes)
+            if (fromAttributes?.email) {
+              fromOld.email = fromAttributes.email
+            } else if (log.subjectId) {
+              const subjectId = log.subjectId as any
+              const subjectIdStr = String(subjectId)
+              const foundUser = users.find((u) => {
+                if (u.id != null && Number(u.id) === Number(subjectId)) return true
+                if (u.id != null && String(u.id) === subjectIdStr) return true
+                if (u.uuid && String(u.uuid) === subjectIdStr) return true
+                // eslint-disable-next-line eqeqeq
+                if (u.id != null && (u.id as any) == subjectId) return true
+                return false
+              })
+              if (foundUser?.email) {
+                fromOld.email = foundUser.email
+              }
+            }
+          }
+          return fromOld as any
+        }
 
         const fromSubject = tryBuildUser(props.subject)
         if (fromSubject) return fromSubject as any

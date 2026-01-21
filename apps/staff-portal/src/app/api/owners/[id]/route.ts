@@ -136,9 +136,27 @@ export async function PUT(
             message: error?.response?.data?.message,
             data: error?.response?.data,
         })
+        
+        // Forward backend error format: { error: "ERROR_CODE", message: "...", status: 400, fields?: {...} }
         const status = error?.response?.status || 500
-        const message = error?.response?.data?.message || 'Failed to update owner'
-        return NextResponse.json({ error: message }, { status })
+        const backendError = error?.response?.data
+        
+        if (backendError?.error) {
+            // Backend error format - forward it as-is
+            return NextResponse.json({
+                error: backendError.error,
+                message: backendError.message || 'Failed to update owner',
+                status: backendError.status || status,
+                fields: backendError.fields,
+            }, { status })
+        } else {
+            // Legacy error format or network error
+            return NextResponse.json({
+                error: 'INTERNAL_ERROR',
+                message: backendError?.message || error?.message || 'Failed to update owner',
+                status,
+            }, { status })
+        }
     }
 }
 
@@ -169,9 +187,25 @@ export async function DELETE(
 
         return res
     } catch (error: any) {
+        // Forward backend error format: { error: "ERROR_CODE", message: "...", status: 400 }
         const status = error?.response?.status || 500
-        const message = error?.response?.data?.message || 'Failed to delete owner'
-        return NextResponse.json({ error: message }, { status })
+        const backendError = error?.response?.data
+        
+        if (backendError?.error) {
+            // Backend error format - forward it as-is
+            return NextResponse.json({
+                error: backendError.error,
+                message: backendError.message || 'Failed to delete owner',
+                status: backendError.status || status,
+            }, { status })
+        } else {
+            // Legacy error format or network error
+            return NextResponse.json({
+                error: 'INTERNAL_ERROR',
+                message: backendError?.message || error?.message || 'Failed to delete owner',
+                status,
+            }, { status })
+        }
     }
 }
 

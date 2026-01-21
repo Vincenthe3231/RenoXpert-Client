@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners, getOwner } from './auth'
+import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners, getOwner, updateOwner, deleteOwner } from './auth'
 import type {
     StaffUser,
     LoginInput,
@@ -169,6 +169,54 @@ export function useActivateUser() {
             queryClient.setQueryData(['owner', updatedUser.uuid], updatedUser)
             // Invalidate auth/me in case the activated user is the current user
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+        },
+    })
+}
+
+/**
+ * Hook to update owner
+ * Uses PUT /api/owners/{id} endpoint
+ */
+export function useUpdateOwner() {
+    const queryClient = useQueryClient()
+
+    return useMutation<
+        User,
+        Error,
+        { id: string; data: Parameters<typeof updateOwner>[1] }
+    >({
+        mutationFn: ({ id, data }) => updateOwner(id, data),
+        onSuccess: (updatedOwner) => {
+            // Invalidate owners list to refresh the table
+            queryClient.invalidateQueries({ queryKey: ['owners'] })
+            // Update the specific owner in cache
+            queryClient.setQueryData(['owner', updatedOwner.uuid], updatedOwner)
+            // Also invalidate users list in case owner appears there
+            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+            // Update user cache if it exists
+            queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedOwner.uuid), updatedOwner)
+        },
+    })
+}
+
+/**
+ * Hook to delete owner
+ * Uses DELETE /api/owners/{id} endpoint
+ */
+export function useDeleteOwner() {
+    const queryClient = useQueryClient()
+
+    return useMutation<void, Error, string>({
+        mutationFn: deleteOwner,
+        onSuccess: (_, deletedId) => {
+            // Invalidate owners list to refresh the table
+            queryClient.invalidateQueries({ queryKey: ['owners'] })
+            // Remove the specific owner from cache
+            queryClient.removeQueries({ queryKey: ['owner', deletedId] })
+            // Also invalidate users list
+            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+            // Remove from user cache if it exists
+            queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.USER(deletedId) })
         },
     })
 }

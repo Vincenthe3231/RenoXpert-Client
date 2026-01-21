@@ -122,9 +122,8 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
         throw new Error("No valid identifier found for user")
       }
       
-      // IMPORTANT:
-      // Backend does NOT implement PUT /owners/{id} (OwnerController::update() missing), so owner updates must go through /users/{id}/profile.
-      // Use /api/users/{id}/profile for owner profiles
+      // IMPORTANT: Backend OwnerController::update() method is not yet implemented
+      // Use /api/users/{id}/profile for owner updates (this endpoint works)
       // Use /api/auth/users/{id}/profile for staff profiles (super-admin/admin only)
       const endpoint = user.userType === 'owner'
         ? `/api/users/${identifier}/profile`
@@ -260,13 +259,52 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       // Close dialog on success
       onOpenChange(false)
     } catch (error: any) {
-      // One or more mutations failed - show error toast
-      const errorMessage = error?.response?.data?.message || error?.message || 'Please try again.'
+      // Handle backend error format: { error: "ERROR_CODE", message: "...", status: 400, fields?: {...} }
+      let errorTitle = 'Failed to update user'
+      let errorDescription = 'Please try again.'
+      
+      // Check for backend error format
+      if (error?.code || error?.status) {
+        const status = error.status || error?.response?.status
+        const code = error.code || error?.response?.data?.error
+        
+        if (status === 409 || code === 'RESOURCE_ALREADY_EXISTS') {
+          // Duplicate email or IC
+          errorTitle = 'Duplicate Entry'
+          errorDescription = error.message || error?.response?.data?.message || 'A user with this email or IC already exists.'
+        } else if (status === 404 || code === 'RESOURCE_NOT_FOUND') {
+          // Owner not found
+          errorTitle = 'User Not Found'
+          errorDescription = error.message || error?.response?.data?.message || 'The user you\'re trying to update no longer exists.'
+        } else if (status === 422 || code === 'INVALID_FORMAT') {
+          // Validation errors
+          if (error.fields || error?.response?.data?.fields) {
+            const fields = error.fields || error?.response?.data?.fields
+            const fieldErrors = Object.entries(fields)
+              .map(([field, messages]: [string, any]) => {
+                const msgArray = Array.isArray(messages) ? messages : [messages]
+                return `${field}: ${msgArray.join(', ')}`
+              })
+              .join('\n')
+            errorTitle = 'Validation Error'
+            errorDescription = fieldErrors
+          } else {
+            errorTitle = 'Validation Error'
+            errorDescription = error.message || error?.response?.data?.message || 'Please check your input and try again.'
+          }
+        } else {
+          // Other errors
+          errorDescription = error.message || error?.response?.data?.message || 'Please try again.'
+        }
+      } else {
+        // Legacy error format
+        errorDescription = error?.response?.data?.message || error?.message || 'Please try again.'
+      }
       
       toast({
         variant: 'destructive',
-        title: 'Failed to update user',
-        description: errorMessage,
+        title: errorTitle,
+        description: errorDescription,
       })
     }
   }

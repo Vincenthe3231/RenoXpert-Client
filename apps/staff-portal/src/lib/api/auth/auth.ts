@@ -257,3 +257,123 @@ export async function getOwners(params?: GetUsersParams): Promise<UserListRespon
     console.error('Transformed data:', JSON.stringify(transformedData, null, 2))
     throw new Error(`Invalid owner list data: ${userListResult.error.message}`)
 }
+
+/**
+ * Update owner by ID
+ * Uses PUT /api/owners/{id} which calls Laravel's PUT /owners/{id} endpoint
+ * 
+ * @param id - Owner ID (integer) or UUID string
+ * @param data - Partial owner data (camelCase fields will be converted to snake_case for backend)
+ */
+export async function updateOwner(
+    id: string,
+    data: {
+        name?: string
+        email?: string
+        phoneNo?: string
+        countryCode?: string
+        salutation?: string
+        ic?: string
+        address1?: string
+        address2?: string
+        city?: string
+        state?: string
+        postcode?: string
+    }
+): Promise<User> {
+    try {
+        // Transform camelCase to snake_case for backend
+        const backendData: Record<string, any> = {}
+        if (data.name !== undefined) backendData.name = data.name
+        if (data.email !== undefined) backendData.email = data.email
+        if (data.phoneNo !== undefined) backendData.phone_no = data.phoneNo
+        if (data.countryCode !== undefined) backendData.country_code = data.countryCode
+        if (data.salutation !== undefined) backendData.salutation = data.salutation
+        if (data.ic !== undefined) backendData.ic = data.ic
+        if (data.address1 !== undefined) backendData.address_1 = data.address1
+        if (data.address2 !== undefined) backendData.address_2 = data.address2
+        if (data.city !== undefined) backendData.city = data.city
+        if (data.state !== undefined) backendData.state = data.state
+        if (data.postcode !== undefined) backendData.postcode = data.postcode
+
+        const { data: response } = await axios.put(`/api/owners/${id}`, backendData)
+
+        // Backend returns: { message: "...", data: { owner: {...} } }
+        const ownerData = response?.data?.owner || response?.owner || response?.data || response
+
+        if (!ownerData) {
+            throw new Error('Owner data not found in response')
+        }
+
+        // Transform profile fields (same as getOwner)
+        const profileFields = {
+            salutation: ownerData.salutation ?? null,
+            ic: ownerData.ic ?? null,
+            address1: ownerData.address1 ?? null,
+            address2: ownerData.address2 ?? null,
+            city: ownerData.city ?? null,
+            state: ownerData.state ?? null,
+            postcode: ownerData.postcode ?? null,
+        }
+
+        const {
+            salutation,
+            ic,
+            address1,
+            address2,
+            city,
+            state,
+            postcode,
+            ...userFields
+        } = ownerData
+
+        const transformedUser = {
+            ...userFields,
+            profile: profileFields,
+        }
+
+        const result = userSchema.safeParse(transformedUser)
+        if (!result.success) {
+            console.error('Update owner response validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(response, null, 2))
+            console.error('Owner data:', JSON.stringify(ownerData, null, 2))
+            console.error('Transformed data:', JSON.stringify(transformedUser, null, 2))
+            throw new Error(`Invalid owner data: ${result.error.message}`)
+        }
+        return result.data
+    } catch (error: any) {
+        // Handle backend error format: { error: "ERROR_CODE", message: "...", status: 400, fields?: {...} }
+        if (error?.response?.data?.error) {
+            const backendError = error.response.data
+            const customError = new Error(backendError.message || 'Failed to update owner')
+            ;(customError as any).status = backendError.status || error.response.status
+            ;(customError as any).code = backendError.error
+            ;(customError as any).fields = backendError.fields
+            throw customError
+        }
+        throw error
+    }
+}
+
+/**
+ * Delete owner by ID
+ * Uses DELETE /api/owners/{id} which calls Laravel's DELETE /owners/{id} endpoint
+ * 
+ * @param id - Owner ID (integer) or UUID string
+ */
+export async function deleteOwner(id: string): Promise<void> {
+    try {
+        await axios.delete(`/api/owners/${id}`)
+        // Backend returns: { message: "Owner deleted successfully." }
+    } catch (error: any) {
+        // Handle backend error format: { error: "ERROR_CODE", message: "...", status: 400 }
+        if (error?.response?.data?.error) {
+            const backendError = error.response.data
+            const customError = new Error(backendError.message || 'Failed to delete owner')
+            ;(customError as any).status = backendError.status || error.response.status
+            ;(customError as any).code = backendError.error
+            throw customError
+        }
+        throw error
+    }
+}
