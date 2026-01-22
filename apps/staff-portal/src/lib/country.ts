@@ -1,6 +1,17 @@
 /**
- * Maps country calling codes to flag image file codes
+ * Maps country calling codes to flag image file codes and country names
  */
+export const COUNTRY_CODES = [
+    { code: '60', name: 'Malaysia', flag: 'my' },
+    { code: '65', name: 'Singapore', flag: 'sg' },
+    { code: '61', name: 'Australia', flag: 'au' },
+    { code: '86', name: 'China', flag: 'cn' },
+    { code: '91', name: 'India', flag: 'in' },
+    { code: '966', name: 'Saudi Arabia', flag: 'sa' },
+    { code: '44', name: 'United Kingdom', flag: 'en' },
+    { code: '33', name: 'France', flag: 'fr' },
+] as const
+
 const COUNTRY_CODE_TO_FLAG_MAP: Record<string, string> = {
     '60': 'my',  // Malaysia
     '65': 'sg',  // Singapore

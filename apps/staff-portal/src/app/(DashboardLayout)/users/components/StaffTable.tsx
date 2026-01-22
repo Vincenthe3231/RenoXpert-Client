@@ -12,6 +12,8 @@ import UserStatusBadge from "./UserStatusBadge";
 import RoleBadge from "./RoleBadge";
 import { UserAvatar } from "./UserAvatar";
 import { UserActions } from "./UserActions";
+import Image from "next/image";
+import { getFlagPath } from "@/lib/country";
 
 interface StaffTableProps {
     users: StaffUser[];
@@ -54,7 +56,24 @@ export const StaffTable = ({
                                 <UserAvatar avatarUrl={user.profile.avatarUrl} name={user.name} />
                                 <div>
                                     <p className="font-medium text-foreground">{user.name}</p>
-                                    <p className="text-xs text-muted-foreground">{user.phoneNo || ""}</p>
+                                    {user.phoneNo ? (
+                                        <div className="flex items-center gap-1.5">
+                                            {user.countryCode && getFlagPath(user.countryCode) && (
+                                                <Image
+                                                    src={getFlagPath(user.countryCode)!}
+                                                    alt={`Flag ${user.countryCode}`}
+                                                    width={12}
+                                                    height={9}
+                                                    className="rounded-sm flex-shrink-0"
+                                                />
+                                            )}
+                                            <span className="text-xs text-muted-foreground">
+                                                {user.countryCode ? `+${user.countryCode} ` : ""}{user.phoneNo}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">—</p>
+                                    )}
                                 </div>
                             </div>
                         </TableCell>

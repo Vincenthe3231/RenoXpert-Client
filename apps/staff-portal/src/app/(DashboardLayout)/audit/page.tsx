@@ -41,8 +41,8 @@ export default function AuditPage() {
   const [columnFilters, setColumnFilters] = useState<Record<string, boolean>>(DEFAULT_COLUMN_FILTERS)
   const [searchHistoryOpen, setSearchHistoryOpen] = useState(false)
 
-  // Debounce search query for better performance (300ms delay)
-  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+  // Debounce search query for better performance (2s delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 2000)
 
   // Get all onboardings (approved and rejected)
   const { data: onboardingsData, isLoading: isLoadingOnboardings } = useOnboardings()

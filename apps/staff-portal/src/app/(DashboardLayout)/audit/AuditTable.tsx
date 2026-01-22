@@ -1,14 +1,16 @@
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { CheckCircle, XCircle, History, Loader2, UserX, UserCheck, UserCog, UserPen } from "lucide-react"
+import { CheckCircle, XCircle, History, Loader2, UserX, UserCheck, UserCog, UserPen, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { format } from "date-fns"
-import { AuditEntry } from "./types"
+import { AuditEntry, getAuditEntryTimestamp } from "./types"
 import { User } from "@/lib/api/auth"
 import AuditEmptyState from "./components/AuditEmptyState"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatusBadge"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface AuditTableProps {
   auditEntries: AuditEntry[]
@@ -19,7 +21,96 @@ interface AuditTableProps {
   users: User[]
 }
 
+type SortDirection = "asc" | "desc" | null
+type SortColumn = "user" | "type" | "action" | "role" | "performedBy" | "date" | "details"
+
+interface SortConfig {
+  column: SortColumn | null
+  direction: SortDirection
+}
+
+interface SortableHeaderProps {
+  label: string
+  column: SortColumn
+  sortConfig: SortConfig
+  onSort: (column: SortColumn) => void
+}
+
+const SortableHeader = ({ label, column, sortConfig, onSort }: SortableHeaderProps) => {
+  const isActive = sortConfig.column === column
+  const direction = isActive ? sortConfig.direction : null
+
+  return (
+    <motion.button
+      onClick={() => onSort(column)}
+      className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 hover:text-foreground transition-all duration-300 cursor-pointer group"
+      whileTap={{ scale: 0.97 }}
+    >
+      <span>{label}</span>
+      <motion.span
+        className="flex items-center justify-center w-5 h-5 rounded-md bg-muted/50 group-hover:bg-muted transition-colors"
+        initial={false}
+        animate={{ 
+          opacity: isActive ? 1 : 0.5,
+          scale: isActive ? 1 : 0.9
+        }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      >
+        <AnimatePresence mode="wait">
+          {direction === "asc" ? (
+            <motion.span
+              key="asc"
+              initial={{ opacity: 0, rotate: -90 }}
+              animate={{ opacity: 1, rotate: 0 }}
+              exit={{ opacity: 0, rotate: 90 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            >
+              <ArrowUp className="h-3 w-3 text-primary" />
+            </motion.span>
+          ) : direction === "desc" ? (
+            <motion.span
+              key="desc"
+              initial={{ opacity: 0, rotate: 90 }}
+              animate={{ opacity: 1, rotate: 0 }}
+              exit={{ opacity: 0, rotate: -90 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            >
+              <ArrowDown className="h-3 w-3 text-primary" />
+            </motion.span>
+          ) : (
+            <motion.span
+              key="none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              className="group-hover:opacity-80"
+            >
+              <ArrowUpDown className="h-3 w-3" />
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.span>
+    </motion.button>
+  )
+}
+
 const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, getInitials, users }: AuditTableProps) => {
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    column: null,
+    direction: null,
+  })
+
+  const handleSort = (column: SortColumn) => {
+    setSortConfig((prev) => {
+      if (prev.column !== column) {
+        return { column, direction: "asc" }
+      }
+      if (prev.direction === "asc") {
+        return { column, direction: "desc" }
+      }
+      return { column: null, direction: null }
+    })
+  }
   // Helper to get user avatar URL
   const getUserAvatarUrl = (user: { profile?: any } | null | undefined) => {
     if (!user?.profile) return undefined
@@ -307,16 +398,170 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     }
   }
 
+  // Sort entries based on sortConfig
+  const sortedEntries = useMemo(() => {
+    if (!sortConfig.column || !sortConfig.direction) {
+      return auditEntries
+    }
+
+    // Create a copy to avoid mutating the original array
+    const entries = [...auditEntries]
+    const direction = sortConfig.direction === "asc" ? 1 : -1
+
+    return entries.sort((a, b) => {
+      let comparison = 0
+
+      switch (sortConfig.column) {
+        case "user": {
+          const userA = getUserFromEntry(a)
+          const userB = getUserFromEntry(b)
+          const nameA = userA?.name || "Unknown"
+          const nameB = userB?.name || "Unknown"
+          comparison = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' })
+          break
+        }
+        case "type": {
+          // Use numeric comparison: Onboarding = 0, User Management = 1
+          const typeValueA = a.type === 'onboarding' ? 0 : 1
+          const typeValueB = b.type === 'onboarding' ? 0 : 1
+          comparison = typeValueA - typeValueB
+          break
+        }
+        case "action": {
+          let actionA = ""
+          let actionB = ""
+          if (a.type === 'onboarding') {
+            actionA = a.data.status || "Unknown"
+          } else {
+            const eventDisplay = getEventDisplay(a.data.event)
+            actionA = eventDisplay.label
+          }
+          if (b.type === 'onboarding') {
+            actionB = b.data.status || "Unknown"
+          } else {
+            const eventDisplay = getEventDisplay(b.data.event)
+            actionB = eventDisplay.label
+          }
+          comparison = actionA.localeCompare(actionB, undefined, { sensitivity: 'base' })
+          break
+        }
+        case "role": {
+          let roleA = ""
+          let roleB = ""
+          if (a.type === 'onboarding') {
+            roleA = a.data.assignedUserType || ""
+          } else {
+            const log = a.data
+            if (log.properties?.attributes?.roles?.[0]) {
+              roleA = log.properties.attributes.roles[0]
+            } else if (log.properties?.old?.roles?.[0]) {
+              roleA = log.properties.old.roles[0]
+            } else {
+              const user = getUserFromEntry(a)
+              roleA = user?.userType === 'staff' && user.profile?.roles?.[0] ? user.profile.roles[0] : ""
+            }
+          }
+          if (b.type === 'onboarding') {
+            roleB = b.data.assignedUserType || ""
+          } else {
+            const log = b.data
+            if (log.properties?.attributes?.roles?.[0]) {
+              roleB = log.properties.attributes.roles[0]
+            } else if (log.properties?.old?.roles?.[0]) {
+              roleB = log.properties.old.roles[0]
+            } else {
+              const user = getUserFromEntry(b)
+              roleB = user?.userType === 'staff' && user.profile?.roles?.[0] ? user.profile.roles[0] : ""
+            }
+          }
+          comparison = roleA.localeCompare(roleB, undefined, { sensitivity: 'base' })
+          break
+        }
+        case "performedBy": {
+          let performerA = ""
+          let performerB = ""
+          if (a.type === 'onboarding') {
+            performerA = getReviewerName(a.data.reviewedBy)
+          } else {
+            performerA = getCauserName(a.data.causer)
+          }
+          if (b.type === 'onboarding') {
+            performerB = getReviewerName(b.data.reviewedBy)
+          } else {
+            performerB = getCauserName(b.data.causer)
+          }
+          comparison = performerA.localeCompare(performerB, undefined, { sensitivity: 'base' })
+          break
+        }
+        case "date": {
+          const timestampA = getAuditEntryTimestamp(a)
+          const timestampB = getAuditEntryTimestamp(b)
+          comparison = timestampA - timestampB
+          break
+        }
+        case "details": {
+          let detailsA = ""
+          let detailsB = ""
+          if (a.type === 'onboarding') {
+            detailsA = a.data.rejectionReason || ""
+          } else {
+            const props = a.data.properties
+            if (props?.old_values || props?.new_values) {
+              detailsA = JSON.stringify(props).substring(0, 50)
+            }
+          }
+          if (b.type === 'onboarding') {
+            detailsB = b.data.rejectionReason || ""
+          } else {
+            const props = b.data.properties
+            if (props?.old_values || props?.new_values) {
+              detailsB = JSON.stringify(props).substring(0, 50)
+            }
+          }
+          comparison = detailsA.localeCompare(detailsB, undefined, { sensitivity: 'base' })
+          break
+        }
+        default:
+          return 0
+      }
+
+      return comparison * direction
+    })
+  }, [auditEntries, sortConfig.column, sortConfig.direction, getReviewerName, getCauserName, users])
+
   return (
-    <Card className="shadow-card rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="w-5 h-5" />
-          Decision History & Audit Trail
-        </CardTitle>
-        <CardDescription>Complete record of all onboarding decisions and user management activities</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="w-full rounded-2xl border border-white/20 dark:border-white/10 bg-card/80 backdrop-blur-xl shadow-xl shadow-primary/5 overflow-hidden"
+    >
+      {/* Header with Glassmorphism */}
+      <div className="relative border-b border-white/10 dark:border-white/5 bg-gradient-to-r from-muted/50 via-muted/30 to-muted/50 backdrop-blur-sm px-8 py-6">
+        {/* Decorative gradient orb */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        
+        <div className="relative flex items-center gap-4">
+          <motion.div 
+            className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          >
+            <History className="h-6 w-6" />
+          </motion.div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Decision History & Audit Trail
+            </h2>
+            <p className="text-sm text-muted-foreground/80 mt-0.5">
+              Complete record of all onboarding decisions and user management activities
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Table Content */}
+      <div className="bg-card/50 backdrop-blur-sm">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -324,196 +569,271 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         ) : auditEntries.length === 0 ? (
           <AuditEmptyState />
         ) : (
-          <div className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Performed By</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {auditEntries.map((entry, index) => {
-                  const user = getUserFromEntry(entry)
-                  const timestamp = getTimestamp(entry)
-                  
-                  if (entry.type === 'onboarding') {
-                    const decision = entry.data
-                    return (
-                      <TableRow 
-                        key={`onboarding-${decision.id || index}`}
-                        className="transition-all duration-200 ease-in-out hover:bg-muted/50 hover:-translate-y-0.5 cursor-pointer"
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={getUserAvatarUrl(user)} />
-                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                                {user?.name ? getInitials(user.name) : "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium text-sm">{user?.name || "Unknown"}</p>
-                              <p className="text-xs text-muted-foreground">{user?.email || "—"}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            Onboarding
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {decision.status === "approved" ? (
-                            <Badge 
-                              variant="outline"
-                              className="gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                            >
-                              <CheckCircle size={12} />
-                              Approved
-                            </Badge>
-                          ) : decision.status === "rejected" ? (
-                            <UserStatusBadge status="rejected" />
-                          ) : (
-                            <Badge 
-                              variant="outline"
-                              className="gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                            >
-                              <XCircle size={12} />
-                              {decision.status || "Unknown"}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {decision.assignedUserType ? (
-                            <RoleBadge role={decision.assignedUserType} />
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{getActionPerformer(entry)}</span>
-                        </TableCell>
-                        <TableCell>
-                          {timestamp ? (
-                            <div className="text-sm">
-                              <p>{format(new Date(timestamp), "MMM d, yyyy")}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(timestamp), "h:mm a")}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground max-w-[200px] truncate block">
-                            {decision.rejectionReason || "—"}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  } else {
-                    const log = entry.data
-                    const eventDisplay = getEventDisplay(log.event)
-                    const EventIcon = eventDisplay.icon
-                    
-                    return (
-                      <TableRow 
-                        key={`activity-log-${log.id}`}
-                        className="transition-all duration-200 ease-in-out hover:bg-muted/50 hover:-translate-y-0.5 cursor-pointer"
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={getUserAvatarUrl(user)} />
-                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                                {user?.name ? getInitials(user.name) : "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium text-sm">{user?.name || "Unknown"}</p>
-                              <p className="text-xs text-muted-foreground">{user?.email || "—"}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            User Management
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={eventDisplay.variant}
-                            className={eventDisplay.className}
+          <div className="overflow-x-auto">
+            <div className="rounded-md border border-border/30">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-border/50 bg-muted/30 backdrop-blur-sm">
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="User"
+                        column="user"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="Type"
+                        column="type"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="Action"
+                        column="action"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="Role"
+                        column="role"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="Performed By"
+                        column="performedBy"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="Date"
+                        column="date"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                    <TableHead className="py-4 px-6 text-left">
+                      <SortableHeader
+                        label="Details"
+                        column="details"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sortedEntries.map((entry, index) => {
+                      const user = getUserFromEntry(entry)
+                      const timestamp = getTimestamp(entry)
+                      
+                      if (entry.type === 'onboarding') {
+                        const decision = entry.data
+                        return (
+                          <TableRow
+                            key={`onboarding-${decision.id || index}`}
+                            className="group border-b border-border/30 bg-transparent transition-all duration-300 ease-in-out hover:bg-muted/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 animate-in fade-in slide-in-from-left-4"
+                            style={{ 
+                              animationDelay: `${index * 40}ms`,
+                              animationFillMode: 'both'
+                            }}
                           >
-                            <EventIcon size={12} />
-                            {eventDisplay.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            // For activity logs, try to extract historical role from log properties
-                            if (entry.type === 'activity_log') {
-                              const log = entry.data
-                              
-                              // Extract the latest/new role from activity log properties
-                              // Backend uses "old" (old values) and "attributes" (new values) instead of "old_values" and "new_values"
-                              // For role_changed events, prioritize "attributes" (new role after change) over "old" (old role before change)
-                              // Show the NEW role to reflect the user's role after the change
-                              if (log.properties?.attributes?.roles?.[0]) {
-                                return <RoleBadge role={log.properties.attributes.roles[0] as any} />
-                              }
-                              // Fallback: try "old" if attributes not available
-                              if (log.properties?.old?.roles?.[0]) {
-                                return <RoleBadge role={log.properties.old.roles[0] as any} />
-                              }
-                            }
-                            // Fallback to current user role if no historical data available
-                            return user?.userType === 'staff' && user.profile?.roles?.[0] ? (
-                              <RoleBadge role={user.profile.roles[0] as any} />
-                            ) : (
-                              <span className="text-muted-foreground text-sm">—</span>
-                            )
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{getActionPerformer(entry)}</span>
-                        </TableCell>
-                        <TableCell>
-                          {timestamp ? (
-                            <div className="text-sm">
-                              <p>{format(new Date(timestamp), "MMM d, yyyy")}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(timestamp), "h:mm a")}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground max-w-[200px] truncate block">
-                            {log.properties?.old_values || log.properties?.new_values 
-                              ? JSON.stringify(log.properties).substring(0, 50) + '...'
-                              : "—"}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  }
-                })}
-              </TableBody>
-            </Table>
+                            <TableCell className="py-5 px-6">
+                              <div className="flex items-center gap-3.5">
+                                <Avatar className="h-10 w-10 border-2 border-white/50 dark:border-white/20 shadow-md transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/20 group-hover:scale-105">
+                                  <AvatarImage src={getUserAvatarUrl(user)} />
+                                  <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
+                                    {user?.name ? getInitials(user.name) : "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
+                                    {user?.name || "Unknown"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground/70">
+                                    {user?.email || "—"}
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-3 py-1 text-xs font-medium text-primary shadow-sm">
+                                Onboarding
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              {decision.status === "approved" ? (
+                                <Badge 
+                                  variant="outline"
+                                  className="gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                >
+                                  <CheckCircle size={12} />
+                                  Approved
+                                </Badge>
+                              ) : decision.status === "rejected" ? (
+                                <UserStatusBadge status="rejected" />
+                              ) : (
+                                <Badge 
+                                  variant="outline"
+                                  className="gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                >
+                                  <XCircle size={12} />
+                                  {decision.status || "Unknown"}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              {decision.assignedUserType ? (
+                                <RoleBadge role={decision.assignedUserType} />
+                              ) : (
+                                <span className="text-muted-foreground/50">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <span className="text-sm font-medium text-foreground/90 transition-colors duration-200 group-hover:text-foreground">
+                                {getActionPerformer(entry)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              {timestamp ? (
+                                <div className="space-y-0.5">
+                                  <p className="text-sm font-medium text-foreground">
+                                    {format(new Date(timestamp), "MMM d, yyyy")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground/60">
+                                    {format(new Date(timestamp), "h:mm a")}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground/50">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <span className="text-sm text-muted-foreground/70 max-w-[200px] truncate block">
+                                {decision.rejectionReason || "—"}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      } else {
+                        const log = entry.data
+                        const eventDisplay = getEventDisplay(log.event)
+                        const EventIcon = eventDisplay.icon
+                        
+                        return (
+                          <TableRow
+                            key={`activity-log-${log.id}`}
+                            className="group border-b border-border/30 bg-transparent transition-all duration-300 ease-in-out hover:bg-muted/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 animate-in fade-in slide-in-from-left-4"
+                            style={{ 
+                              animationDelay: `${index * 40}ms`,
+                              animationFillMode: 'both'
+                            }}
+                          >
+                            <TableCell className="py-5 px-6">
+                              <div className="flex items-center gap-3.5">
+                                <Avatar className="h-10 w-10 border-2 border-white/50 dark:border-white/20 shadow-md transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/20 group-hover:scale-105">
+                                  <AvatarImage src={getUserAvatarUrl(user)} />
+                                  <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
+                                    {user?.name ? getInitials(user.name) : "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
+                                    {user?.name || "Unknown"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground/70">
+                                    {user?.email || "—"}
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-3 py-1 text-xs font-medium text-primary shadow-sm">
+                                User Management
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <Badge 
+                                variant={eventDisplay.variant}
+                                className={eventDisplay.className}
+                              >
+                                <EventIcon size={12} />
+                                {eventDisplay.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              {(() => {
+                                // For activity logs, try to extract historical role from log properties
+                                if (entry.type === 'activity_log') {
+                                  const log = entry.data
+                                  
+                                  // Extract the latest/new role from activity log properties
+                                  // Backend uses "old" (old values) and "attributes" (new values) instead of "old_values" and "new_values"
+                                  // For role_changed events, prioritize "attributes" (new role after change) over "old" (old role before change)
+                                  // Show the NEW role to reflect the user's role after the change
+                                  if (log.properties?.attributes?.roles?.[0]) {
+                                    return <RoleBadge role={log.properties.attributes.roles[0] as any} />
+                                  }
+                                  // Fallback: try "old" if attributes not available
+                                  if (log.properties?.old?.roles?.[0]) {
+                                    return <RoleBadge role={log.properties.old.roles[0] as any} />
+                                  }
+                                }
+                                // Fallback to current user role if no historical data available
+                                return user?.userType === 'staff' && user.profile?.roles?.[0] ? (
+                                  <RoleBadge role={user.profile.roles[0] as any} />
+                                ) : (
+                                  <span className="text-muted-foreground/50">—</span>
+                                )
+                              })()}
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <span className="text-sm font-medium text-foreground/90 transition-colors duration-200 group-hover:text-foreground">
+                                {getActionPerformer(entry)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              {timestamp ? (
+                                <div className="space-y-0.5">
+                                  <p className="text-sm font-medium text-foreground">
+                                    {format(new Date(timestamp), "MMM d, yyyy")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground/60">
+                                    {format(new Date(timestamp), "h:mm a")}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground/50">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-5 px-6">
+                              <span className="text-sm text-muted-foreground/70 max-w-[200px] truncate block">
+                                {log.properties?.old_values || log.properties?.new_values 
+                                  ? JSON.stringify(log.properties).substring(0, 50) + '...'
+                                  : "—"}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      }
+                    })}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </motion.div>
   )
 }
 

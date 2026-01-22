@@ -154,6 +154,11 @@ export async function getOwner(id: string): Promise<User> {
             postcode: ownerData.postcode ?? null,
         }
         
+        // Extract phone and country code - handle both camelCase and snake_case
+        // Backend may return phoneNo/countryCode (camelCase) or phone_no/country_code (snake_case)
+        const phone_no = ownerData.phone_no ?? ownerData.phoneNo ?? null
+        const country_code = ownerData.country_code ?? ownerData.countryCode ?? null
+        
         const {
             salutation,
             ic,
@@ -162,11 +167,18 @@ export async function getOwner(id: string): Promise<User> {
             city,
             state,
             postcode,
+            phone_no: _phone_no, // Remove from userFields
+            country_code: _country_code, // Remove from userFields
+            phoneNo: _phoneNo, // Remove from userFields (in case backend returns camelCase)
+            countryCode: _countryCode, // Remove from userFields (in case backend returns camelCase)
             ...userFields
         } = ownerData
         
+        // Transform to camelCase for phone and country code
         const transformedUser = {
             ...userFields,
+            phoneNo: phone_no ?? null, // Use extracted phone number
+            countryCode: country_code ?? null, // Use extracted country code
             profile: profileFields,
         }
         
@@ -208,6 +220,11 @@ export async function getOwners(params?: GetUsersParams): Promise<UserListRespon
     
     const { data } = await axios.get('/api/owners', { params: ownersParams })
     
+    // Debug: Log raw backend response in development to see what fields are actually returned
+    if (process.env.NODE_ENV === 'development' && data?.data && Array.isArray(data.data) && data.data.length > 0) {
+        console.log('Raw backend owners list response (first item):', JSON.stringify(data.data[0], null, 2))
+    }
+    
     // Transform the data to match the expected schema structure
     // Backend returns profile fields (salutation, ic, address1, etc.) at top level,
     // but schema expects them nested in a 'profile' object
@@ -225,8 +242,27 @@ export async function getOwners(params?: GetUsersParams): Promise<UserListRespon
                 postcode: item.postcode ?? null,
             }
             
-            // Remove profile fields from top level and nest them in 'profile'
-            // Keep all other fields (uuid, name, email, status, etc.) at top level
+            // Extract phone and country code - handle both snake_case and camelCase
+            // Backend may return phone_no/country_code (snake_case) or phoneNo/countryCode (camelCase)
+            // Check all possible field names the backend might use
+            const phone_no = item.phone_no ?? item.phoneNo ?? item.phone_number ?? item.phone ?? null
+            const country_code = item.country_code ?? item.countryCode ?? item.country ?? null
+            
+            // Debug: Log if phone/country code is missing (only in development)
+            if (process.env.NODE_ENV === 'development' && !phone_no && item.id) {
+                console.warn('Owner missing phone_no in response:', {
+                    id: item.id,
+                    uuid: item.uuid,
+                    name: item.name,
+                    availableFields: Object.keys(item),
+                    phone_no: item.phone_no,
+                    phoneNo: item.phoneNo,
+                    country_code: item.country_code,
+                    countryCode: item.countryCode,
+                })
+            }
+            
+            // Remove profile fields and phone/country code from top level
             const {
                 salutation,
                 ic,
@@ -235,11 +271,17 @@ export async function getOwners(params?: GetUsersParams): Promise<UserListRespon
                 city,
                 state,
                 postcode,
+                phone_no: _phone_no, // Backend returns snake_case
+                country_code: _country_code, // Backend returns snake_case
+                phoneNo: _phoneNo, // In case backend returns camelCase
+                countryCode: _countryCode, // In case backend returns camelCase
                 ...userFields
             } = item
             
             return {
                 ...userFields,
+                phoneNo: phone_no ?? null, // Transform phone_no to phoneNo
+                countryCode: country_code ?? null, // Transform country_code to countryCode
                 profile: profileFields,
             }
         }) : [],
@@ -316,6 +358,11 @@ export async function updateOwner(
             postcode: ownerData.postcode ?? null,
         }
 
+        // Extract phone and country code - handle both camelCase and snake_case
+        // Backend may return phoneNo/countryCode (camelCase) or phone_no/country_code (snake_case)
+        const phone_no = ownerData.phone_no ?? ownerData.phoneNo ?? null
+        const country_code = ownerData.country_code ?? ownerData.countryCode ?? null
+        
         const {
             salutation,
             ic,
@@ -324,11 +371,18 @@ export async function updateOwner(
             city,
             state,
             postcode,
+            phone_no: _phone_no, // Remove from userFields
+            country_code: _country_code, // Remove from userFields
+            phoneNo: _phoneNo, // Remove from userFields (in case backend returns camelCase)
+            countryCode: _countryCode, // Remove from userFields (in case backend returns camelCase)
             ...userFields
         } = ownerData
 
+        // Transform to camelCase for phone and country code
         const transformedUser = {
             ...userFields,
+            phoneNo: phone_no ?? null, // Use extracted phone number
+            countryCode: country_code ?? null, // Use extracted country code
             profile: profileFields,
         }
 

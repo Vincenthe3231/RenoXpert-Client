@@ -69,20 +69,24 @@ export const OwnerTable = ({
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <div className="flex items-center gap-2">
-                                    {getFlagPath(user.countryCode) && (
-                                        <Image
-                                            src={getFlagPath(user.countryCode)!}
-                                            alt={`Flag ${user.countryCode}`}
-                                            width={16}
-                                            height={12}
-                                            className="rounded-sm flex-shrink-0"
-                                        />
-                                    )}
-                                    <span className="text-sm text-muted-foreground">
-                                        +{user.countryCode} {user.phoneNo || ""}
-                                    </span>
-                                </div>
+                                {user.phoneNo ? (
+                                    <div className="flex items-center gap-2">
+                                        {user.countryCode && getFlagPath(user.countryCode) && (
+                                            <Image
+                                                src={getFlagPath(user.countryCode)!}
+                                                alt={`Flag ${user.countryCode}`}
+                                                width={16}
+                                                height={12}
+                                                className="rounded-sm flex-shrink-0"
+                                            />
+                                        )}
+                                        <span className="text-sm text-muted-foreground">
+                                            {user.countryCode ? `+${user.countryCode} ` : ""}{user.phoneNo}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground">—</span>
+                                )}
                             </TableCell>
                             <TableCell>
                                 <span className="text-sm text-muted-foreground">

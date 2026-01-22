@@ -353,10 +353,10 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
 
   return (
     <Card className="shadow-card lg:col-span-2 rounded-full transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4 px-6 pt-6">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-3 px-5 pt-4">
         <div>
-          <CardTitle className="text-lg font-semibold leading-tight">Recent Activity</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+          <CardTitle className="text-base font-semibold leading-tight">Recent Activity</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground mt-1 leading-relaxed">
             Latest onboarding decisions and user management activities
           </CardDescription>
         </div>
@@ -364,25 +364,25 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
           <Button 
             variant="ghost" 
             size="sm"
-            className="text-primary hover:text-primary hover:bg-primary/10 h-9 px-3"
+            className="text-primary hover:text-primary hover:bg-primary/10 h-8 px-2.5"
           >
-            <span className="text-sm font-medium">View All</span>
-            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            <span className="text-xs font-medium">View All</span>
+            <ArrowRight className="ml-1 h-3 w-3" />
           </Button>
         </Link>
       </CardHeader>
-      <CardContent className="pt-4 px-4 pb-4">
+      <CardContent className="pt-3 px-3 pb-3">
         {recentActivities.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12 text-muted-foreground"
+            className="text-center py-8 text-muted-foreground"
           >
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
-              <Clock className="w-8 h-8 opacity-50" />
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+              <Clock className="w-6 h-6 opacity-50" />
             </div>
-            <p className="text-sm font-medium">No recent activity</p>
-            <p className="text-xs mt-1 text-muted-foreground/80">
+            <p className="text-xs font-medium">No recent activity</p>
+            <p className="text-[10px] mt-1 text-muted-foreground/80">
               Onboarding decisions and user management activities will appear here
             </p>
           </motion.div>
@@ -407,10 +407,10 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                       onClick={() => router.push('/audit')}
                     >
                       {/* Name Cell - matches UserTable structure */}
-                      <TableCell>
-                        <div className="flex items-center gap-3">
+                      <TableCell className="py-3 px-3">
+                        <div className="flex items-center gap-2.5">
                           <div className="relative flex-shrink-0">
-                            <Avatar className="h-10 w-10 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
+                            <Avatar className="h-8 w-8 ring-2 ring-background transition-all duration-200 group-hover:ring-primary/20">
                               <AvatarImage 
                                 src={
                                   user?.profile && 'avatarUrl' in user.profile 
@@ -419,26 +419,26 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                                 } 
                                 className="object-cover"
                               />
-                              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold border-2 border-background">
+                              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold border-2 border-background">
                                 {user?.name ? getInitials(user.name) : "??"}
                               </AvatarFallback>
                             </Avatar>
                             {/* Status indicator dot */}
                             <div className={cn(
-                              "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background flex items-center justify-center",
+                              "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background flex items-center justify-center",
                               activityConfig.iconClassName.includes('green') && "bg-green-500",
                               activityConfig.iconClassName.includes('red') && "bg-red-500",
                               activityConfig.iconClassName.includes('blue') && "bg-blue-500",
                               activityConfig.iconClassName.includes('purple') && "bg-purple-500",
                             )}>
-                              <ActivityIcon className={cn("h-2 w-2 text-white")} />
+                              <ActivityIcon className={cn("h-1.5 w-1.5 text-white")} />
                             </div>
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{user?.name || "Unknown User"}</p>
-                            <p className="text-xs text-muted-foreground">{user?.email || "No email"}</p>
+                            <p className="font-medium text-sm text-foreground">{user?.name || "Unknown User"}</p>
+                            <p className="text-[10px] text-muted-foreground">{user?.email || "No email"}</p>
                             {entry.type === 'onboarding' && entry.data.rejectionReason && (
-                              <p className="text-xs text-muted-foreground/80 mt-0.5 line-clamp-1 italic">
+                              <p className="text-[10px] text-muted-foreground/80 mt-0.5 line-clamp-1 italic">
                                 "{entry.data.rejectionReason}"
                               </p>
                             )}
@@ -447,7 +447,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                       </TableCell>
 
                       {/* Role Cell - separate cell like UserTable */}
-                      <TableCell>
+                      <TableCell className="py-3 px-3">
                         <div className="flex flex-wrap gap-1">
                           {entry.type === 'onboarding' && entry.data.assignedUserType && user?.userType === "staff" && (
                             <RoleBadge role={entry.data.assignedUserType} />
@@ -456,31 +456,31 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
                       </TableCell>
 
                       {/* Activity Type Cell - separate cell */}
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5">
+                      <TableCell className="py-3 px-3">
+                        <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-2 py-0.5 text-[10px] font-medium text-primary shadow-sm">
                           {activityConfig.typeLabel}
-                        </Badge>
+                        </span>
                       </TableCell>
 
                       {/* Status Cell - matches UserTable structure */}
-                      <TableCell>
+                      <TableCell className="py-3 px-3">
                         <Badge 
                           variant="outline"
-                          className={`gap-1 px-2.5 py-1 h-7 ${activityConfig.className}`}
+                          className={`gap-1 px-2 py-0.5 h-6 ${activityConfig.className}`}
                         >
-                          <ActivityIcon size={12} />
-                          <span className="text-xs font-medium">{activityConfig.label}</span>
+                          <ActivityIcon size={10} />
+                          <span className="text-[10px] font-medium">{activityConfig.label}</span>
                         </Badge>
                       </TableCell>
                       
                       {/* Date Cell - matches UserTable structure */}
-                      <TableCell>
+                      <TableCell className="py-3 px-3">
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground whitespace-nowrap">
+                          <p className="text-xs text-muted-foreground whitespace-nowrap">
                             {formatReviewDate(timestamp)}
                           </p>
                           {timestamp && !isToday(new Date(timestamp)) && !isYesterday(new Date(timestamp)) && (
-                            <p className="text-xs text-muted-foreground/60 mt-0.5 whitespace-nowrap">
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                               {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
                             </p>
                           )}

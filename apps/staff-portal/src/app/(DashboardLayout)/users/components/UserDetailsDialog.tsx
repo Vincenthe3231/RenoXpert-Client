@@ -18,12 +18,13 @@ import {
 } from "lucide-react"
 import { StaffUser, OwnerUser, User } from "@/lib/api/auth/auth.schemas"
 import { useUser, useActivateUser, useDeactivateUser, useAuth, useOwner } from "@/lib/api/auth/auth.hooks"
+import { useQueryClient } from "@tanstack/react-query"
 import UserStatusBadge from "./UserStatusBadge"
 import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
 import { useToast } from "@/hooks/use-toast"
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { AdminDialogHeader } from "./AdminDialogHeader"
 import { AdminSection } from "./AdminSection"
 import { AdminInfoCard } from "./AdminInfoCard"
@@ -79,17 +80,29 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
   }, [currentUser])
 
   // Use useOwner for staff users, useUser for admin/super-admin
-  const { data: ownerData, isLoading: isOwnerLoading, error: ownerError } = useOwner(
-    isStaff && userId ? userId : null
-  )
-  const { data: userData, isLoading: isUserLoading, error: userError } = useUser(
-    !isStaff && userId ? userId : null
-  )
+  // Force refetch every time by using a key that changes when dialog opens
+  const ownerQuery = useOwner(isStaff && userId ? userId : null)
+  const userQuery = useUser(!isStaff && userId ? userId : null)
+  
+  const { data: ownerData, isLoading: isOwnerLoading, error: ownerError, refetch: refetchOwner } = ownerQuery
+  const { data: userData, isLoading: isUserLoading, error: userError, refetch: refetchUser } = userQuery
 
   // Use the appropriate data based on user role
   const user = isStaff ? ownerData : userData
   const isLoading = isStaff ? isOwnerLoading : isUserLoading
   const error = isStaff ? ownerError : userError
+
+  // ALWAYS refetch from database when dialog opens - simple and direct
+  useEffect(() => {
+    if (open && userId) {
+      // Force refetch from database to get latest phone number
+      if (isStaff) {
+        refetchOwner()
+      } else {
+        refetchUser()
+      }
+    }
+  }, [open, userId, isStaff, refetchOwner, refetchUser]) // Refetch every time dialog opens
 
   // Check if the viewed user is a super admin
   const isViewedUserSuperAdmin = useMemo(() => {
@@ -195,9 +208,9 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     icon={Phone}
                     label="Phone"
                     value={
-                      user.countryCode && user.phoneNo ? (
+                      user.phoneNo ? (
                         <div className="flex items-center gap-2 min-w-0">
-                          {getFlagPath(user.countryCode) && (
+                          {user.countryCode && getFlagPath(user.countryCode) && (
                             <Image
                               src={getFlagPath(user.countryCode)!}
                               alt={`Flag ${user.countryCode}`}
@@ -206,7 +219,9 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                               className="rounded-sm shrink-0"
                             />
                           )}
-                          <span className="truncate">{formatPhone(user.countryCode, user.phoneNo)}</span>
+                          <span className="truncate">
+                            {user.countryCode ? formatPhone(user.countryCode, user.phoneNo) : user.phoneNo}
+                          </span>
                         </div>
                       ) : (
                         "Not provided"

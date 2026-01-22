@@ -6,6 +6,7 @@ import { Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
 import { Input } from "@/components/ui/input";
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import UserFilters from "./components/UserFilters";
 import { useUsers, useAuth, useOwners } from "@/lib/api/auth/auth.hooks";
@@ -234,6 +235,63 @@ const UsersPage = () => {
     const isLoading = isStaffFilteringOwners ? isOwnersLoading : isUsersLoading;
     const error = isStaffFilteringOwners ? ownersError : usersError;
     const users = usersDataFinal?.data ?? [];
+    
+    // For owners missing phone numbers, fetch individual owner details to get complete data
+    // This is needed because the owners list endpoint may not include phone_no/country_code
+    const ownersMissingPhone = useMemo(() => {
+        if (!isStaffFilteringOwners) return []
+        return users.filter((user: any) => user.userType === 'owner' && (!user.phoneNo || !user.countryCode) && user.uuid)
+    }, [users, isStaffFilteringOwners])
+    
+    // Fetch individual owner details for owners missing phone numbers using useQueries
+    const ownerDetailQueries = useQueries({
+        queries: ownersMissingPhone.map((owner: any) => ({
+            queryKey: ['owner', owner.uuid],
+            queryFn: async () => {
+                const { getOwner } = await import('@/lib/api/auth/auth')
+                return getOwner(owner.uuid)
+            },
+            enabled: !!owner.uuid,
+            staleTime: 0, // Always fetch fresh data
+        })),
+    })
+    
+    // Create a map of enriched owner data
+    const enrichedOwnerMap = useMemo(() => {
+        const map = new Map()
+        ownerDetailQueries.forEach((query, index) => {
+            if (query.data && ownersMissingPhone[index]) {
+                map.set(ownersMissingPhone[index].uuid, query.data)
+            }
+        })
+        return map
+    }, [ownerDetailQueries, ownersMissingPhone])
+    
+    // Enrich owners list with phone numbers from individual queries
+    const enrichedUsers = useMemo(() => {
+        if (!isStaffFilteringOwners) return users
+        
+        return users.map((user: any) => {
+            if (user.userType !== 'owner') return user
+            
+            // Check if we have enriched data for this owner
+            const enrichedData = enrichedOwnerMap.get(user.uuid)
+            
+            // If we have enriched data with phone number, use it
+            if (enrichedData && (!user.phoneNo || !user.countryCode)) {
+                return {
+                    ...user,
+                    phoneNo: enrichedData.phoneNo ?? user.phoneNo,
+                    countryCode: enrichedData.countryCode ?? user.countryCode,
+                }
+            }
+            
+            return user
+        })
+    }, [users, isStaffFilteringOwners, enrichedOwnerMap])
+    
+    // Use enriched users for owners, regular users for staff
+    const finalUsers = isStaffFilteringOwners ? enrichedUsers : users;
 
     return (
         <div className="space-y-6">
@@ -316,7 +374,7 @@ const UsersPage = () => {
                 </div>
             ) : users.length > 0 ? (
                 <div className="rounded-full bg-card shadow-card">
-                    <UserTable users={users} isStaff={isStaff} />
+                    <UserTable users={finalUsers} isStaff={isStaff} />
                 </div>
             ) : (
                 <div className="rounded-full bg-card p-12 text-center shadow-card">

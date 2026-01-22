@@ -79,3 +79,6 @@ The change of role didn't update lively on user detail dialog and audit log reco
 
 After updating the profile of a owner, the record showed as Unknown User in both RecentActivityTable and AuditLogTable
 Remove deactivate button from user role who is staff and admin
+
+Eager load: load the specific model and all other models that the specific model has relationship with
+Lazy load: load the specific model, completely loaded the specific model then load other related models instead of one-shot loading

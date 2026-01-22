@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Loader2, Save, X, User as UserIcon, Phone, Mail, MapPin, Shield } from "lucide-react"
+import { Loader2, Save, X, User as UserIcon, Phone, Mail, MapPin, Shield, Globe } from "lucide-react"
 import { StaffUser, OwnerUser, User, StaffType } from "@/lib/api/auth/auth.schemas"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
@@ -19,6 +19,9 @@ import { AdminDialogHeader } from "./AdminDialogHeader"
 import { AdminSection } from "./AdminSection"
 import { AdminFormField } from "./AdminFormField"
 import UserStatusBadge from "./UserStatusBadge"
+import { COUNTRY_CODES } from "@/lib/country"
+import Image from "next/image"
+import { getFlagPath } from "@/lib/country"
 
 interface EditUserDialogProps {
   open: boolean
@@ -35,6 +38,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [countryCode, setCountryCode] = useState<string>("")
   const [phoneNo, setPhoneNo] = useState("")
   const [location, setLocation] = useState("")
   const [selectedRole, setSelectedRole] = useState<StaffType>("staff")
@@ -74,6 +78,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     if (user) {
       setName(user.name || "")
       setEmail(user.email || "")
+      setCountryCode(user.countryCode || "")
       setPhoneNo(user.phoneNo || "")
       
       // Format location from owner address fields
@@ -109,7 +114,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   }, [user])
 
   const updateUser = useMutation({
-    mutationFn: async (data: { name?: string; email?: string; phoneNo?: string; staffType?: StaffType }) => {
+    mutationFn: async (data: { name?: string; email?: string; phoneNo?: string; countryCode?: string; staffType?: StaffType }) => {
       if (!user) throw new Error("No user selected")
       
       // For owners, prefer UUID (more reliable and universal)
@@ -122,6 +127,13 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
         throw new Error("No valid identifier found for user")
       }
       
+      // Transform camelCase to snake_case for backend
+      const backendData: Record<string, any> = {}
+      if (data.name !== undefined) backendData.name = data.name
+      if (data.email !== undefined) backendData.email = data.email
+      if (data.phoneNo !== undefined) backendData.phone_no = data.phoneNo
+      if (data.countryCode !== undefined) backendData.country_code = data.countryCode
+      
       // IMPORTANT: Backend OwnerController::update() method is not yet implemented
       // Use /api/users/{id}/profile for owner updates (this endpoint works)
       // Use /api/auth/users/{id}/profile for staff profiles (super-admin/admin only)
@@ -129,20 +141,28 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
         ? `/api/users/${identifier}/profile`
         : `/api/auth/users/${identifier}/profile`
       
-      const { data: response } = await axios.put(endpoint, data)
+      const { data: response } = await axios.put(endpoint, backendData)
       return response
     },
-    onSuccess: () => {
-      // Invalidate user/owner queries based on user type
+    onSuccess: (response) => {
+      // Invalidate and refetch user/owner queries to ensure UserDetailsDialog updates
       if (user) {
         if (user.userType === 'owner') {
-          // Invalidate owner-specific queries
+          // Invalidate owner list to refresh the table
           queryClient.invalidateQueries({ queryKey: ['owners'] })
+          // Invalidate and refetch individual owner query to update UserDetailsDialog immediately
           queryClient.invalidateQueries({ queryKey: ['owner', user.uuid] })
-        } else {
-          // Invalidate staff user queries
-          queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+          queryClient.refetchQueries({ queryKey: ['owner', user.uuid] })
+          // Also invalidate user query in case it's being used
           queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+        } else {
+          // Invalidate staff user list to refresh the table
+          queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+          // Invalidate and refetch individual user query to update UserDetailsDialog immediately
+          queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+          queryClient.refetchQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+          // Also invalidate owner query in case it's being used
+          queryClient.invalidateQueries({ queryKey: ['owner', user.uuid] })
         }
       }
       // Don't show toast here - handled in handleSubmit
@@ -183,11 +203,17 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     e.preventDefault()
     if (!user) return
 
-    const updateData: { name?: string; email?: string; phoneNo?: string } = {}
+    const updateData: { name?: string; email?: string; phoneNo?: string; countryCode?: string } = {}
     // Only include fields that have actually changed and have non-empty values
     // Treat null/undefined/empty string as equivalent to avoid false positives
     if (name !== user.name && name.trim() !== '') updateData.name = name
     if (email !== user.email && email.trim() !== '') updateData.email = email
+    // For countryCode: only update if there's a change
+    const normalizedCountryCode = countryCode.trim() || null
+    const normalizedUserCountryCode = user.countryCode?.trim() || null
+    if (normalizedCountryCode !== normalizedUserCountryCode) {
+      updateData.countryCode = normalizedCountryCode || ''
+    }
     // For phoneNo: only update if there's a meaningful change (handle null vs empty string)
     const normalizedPhoneNo = phoneNo.trim() || null
     const normalizedUserPhoneNo = user.phoneNo?.trim() || null
@@ -327,6 +353,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     if (userToReset) {
       setName(userToReset.name || "")
       setEmail(userToReset.email || "")
+      setCountryCode(userToReset.countryCode || "")
       setPhoneNo(userToReset.phoneNo || "")
       if (userToReset.userType === 'owner') {
         const owner = userToReset as OwnerUser
@@ -381,6 +408,56 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
                   placeholder="Enter email address"
                   disabled={updateUser.isPending}
                 />
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Globe className="h-4 w-4" />
+                    Country Code
+                  </Label>
+                  <Select
+                    value={countryCode || ""}
+                    onValueChange={setCountryCode}
+                    disabled={updateUser.isPending}
+                  >
+                    <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
+                      <SelectValue placeholder="Select country code">
+                        {countryCode ? (
+                          <div className="flex items-center gap-2">
+                            {getFlagPath(countryCode) && (
+                              <Image
+                                src={getFlagPath(countryCode)!}
+                                alt={`Flag ${countryCode}`}
+                                width={16}
+                                height={12}
+                                className="rounded-sm shrink-0"
+                              />
+                            )}
+                            <span>+{countryCode}</span>
+                          </div>
+                        ) : (
+                          "Select country code"
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {COUNTRY_CODES.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          <div className="flex items-center gap-2">
+                            {getFlagPath(country.code) && (
+                              <Image
+                                src={getFlagPath(country.code)!}
+                                alt={`Flag ${country.code}`}
+                                width={16}
+                                height={12}
+                                className="rounded-sm shrink-0"
+                              />
+                            )}
+                            <span>+{country.code} - {country.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <AdminFormField
                   id="phone"
                   label="Phone Number"

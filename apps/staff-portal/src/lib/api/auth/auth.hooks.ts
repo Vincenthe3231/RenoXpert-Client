@@ -105,7 +105,8 @@ export function ownerQueryOptions(id: string | null) {
         queryKey: ['owner', id],
         queryFn: () => id ? getOwner(id) : null,
         enabled: !!id,
-        staleTime: USER_QUERY_CONFIG.STALE_TIME,
+        staleTime: 0, // Always consider data stale - refetch from database every time
+        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes but always refetch when needed
     })
 }
 
@@ -125,7 +126,8 @@ export function userQueryOptions(id: string | null) {
         queryKey: AUTH_QUERY_KEYS.USER(id!),
         queryFn: () => id ? getUser(id) : null,
         enabled: !!id,
-        staleTime: USER_QUERY_CONFIG.STALE_TIME,
+        staleTime: 0, // Always consider data stale - refetch from database every time
+        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes but always refetch when needed
     })
 }
 
