@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOnboardings } from "@/lib/api/onboarding"
-import { useUsers, useOwners, type User } from "@/lib/api/auth"
+import { useUsers, useOwners, useAuth, type User } from "@/lib/api/auth"
 import { useActivityLogs } from "@/lib/api/activity-logs"
 import AuditHeader from "./components/AuditHeader"
 import AuditStatsCards from "./components/AuditStatsCards"
@@ -44,9 +44,44 @@ export default function AuditPage() {
   // Debounce search query for better performance (2s delay)
   const debouncedSearchQuery = useDebounce(searchQuery, 2000)
 
+  // Get current user to check permissions
+  const { data: currentUser } = useAuth()
+  
+  // Check if user is super-admin (for onboarding access only)
+  const isSuperAdmin = useMemo(() => {
+    if (!currentUser || !currentUser.profile) return false
+    const userRoles = currentUser.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    return normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+  }, [currentUser])
+
+  // Check if user is admin or super-admin (both have access to staff data)
+  const isAdminOrSuperAdmin = useMemo(() => {
+    if (!currentUser || !currentUser.profile) return false
+    const userRoles = currentUser.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    return normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin' || role === 'admin'
+    )
+  }, [currentUser])
+
   // Get all onboardings (approved and rejected)
-  const { data: onboardingsData, isLoading: isLoadingOnboardings } = useOnboardings()
-  const onboardings = onboardingsData?.data || []
+  // Only fetch if super-admin (admins don't have access to onboarding data)
+  // For non-super-admins, we'll just use an empty array
+  const { data: onboardingsData, isLoading: isLoadingOnboardings } = useOnboardings(
+    isSuperAdmin ? undefined : undefined
+  )
+  const onboardings = isSuperAdmin ? (onboardingsData?.data || []) : []
 
   // Get user management activity logs
   // Used for: deactivate, activate, profile update, role change
@@ -87,12 +122,19 @@ export default function AuditPage() {
   const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
 
   // Get all users (staff) for additional context
-  const { data: usersData } = useUsers()
+  // Both Admin and Super Admin have backend access to /api/v1/users endpoint
+  // Backend allows: Super Admin + Admin + Staff (per user.module middleware)
+  const { data: usersData, isLoading: isLoadingUsers } = useUsers(
+    isAdminOrSuperAdmin ? { perPage: 1000 } : undefined
+  )
   const staffUsers = usersData?.data || []
   
   // Get all owners for additional context (owners might not be in users list)
-  // Only fetch owners if we're allowed to (useOwners might not work for all users)
-  const { data: ownersData } = useOwners({})
+  // Both Admin and Super Admin have backend access to /api/v1/staff endpoint
+  // Backend allows: Super Admin + Admin + Staff (per user.module middleware)
+  const { data: ownersData, isLoading: isLoadingOwners } = useOwners(
+    isAdminOrSuperAdmin ? { perPage: 1000 } : undefined
+  )
   const owners = ownersData?.data || []
   
   // Extract users from onboarding entries (users referenced in activity logs might not be in users list)
@@ -129,9 +171,123 @@ export default function AuditPage() {
     return reviewerUsers
   }, [activityLogs])
 
-  // Merge staff users, owners, users from onboarding entries, and reviewers from activity logs into a single list for lookup
+  // Extract subject users from activity logs (users being acted upon)
+  // Only run this if API data is not available (fallback for users without API access)
+  // When API data is available, this is redundant and causes unnecessary CPU work
+  // This maintains same architecture - API data preferred, activity log extraction as fallback
+  const subjectsFromActivityLogs = useMemo(() => {
+    // Skip processing if we have API data available (faster loading)
+    // API data is preferred because it's complete and includes avatars
+    const hasApiData = staffUsers.length > 0 || owners.length > 0
+    if (hasApiData) {
+      return []
+    }
+    
+    const subjectUsers: User[] = []
+    const seenIds = new Set<number>()
+    const seenUuids = new Set<string>()
+    
+    activityLogs.forEach(log => {
+      // Extract from log.subject (historical user data at time of event)
+      if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
+        const subject = log.subject as any
+        const subjectId = log.subjectId || subject.id
+        const subjectUuid = subject.uuid || (subjectId ? `subject-${subjectId}` : undefined)
+        
+        // Deduplicate by ID or UUID
+        if (subjectId && !seenIds.has(subjectId)) {
+          seenIds.add(subjectId)
+          if (subject.name || subject.email) {
+            subjectUsers.push({
+              id: subjectId,
+              uuid: subjectUuid || `subject-${subjectId}`,
+              name: subject.name || 'Unknown User',
+              email: subject.email || null,
+              status: subject.status || 'active' as const,
+              userType: subject.userType || subject.user_type || 'staff' as const,
+              profile: subject.profile || (subject.user?.profile) || {
+                roles: [],
+                permissions: [],
+                avatarUrl: subject.profile?.avatarUrl || subject.user?.profile?.avatarUrl || null,
+              } as any,
+            } as User)
+          }
+        } else if (subjectUuid && !seenUuids.has(subjectUuid)) {
+          seenUuids.add(subjectUuid)
+          if (subject.name || subject.email) {
+            subjectUsers.push({
+              id: subjectId || null,
+              uuid: subjectUuid,
+              name: subject.name || 'Unknown User',
+              email: subject.email || null,
+              status: subject.status || 'active' as const,
+              userType: subject.userType || subject.user_type || 'staff' as const,
+              profile: subject.profile || (subject.user?.profile) || {
+                roles: [],
+                permissions: [],
+                avatarUrl: subject.profile?.avatarUrl || subject.user?.profile?.avatarUrl || null,
+              } as any,
+            } as User)
+          }
+        }
+      }
+      
+      // Also extract from properties.attributes (new values after change)
+      if (log.properties?.attributes && typeof log.properties.attributes === 'object') {
+        const attrs = log.properties.attributes as any
+        const subjectId = log.subjectId || attrs.id
+        const subjectUuid = attrs.uuid || (subjectId ? `subject-${subjectId}` : undefined)
+        
+        if (subjectId && !seenIds.has(subjectId) && (attrs.name || attrs.email)) {
+          seenIds.add(subjectId)
+          subjectUsers.push({
+            id: subjectId,
+            uuid: subjectUuid || `subject-${subjectId}`,
+            name: attrs.name || 'Unknown User',
+            email: attrs.email || null,
+            status: attrs.status || 'active' as const,
+            userType: attrs.userType || attrs.user_type || 'staff' as const,
+            profile: attrs.profile || {
+              roles: [],
+              permissions: [],
+              avatarUrl: attrs.profile?.avatarUrl || null,
+            } as any,
+          } as User)
+        }
+      }
+      
+      // Also extract from properties.old (old values before change)
+      if (log.properties?.old && typeof log.properties.old === 'object') {
+        const old = log.properties.old as any
+        const subjectId = log.subjectId || old.id
+        const subjectUuid = old.uuid || (subjectId ? `subject-${subjectId}` : undefined)
+        
+        if (subjectId && !seenIds.has(subjectId) && (old.name || old.email)) {
+          seenIds.add(subjectId)
+          subjectUsers.push({
+            id: subjectId,
+            uuid: subjectUuid || `subject-${subjectId}`,
+            name: old.name || 'Unknown User',
+            email: old.email || null,
+            status: old.status || 'active' as const,
+            userType: old.userType || old.user_type || 'staff' as const,
+            profile: old.profile || {
+              roles: [],
+              permissions: [],
+              avatarUrl: old.profile?.avatarUrl || null,
+            } as any,
+          } as User)
+        }
+      }
+    })
+    
+    return subjectUsers
+  }, [activityLogs, staffUsers.length, owners.length])
+
+  // Merge staff users, owners, users from onboarding entries, reviewers from activity logs, and subjects from activity logs into a single list for lookup
+  // This ensures admins have access to user data from activity logs, maintaining the same architecture as super admin
   const users = useMemo(() => {
-    const allUsers = [...staffUsers, ...owners, ...usersFromOnboardings, ...reviewersFromActivityLogs]
+    const allUsers = [...staffUsers, ...owners, ...usersFromOnboardings, ...reviewersFromActivityLogs, ...subjectsFromActivityLogs]
     // Deduplicate by UUID (in case a user appears in multiple lists)
     const uniqueUsers = new Map<string, User>()
     // Also deduplicate by ID to handle cases where we have the same user with different identifiers
@@ -151,7 +307,7 @@ export default function AuditPage() {
       }
     })
     return Array.from(uniqueUsers.values())
-  }, [staffUsers, owners, usersFromOnboardings, reviewersFromActivityLogs])
+  }, [staffUsers, owners, usersFromOnboardings, reviewersFromActivityLogs, subjectsFromActivityLogs])
 
   // Create user lookup maps for O(1) access
   const userMapById = useMemo(() => {
@@ -454,7 +610,7 @@ export default function AuditPage() {
   const activityLogCount = activityLogs.length
   const totalEntries = filteredAndSortedEntries.length
 
-  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs
+  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingUsers || isLoadingOwners
 
   const handleSearchHistorySelect = (query: string) => {
     setSearchQuery(query)

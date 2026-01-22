@@ -96,6 +96,57 @@ export async function proxy(req: NextRequest) {
             }
         }
 
+        // Role-based route protection for authorized users
+        if (isAuthorized && user.profile) {
+            const userRoles = user.profile.roles || []
+            const userPermissions = user.profile.permissions || []
+            
+            // Normalize roles for comparison
+            const normalizedUserRoles = userRoles.map(role => {
+                if (typeof role !== 'string') return ''
+                return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+            }).filter(role => role.length > 0)
+            
+            const isSuperAdmin = normalizedUserRoles.some(role => 
+                role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+            )
+            
+            // Protect /onboarding route - only super-admin can access
+            if (pathname === '/onboarding' || pathname.startsWith('/onboarding/')) {
+                if (!isSuperAdmin) {
+                    // Redirect non-super-admin users trying to access onboarding
+                    const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
+                    redirect.cookies.set(AUTH_CACHE_COOKIE, '1', {
+                        httpOnly: true,
+                        sameSite: 'lax',
+                        path: '/',
+                        maxAge: AUTH_CACHE_TTL_SECONDS,
+                    })
+                    return redirect
+                }
+            }
+            
+            // Protect /audit route - super-admin or admin with "view activity logs" permission
+            if (pathname === '/audit' || pathname.startsWith('/audit/')) {
+                const hasViewActivityLogsPermission = userPermissions.some(permission => 
+                    typeof permission === 'string' && 
+                    permission.toLowerCase().trim() === 'view activity logs'
+                )
+                
+                if (!isSuperAdmin && !hasViewActivityLogsPermission) {
+                    // Redirect users without permission trying to access audit trail
+                    const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
+                    redirect.cookies.set(AUTH_CACHE_COOKIE, '1', {
+                        httpOnly: true,
+                        sameSite: 'lax',
+                        path: '/',
+                        maxAge: AUTH_CACHE_TTL_SECONDS,
+                    })
+                    return redirect
+                }
+            }
+        }
+
         const next = NextResponse.next()
         next.cookies.set(AUTH_CACHE_COOKIE, '1', {
             httpOnly: true,

@@ -2,17 +2,35 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Clock, CheckCircle2, Loader2, Lock, ChevronLeft } from "lucide-react";
 import { Onboarding, useOnboardings } from "@/lib/api/onboarding";
 import OnboardingTable from "./OnboardingTable";
 import { useState, useEffect } from "react";
 import RejectDialog from "./components/RejectDialog";
-import { StaffType, StaffUser } from "@/lib/api/auth";
+import { StaffType, StaffUser, useAuth } from "@/lib/api/auth";
 import ApproveDialog from "./components/ApproveDialog";
 import { useApproveOnboarding, useRejectOnboarding } from "@/lib/api/onboarding/onboarding.hooks";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 const OnboardingPage = () => {
+    const router = useRouter();
+    const { data: user, isLoading: isAuthLoading } = useAuth();
     const { data: onboardingListData, isLoading, error, refetch } = useOnboardings({ status: 'pending' });
+    
+    // Check if user is super-admin
+    const isSuperAdmin = (() => {
+        if (!user || !user.profile) return false;
+        const userRoles = user.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        return normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+        );
+    })();
     
     // Refetch onboarding list when page becomes visible (e.g., when user switches tabs back)
     // This ensures Super Admins see new pending requests even if they're already on the page
@@ -128,6 +146,40 @@ const OnboardingPage = () => {
         (error as any)?.response?.data?.message ||
         (error as Error | undefined)?.message ||
         'Please try again later.';
+
+    // Show loading state while checking auth
+    if (isAuthLoading) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    // Check if user has permission (only super-admin can access)
+    if (!isSuperAdmin) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <div className="flex flex-col items-center gap-4 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 max-w-md">
+                    <Lock className="h-12 w-12 text-red-600 dark:text-red-400" />
+                    <div className="text-center">
+                        <h3 className="font-semibold text-red-900 dark:text-red-300 mb-2">Access Denied</h3>
+                        <p className="text-sm text-red-700 dark:text-red-400 mb-4">
+                            You do not have permission to access the onboarding module. Only super administrators can access this page.
+                        </p>
+                        <Button
+                            variant="outline"
+                            onClick={() => router.push('/dashboard')}
+                            className="flex items-center gap-2"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Go to Dashboard
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>

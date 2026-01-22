@@ -20,6 +20,7 @@ export function activityLogsQueryOptions(params?: GetActivityLogsParams) {
     queryFn: () => getActivityLogs(params),
     placeholderData: keepPreviousData, // Preserves previous data during refetch to maintain integrity
     staleTime: ACTIVITY_LOGS_QUERY_CONFIG.STALE_TIME,
+    refetchOnWindowFocus: false, // Prevent automatic refetch on window focus to avoid unnecessary reloads
   });
 }
 

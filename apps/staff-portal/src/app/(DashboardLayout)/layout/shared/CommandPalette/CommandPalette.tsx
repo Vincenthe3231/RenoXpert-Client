@@ -82,14 +82,58 @@ const CommandPalette = () => {
 
     // Super admin can access everything
     const isSuperAdmin = normalizedUserRoles.some(role => 
-      role === 'super-admin' || role === 'superadmin'
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     
     if (isSuperAdmin) {
       return true
     }
 
+    // Admin can access admin and staff level items
+    if (normalizedRequired === 'admin' || normalizedRequired === 'staff') {
+      if (normalizedUserRoles.includes('admin')) {
+        return true
+      }
+    }
+
+    // Staff can only access staff level items
+    if (normalizedRequired === 'staff') {
+      if (normalizedUserRoles.includes('staff')) {
+        return true
+      }
+    }
+
     return false
+  }, [user])
+
+  // Helper function to check if user can access audit (super-admin OR admin with permission)
+  const canAccessAudit = useCallback((): boolean => {
+    if (!user || !user.profile) return false
+    
+    const userRoles = user.profile.roles || []
+    const userPermissions = user.profile.permissions || []
+    
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    // Check if super-admin
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+    
+    if (isSuperAdmin) {
+      return true
+    }
+    
+    // Check for "view activity logs" permission
+    const hasViewActivityLogsPermission = userPermissions.some(permission => 
+      typeof permission === 'string' && 
+      permission.toLowerCase().trim() === 'view activity logs'
+    )
+    
+    return hasViewActivityLogsPermission
   }, [user])
 
   // Ensure theme is mounted to avoid hydration issues
@@ -182,7 +226,14 @@ const CommandPalette = () => {
               setOpen(false)
             },
           },
-        ].filter(cmd => hasRequiredRole(cmd.requiredRole)),
+        ].filter(cmd => {
+          // Special case: Audit trail - check permission-based access
+          if (cmd.id === 'audit') {
+            return canAccessAudit()
+          }
+          // For all other items, use role-based check
+          return hasRequiredRole(cmd.requiredRole)
+        }),
       },
       {
         name: 'Account',
@@ -386,7 +437,7 @@ const CommandPalette = () => {
       } else if ((isOnboardingMac || isOnboardingWin) && hasRequiredRole('super-admin')) {
         e.preventDefault()
         router.push('/onboarding')
-      } else if ((isAuditMac || isAuditWin) && hasRequiredRole('super-admin')) {
+      } else if ((isAuditMac || isAuditWin) && canAccessAudit()) {
         e.preventDefault()
         router.push('/audit')
       }

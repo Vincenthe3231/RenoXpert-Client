@@ -91,7 +91,7 @@ const SidebarLayout = () => {
     // After normalization, "Super Admin", "super_admin", "super-admin" all become "super-admin"
     // Also check for "superadmin" (no hyphen) variant
     const isSuperAdmin = normalizedUserRoles.some(role => 
-      role === 'super-admin' || role === 'superadmin'
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     
     if (isSuperAdmin) {
@@ -115,9 +115,46 @@ const SidebarLayout = () => {
     return false
   }
 
+  // Helper function to check if user can access audit (super-admin OR admin with permission)
+  const canAccessAudit = (): boolean => {
+    if (!user || !user.profile) return false
+    
+    const userRoles = user.profile.roles || []
+    const userPermissions = user.profile.permissions || []
+    
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    // Check if super-admin
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+    
+    if (isSuperAdmin) {
+      return true
+    }
+    
+    // Check for "view activity logs" permission
+    const hasViewActivityLogsPermission = userPermissions.some(permission => 
+      typeof permission === 'string' && 
+      permission.toLowerCase().trim() === 'view activity logs'
+    )
+    
+    return hasViewActivityLogsPermission
+  }
+
   // Filter sidebar items based on user role
   const filteredSidebarData = SidebarData.map(item => {
-    const filteredChildren = item.children?.filter(child => hasRequiredRole(child.requiredRole)) || []
+    const filteredChildren = item.children?.filter(child => {
+      // Special case: Audit trail - check permission-based access
+      if (child.url === '/audit' || child.url?.startsWith('/audit')) {
+        return canAccessAudit()
+      }
+      // For all other items, use role-based check
+      return hasRequiredRole(child.requiredRole)
+    }) || []
     
     return {
       ...item,

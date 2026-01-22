@@ -118,6 +118,33 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
     )
   }, [user])
 
+  // Check if the current user is trying to edit/deactivate themselves
+  const isCurrentUser = useMemo(() => {
+    if (!currentUser || !user) return false
+    // Compare by ID or UUID
+    if (currentUser.id && user.id && currentUser.id === user.id) return true
+    if (currentUser.uuid && user.uuid && currentUser.uuid === user.uuid) return true
+    return false
+  }, [currentUser, user])
+
+  // Check if current user is admin (not super-admin)
+  const isCurrentUserAdmin = useMemo(() => {
+    if (!currentUser || !currentUser.profile) return false
+    const userRoles = currentUser.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+    const isAdmin = normalizedUserRoles.includes('admin')
+    
+    // Admin but not super-admin
+    return isAdmin && !isSuperAdmin
+  }, [currentUser])
+
   const activateUser = useActivateUser()
   const deactivateUser = useDeactivateUser()
   const { toast } = useToast()
@@ -281,7 +308,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
 
             <DialogFooter className="flex-row justify-between gap-2 border-t bg-muted/20 px-6 py-4">
               <div className="flex gap-2">
-                {user.status === "active" && !isViewedUserSuperAdmin && (
+                {user.status === "active" && !isViewedUserSuperAdmin && !(isCurrentUserAdmin && isCurrentUser) && (
                   <Button
                     variant="outlineerror"
                     size="sm"
@@ -293,13 +320,13 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     Deactivate
                   </Button>
                 )}
-                {user.status === "deactivated" && (
+                {user.status === "deactivated" && !(isCurrentUserAdmin && isCurrentUser) && (
                   <Button size="sm" className="gap-1.5" onClick={handleActivate} disabled={activateUser.isPending}>
                     <UserCheck className="h-3.5 w-3.5" />
                     Activate
                   </Button>
                 )}
-                {isCurrentUserAdminOrStaff && user.userType === "owner" && canEdit && onEdit && (
+                {isCurrentUserAdminOrStaff && user.userType === "owner" && canEdit && onEdit && !(isCurrentUserAdmin && isCurrentUser) && (
                   <Button
                     size="sm"
                     className="gap-1.5 bg-gradient-to-r from-primary to-secondary text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg"
@@ -314,7 +341,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                 )}
               </div>
 
-              {canEdit && onEdit && !isCurrentUserAdminOrStaff && (
+              {canEdit && onEdit && !isCurrentUserAdminOrStaff && !(isCurrentUserAdmin && isCurrentUser) && (
                 <Button
                   size="sm"
                   className="gap-1.5 bg-gradient-to-r from-primary to-secondary text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg"

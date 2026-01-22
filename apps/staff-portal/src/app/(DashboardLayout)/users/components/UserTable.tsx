@@ -74,6 +74,24 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
         return isSuperAdmin || (isCurrentUserAdminOrStaff && canManageOwners);
     }, [isSuperAdmin, isCurrentUserAdminOrStaff, canManageOwners]);
 
+    // Check if current user is admin (not super-admin)
+    const isCurrentUserAdmin = useMemo(() => {
+        if (!currentUser || !currentUser.profile) return false;
+        const userRoles = currentUser.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        const isSuperAdmin = normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+        );
+        const isAdmin = normalizedUserRoles.includes('admin');
+        
+        // Admin but not super-admin
+        return isAdmin && !isSuperAdmin;
+    }, [currentUser]);
+
     const handleViewDetails = (user: User) => {
         setSelectedUserId(user.uuid);
         setDetailsOpen(true);
@@ -81,11 +99,37 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
     };
 
     const handleEditClick = (user: User) => {
+        // Prevent admins from editing themselves
+        if (isCurrentUserAdmin && currentUser) {
+            const isSelf = (currentUser.id && user.id && currentUser.id === user.id) ||
+                          (currentUser.uuid && user.uuid && currentUser.uuid === user.uuid);
+            if (isSelf) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Cannot edit own account',
+                    description: 'Admins cannot edit their own account. Please contact a super admin for assistance.',
+                });
+                return;
+            }
+        }
         setUserToEdit(user);
         setEditDialogOpen(true);
     };
 
     const handleDeactivateClick = (user: User) => {
+        // Prevent admins from deactivating themselves
+        if (isCurrentUserAdmin && currentUser) {
+            const isSelf = (currentUser.id && user.id && currentUser.id === user.id) ||
+                          (currentUser.uuid && user.uuid && currentUser.uuid === user.uuid);
+            if (isSelf) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Cannot deactivate own account',
+                    description: 'Admins cannot deactivate their own account. Please contact a super admin for assistance.',
+                });
+                return;
+            }
+        }
         setUserToDeactivate(user);
         setDeactivateDialogOpen(true);
     };

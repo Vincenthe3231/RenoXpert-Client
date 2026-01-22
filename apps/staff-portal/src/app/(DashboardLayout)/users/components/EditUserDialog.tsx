@@ -73,6 +73,33 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     )
   }, [user])
 
+  // Check if the current user is trying to edit themselves
+  const isCurrentUser = useMemo(() => {
+    if (!currentUser || !user) return false
+    // Compare by ID or UUID
+    if (currentUser.id && user.id && currentUser.id === user.id) return true
+    if (currentUser.uuid && user.uuid && currentUser.uuid === user.uuid) return true
+    return false
+  }, [currentUser, user])
+
+  // Check if current user is admin (not super-admin)
+  const isCurrentUserAdmin = useMemo(() => {
+    if (!currentUser || !currentUser.profile) return false
+    const userRoles = currentUser.profile.roles || []
+    const normalizedUserRoles = userRoles.map(role => {
+      if (typeof role !== 'string') return ''
+      return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+    }).filter(role => role.length > 0)
+    
+    const isSuperAdmin = normalizedUserRoles.some(role => 
+      role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+    )
+    const isAdmin = normalizedUserRoles.includes('admin')
+    
+    // Admin but not super-admin
+    return isAdmin && !isSuperAdmin
+  }, [currentUser])
+
   // Initialize form when user changes
   useEffect(() => {
     if (user) {
@@ -205,6 +232,16 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Prevent admins from editing themselves
+    if (isCurrentUserAdmin && isCurrentUser) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot edit own account',
+        description: 'Admins cannot edit their own account. Please contact a super admin for assistance.',
+      })
+      return
+    }
     if (!user) return
 
     const updateData: { name?: string; email?: string; phoneNo?: string; countryCode?: string } = {}
