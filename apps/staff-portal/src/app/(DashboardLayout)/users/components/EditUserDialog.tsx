@@ -165,6 +165,10 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
           queryClient.invalidateQueries({ queryKey: ['owner', user.uuid] })
         }
       }
+      // Refetch activity logs instead of invalidating to preserve previous data during refetch
+      // This prevents the audit log from temporarily showing empty during refetch
+      // Activity logs are immutable and append-only, so we preserve integrity by using refetchQueries
+      queryClient.refetchQueries({ queryKey: ACTIVITY_LOGS_QUERY_KEYS.LIST })
       // Don't show toast here - handled in handleSubmit
     },
     onError: (error: any) => {

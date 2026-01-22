@@ -9,6 +9,7 @@ import type {
 } from './auth.schemas'
 import { AUTH_QUERY_KEYS, AUTH_CONFIG, USER_QUERY_CONFIG } from './constants'
 import { ONBOARDING_QUERY_KEYS } from '../onboarding/constants'
+import { ACTIVITY_LOGS_QUERY_KEYS } from '../activity-logs/constants'
 
 // Re-export for backward compatibility
 export const AUTH_QUERY_KEY = AUTH_QUERY_KEYS.ME
@@ -151,6 +152,10 @@ export function useDeactivateUser() {
             queryClient.setQueryData(['owner', updatedUser.uuid], updatedUser)
             // Invalidate auth/me in case the deactivated user is the current user
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+            // Refetch activity logs instead of invalidating to preserve previous data during refetch
+            // This prevents the audit log from temporarily showing empty during refetch
+            // Activity logs are immutable and append-only, so we preserve integrity by using refetchQueries
+            queryClient.refetchQueries({ queryKey: ACTIVITY_LOGS_QUERY_KEYS.LIST })
         },
     })
 }
@@ -171,6 +176,10 @@ export function useActivateUser() {
             queryClient.setQueryData(['owner', updatedUser.uuid], updatedUser)
             // Invalidate auth/me in case the activated user is the current user
             queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+            // Refetch activity logs instead of invalidating to preserve previous data during refetch
+            // This prevents the audit log from temporarily showing empty during refetch
+            // Activity logs are immutable and append-only, so we preserve integrity by using refetchQueries
+            queryClient.refetchQueries({ queryKey: ACTIVITY_LOGS_QUERY_KEYS.LIST })
         },
     })
 }

@@ -162,7 +162,7 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
                 />
             )}
 
-            {userToDeactivate && isSuperAdmin && (
+            {userToDeactivate && (
                 <DeactivateUserDialog
                     open={deactivateDialogOpen}
                     onOpenChange={setDeactivateDialogOpen}

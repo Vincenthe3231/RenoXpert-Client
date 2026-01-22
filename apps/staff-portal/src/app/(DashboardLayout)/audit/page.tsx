@@ -80,9 +80,32 @@ export default function AuditPage() {
     return onboardingUsers
   }, [onboardings])
 
-  // Merge staff users, owners, and users from onboarding entries into a single list for lookup
+  // Extract reviewer information from activity logs (reviewers might be in causer field)
+  const reviewersFromActivityLogs = useMemo(() => {
+    const reviewerUsers: User[] = []
+    activityLogs.forEach(log => {
+      if (log.causer && log.causer.id && log.causer.name) {
+        // Create a user-like object from causer for reviewers
+        reviewerUsers.push({
+          id: log.causer.id,
+          uuid: log.causer.uuid || `causer-${log.causer.id}`,
+          name: log.causer.name,
+          email: log.causer.email || '', // Email might not be available in causer
+          status: 'active' as const,
+          userType: 'staff' as const,
+          profile: log.causer.profile || {
+            roles: [],
+            permissions: [],
+          } as any,
+        } as User)
+      }
+    })
+    return reviewerUsers
+  }, [activityLogs])
+
+  // Merge staff users, owners, users from onboarding entries, and reviewers from activity logs into a single list for lookup
   const users = useMemo(() => {
-    const allUsers = [...staffUsers, ...owners, ...usersFromOnboardings]
+    const allUsers = [...staffUsers, ...owners, ...usersFromOnboardings, ...reviewersFromActivityLogs]
     // Deduplicate by UUID (in case a user appears in multiple lists)
     const uniqueUsers = new Map<string, User>()
     // Also deduplicate by ID to handle cases where we have the same user with different identifiers
@@ -102,7 +125,7 @@ export default function AuditPage() {
       }
     })
     return Array.from(uniqueUsers.values())
-  }, [staffUsers, owners, usersFromOnboardings])
+  }, [staffUsers, owners, usersFromOnboardings, reviewersFromActivityLogs])
 
   // Create user lookup maps for O(1) access
   const userMapById = useMemo(() => {
@@ -155,14 +178,15 @@ export default function AuditPage() {
           userName = log.subject.name
         } else if (log.subjectId) {
           // Try to find by integer ID first
-          let user = userMapById.get(log.subjectId)
+          let user: User | null = userMapById.get(log.subjectId) || null
           // If not found, try to find by UUID (for owners, subjectId might be a UUID string)
           if (!user) {
             const subjectIdStr = String(log.subjectId)
-            user = userMapByUuid.get(subjectIdStr)
+            user = userMapByUuid.get(subjectIdStr) || null
             // Also try matching string representation of ID
             if (!user) {
-              user = Array.from(userMapById.values()).find(u => String(u.id) === subjectIdStr) || null
+              const foundUser = Array.from(userMapById.values()).find(u => String(u.id) === subjectIdStr)
+              user = foundUser || null
             }
           }
           userName = user?.name || ""
@@ -180,13 +204,14 @@ export default function AuditPage() {
           searchableFields.role = log.properties.old.roles[0]
         } else if (log.subjectId) {
           // Last resort: use current user role
-          let user = userMapById.get(log.subjectId)
+          let user: User | null = userMapById.get(log.subjectId) || null
           // If not found, try to find by UUID
           if (!user) {
             const subjectIdStr = String(log.subjectId)
-            user = userMapByUuid.get(subjectIdStr)
+            user = userMapByUuid.get(subjectIdStr) || null
             if (!user) {
-              user = Array.from(userMapById.values()).find(u => String(u.id) === subjectIdStr) || null
+              const foundUser = Array.from(userMapById.values()).find(u => String(u.id) === subjectIdStr)
+              user = foundUser || null
             }
           }
           if (user?.userType === 'staff' && user.profile?.roles?.[0]) {
@@ -322,13 +347,28 @@ export default function AuditPage() {
 
   // Create a map of users by ID/UUID for quick lookup (for display purposes)
   const userMap = new Map(users.map(u => [u.uuid, u]))
-  const userMapByIdForDisplay = new Map(users.map(u => [u.id, u]))
+  const userMapByIdForDisplay = useMemo(() => {
+    const map = new Map<number, User>()
+    users.forEach(u => {
+      if (u.id) {
+        map.set(u.id, u)
+      }
+    })
+    return map
+  }, [users])
 
   // Find reviewer/causer names (for display)
   const getReviewerName = useCallback((reviewedBy: number | null | undefined) => {
     if (!reviewedBy) return "System"
     const user = userMapByIdForDisplay.get(reviewedBy)
-    return user?.name || "Admin"
+    if (!user) {
+      return "Admin"
+    }
+    // Check if user has super-admin role and display accordingly
+    // Only staff users have roles in their profile
+    const firstRole = user.userType === 'staff' && 'roles' in (user.profile || {}) ? (user.profile as any).roles?.[0] : undefined
+    const displayName = firstRole === 'super-admin' ? 'Super Admin' : (user.name || "Admin")
+    return displayName
   }, [userMapByIdForDisplay])
 
   const getCauserName = useCallback((causer: { id?: number; uuid?: string; name?: string } | null | undefined) => {
@@ -446,6 +486,7 @@ export default function AuditPage() {
         getCauserName={getCauserName}
         getInitials={getInitials}
         users={users}
+        activityLogs={activityLogs}
       />
       {filteredAndSortedEntries.length > ITEMS_PER_PAGE && (
         <div className="flex items-center justify-center pt-4">

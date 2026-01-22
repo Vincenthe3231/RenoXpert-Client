@@ -281,7 +281,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
 
             <DialogFooter className="flex-row justify-between gap-2 border-t bg-muted/20 px-6 py-4">
               <div className="flex gap-2">
-                {user.status === "active" && !isCurrentUserAdminOrStaff && !isViewedUserSuperAdmin && (
+                {user.status === "active" && !isViewedUserSuperAdmin && (
                   <Button
                     variant="outlineerror"
                     size="sm"
@@ -293,7 +293,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     Deactivate
                   </Button>
                 )}
-                {user.status === "deactivated" && !isCurrentUserAdminOrStaff && (
+                {user.status === "deactivated" && (
                   <Button size="sm" className="gap-1.5" onClick={handleActivate} disabled={activateUser.isPending}>
                     <UserCheck className="h-3.5 w-3.5" />
                     Activate
@@ -329,7 +329,7 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
               )}
             </DialogFooter>
 
-            {!isCurrentUserAdminOrStaff && !isViewedUserSuperAdmin && (
+            {!isViewedUserSuperAdmin && (
               <DeactivateUserDialog
                 open={deactivateOpen}
                 onOpenChange={setDeactivateOpen}

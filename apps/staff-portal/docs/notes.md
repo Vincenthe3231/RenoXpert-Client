@@ -80,5 +80,32 @@ The change of role didn't update lively on user detail dialog and audit log reco
 After updating the profile of a owner, the record showed as Unknown User in both RecentActivityTable and AuditLogTable
 Remove deactivate button from user role who is staff and admin
 
-Eager load: load the specific model and all other models that the specific model has relationship with
-Lazy load: load the specific model, completely loaded the specific model then load other related models instead of one-shot loading
+Eager load: load the specific model and other explicit models that the specific model has relationship with followed by a method to specifically load other models (load it all now, usually 1 large query)
+Lazy load: load the specific model, completely loaded the specific model then load other related models instead of one-shot loading (load only when accessed, multiple smalle queries)
+
+UserResource (lines 12-36)
+Does not include created_at or updated_at. Returns:
+id, uuid, userType
+name, email, countryCode, phoneNo
+emailVerifiedAt, lastLoginAt, status
+profile (nested Staff/Owner resource)
+OwnerResource (lines 15-53)
+Does not include created_at or updated_at. Returns:
+User fields (id, uuid, name, email, etc.)
+Owner profile fields (salutation, ic, address, etc.)
+StaffResource (lines 9-22)
+Does not include created_at or updated_at. Returns:
+larksuiteOpenId, larksuiteUnionId
+avatarUrl, avatarBig, status
+roles, permissions
+Exception: StaffOnboardingResource
+Includes createdAt and updatedAt (lines 20-21).
+If you need created_at in the response
+Add it to the relevant resource:
+For UserResource:
+'createdAt' => $this->created_at,'updatedAt' => $this->updated_at,
+For OwnerResource:
+'createdAt' => $user->created_at,'updatedAt' => $user->updated_at,
+For StaffResource:
+'createdAt' => $this->created_at,'updatedAt' => $this->updated_at,
+Currently, the backend does not return created_at for user/owner/staff data to the frontend.
