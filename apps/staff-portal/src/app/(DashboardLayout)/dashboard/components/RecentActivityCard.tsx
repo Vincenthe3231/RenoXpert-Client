@@ -24,9 +24,10 @@ interface RecentActivityCardProps {
   recentActivities: AuditEntry[]
   getInitials: (name: string) => string
   users: User[]
+  activityLogs: any[] // Activity logs to find historical user data for onboarding entries
 }
 
-const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActivityCardProps) => {
+const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs }: RecentActivityCardProps) => {
   const router = useRouter()
   
   const formatReviewDate = (dateString: string | null | undefined) => {
@@ -49,11 +50,90 @@ const RecentActivityCard = ({ recentActivities, getInitials, users }: RecentActi
   // Helper to get user from entry
   const getUserFromEntry = (entry: AuditEntry) => {
     if (entry.type === 'onboarding') {
-      return entry.data.user
+      // CRITICAL AUDIT TRAIL INTEGRITY: Preserve historical name from onboarding activity log
+      // entry.data.user might contain CURRENT user data (after profile updates) instead of HISTORICAL data
+      const onboardingUser = entry.data.user
+      const onboardingId = entry.data.id
+      const userId = entry.data.userId
+      const reviewedAt = entry.data.reviewedAt
+      
+      // PRIORITY 1: Find the onboarding activity log itself (most reliable source of historical data)
+      // The onboarding activity log has logName: "onboarding" and contains the historical name in its description
+      // Example: "Staff onboarding approved for Law Wen Sen with role: staff"
+      // This is IMMUTABLE data created at the time of onboarding approval
+      if (onboardingId && reviewedAt && activityLogs && activityLogs.length > 0) {
+        const reviewedAtTime = new Date(reviewedAt).getTime()
+        
+        // First, look for the onboarding activity log itself
+        const onboardingActivityLog = activityLogs.find((log: any) => {
+          if (log.logName !== 'onboarding') return false
+          if (log.event !== 'approved' && log.event !== 'rejected') return false
+          // Match by onboarding ID (subjectId in onboarding log is the onboarding ID, not user ID)
+          if (log.subjectId && log.subjectId === onboardingId) return true
+          // Also check by timestamp (within 1 minute of reviewedAt)
+          const logTime = new Date(log.createdAt).getTime()
+          const timeDiff = Math.abs(reviewedAtTime - logTime)
+          return timeDiff < 60000 // Within 1 minute
+        })
+        
+        // Extract historical name from onboarding activity log description
+        // Format: "Staff onboarding approved for {name} with role: {role}"
+        if (onboardingActivityLog && onboardingActivityLog.description) {
+          const descriptionMatch = onboardingActivityLog.description.match(
+            /Staff onboarding (?:approved|rejected) for (.+?)(?:\s+with role:|$)/i
+          )
+          if (descriptionMatch && descriptionMatch[1]) {
+            const extractedName = descriptionMatch[1].trim()
+            if (extractedName && extractedName !== 'for') {
+              // Return immediately - this is the most reliable historical data
+              return {
+                name: extractedName,
+                email: onboardingUser?.email || null,
+                id: userId || null,
+                uuid: onboardingUser?.uuid || null,
+                status: onboardingUser?.status || null,
+                userType: onboardingUser?.userType || null,
+                profile: onboardingUser?.profile || undefined,
+              } as any
+            }
+          }
+        }
+      }
+      
+      // If no historical data found, return the user data from onboarding entry
+      // This might be current data, but we have no other option
+      return onboardingUser
     } else {
       const log = entry.data
+      
+      // SPECIAL CASE: For onboarding activity logs, extract historical name from description
+      // This ensures immutability - the description contains the name at the time of onboarding
+      // Format: "Staff onboarding approved for {name} with role: {role}"
+      if (log.logName === 'onboarding' && (log.event === 'approved' || log.event === 'rejected')) {
+        if (log.description) {
+          const descriptionMatch = log.description.match(
+            /Staff onboarding (?:approved|rejected) for (.+?)(?:\s+with role:|$)/i
+          )
+          if (descriptionMatch && descriptionMatch[1]) {
+            const extractedName = descriptionMatch[1].trim()
+            if (extractedName && extractedName !== 'for') {
+              // Use the historical name from the immutable activity log description
+              // This preserves audit trail integrity even if user name changes later
+              return {
+                name: extractedName,
+                email: log.subject?.email || null,
+                id: log.subjectId || null,
+                uuid: log.subject?.uuid || null,
+                status: log.subject?.status || null,
+                userType: log.subject?.userType || null,
+                profile: log.subject?.profile || undefined,
+              } as any
+            }
+          }
+        }
+      }
 
-      // Priority 1: If subject object exists, use it
+      // Priority 1: If subject object exists, use it (historical data at time of event)
       if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
         if ((log.subject as any).name || (log.subject as any).email || (log.subject as any).id) {
           return log.subject as any

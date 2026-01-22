@@ -76,11 +76,25 @@ export default function Dashboard() {
   const { data: pendingOnboardingsData } = useOnboardings({ status: 'pending' })
   const pendingOnboardings = isSuperAdmin ? (pendingOnboardingsData?.data || []) : []
 
-  // Get user management activity logs (only for super-admin)
-  const { data: activityLogsData } = useActivityLogs(
+  // Get all activity logs (only for super-admin) - using cached TanStack Query data
+  // Fetch all three log_name types: user, onboarding, and role for complete audit trail
+  const { data: userActivityLogsData } = useActivityLogs(
     isSuperAdmin ? { "filter[log_name]": "user" } : undefined
   )
-  const activityLogs = isSuperAdmin ? (activityLogsData?.data || []) : []
+  const userActivityLogs = isSuperAdmin ? (userActivityLogsData?.data || []) : []
+
+  const { data: onboardingActivityLogsData } = useActivityLogs(
+    isSuperAdmin ? { "filter[log_name]": "onboarding" } : undefined
+  )
+  const onboardingActivityLogs = isSuperAdmin ? (onboardingActivityLogsData?.data || []) : []
+
+  const { data: roleActivityLogsData } = useActivityLogs(
+    isSuperAdmin ? { "filter[log_name]": "role" } : undefined
+  )
+  const roleActivityLogs = isSuperAdmin ? (roleActivityLogsData?.data || []) : []
+
+  // Combine all activity logs to ensure complete audit trail integrity
+  const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
 
   // Calculate stats (only for super-admin)
   const stats = {
@@ -91,15 +105,20 @@ export default function Dashboard() {
   }
 
   // Get recent decisions (only for super-admin)
-  const decisions = allOnboardings.filter(
-    o => o.status === 'approved' || o.status === 'rejected'
-  )
+  const decisions = useMemo(() => {
+    return allOnboardings.filter(
+      o => o.status === 'approved' || o.status === 'rejected'
+    )
+  }, [allOnboardings])
 
   // Create unified audit entries (onboarding + activity logs)
-  const auditEntries: AuditEntry[] = [
-    ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
-    ...activityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
-  ]
+  // Show both onboarding decisions (from onboardings table) and activity logs
+  const auditEntries: AuditEntry[] = useMemo(() => {
+    return [
+      ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
+      ...activityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
+    ]
+  }, [decisions, activityLogs])
 
   // Sort by timestamp (most recent first) and take top 5
   const recentActivities = auditEntries
@@ -138,6 +157,7 @@ export default function Dashboard() {
           recentActivities={recentActivities}
           getInitials={getInitials}
           users={users}
+          activityLogs={activityLogs}
         />
       </div>
     </div>

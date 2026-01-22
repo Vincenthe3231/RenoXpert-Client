@@ -49,16 +49,42 @@ export default function AuditPage() {
   const onboardings = onboardingsData?.data || []
 
   // Get user management activity logs
+  // Used for: deactivate, activate, profile update, role change
   const { 
-    data: activityLogsData, 
-    isLoading: isLoadingActivityLogs,
+    data: userActivityLogsData, 
+    isLoading: isLoadingUserActivityLogs,
     error: activityLogsError,
     dataUpdatedAt: activityLogsUpdatedAt,
     status: activityLogsStatus,
   } = useActivityLogs({
     "filter[log_name]": "user",
   })
-  const activityLogs = activityLogsData?.data || []
+  const userActivityLogs = userActivityLogsData?.data || []
+
+  // Get onboarding activity logs
+  // Used for: Staff onboarding (approval, rejection)
+  // NOTE: Onboarding activity logs have log_name: "onboarding" (not "user")
+  const { 
+    data: onboardingActivityLogsData, 
+    isLoading: isLoadingOnboardingActivityLogs,
+  } = useActivityLogs({
+    "filter[log_name]": "onboarding",
+  })
+  const onboardingActivityLogs = onboardingActivityLogsData?.data || []
+
+  // Get role permissions management activity logs
+  // Used for: Role permissions management
+  const { 
+    data: roleActivityLogsData, 
+    isLoading: isLoadingRoleActivityLogs,
+  } = useActivityLogs({
+    "filter[log_name]": "role",
+  })
+  const roleActivityLogs = roleActivityLogsData?.data || []
+
+  // Combine all activity logs to ensure complete audit trail integrity
+  // This prevents overwriting issues and ensures immutability of all audit data
+  const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
 
   // Get all users (staff) for additional context
   const { data: usersData } = useUsers()
@@ -144,6 +170,7 @@ export default function AuditPage() {
   }, [onboardings])
 
   // Create unified audit entries
+  // Show both onboarding decisions (from onboardings table) and activity logs
   const auditEntries: AuditEntry[] = useMemo(() => {
     return [
       ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
@@ -235,7 +262,25 @@ export default function AuditPage() {
         const reviewerId = entry.data.reviewedBy
         if (reviewerId) {
           const reviewer = userMapById.get(reviewerId)
-          searchableFields.performedBy = reviewer?.name || "Admin"
+          if (reviewer) {
+            // Use the same logic as getReviewerName
+            const firstRole = reviewer.userType === 'staff' && 'roles' in (reviewer.profile || {}) 
+              ? (reviewer.profile as any).roles?.[0] 
+              : undefined
+            searchableFields.performedBy = firstRole === 'super-admin' ? 'Super Admin' : (reviewer.name || "Super Admin")
+          } else {
+            // Try to find in reviewersFromActivityLogs
+            const reviewerFromLogs = reviewersFromActivityLogs.find(r => r.id === reviewerId)
+            if (reviewerFromLogs) {
+              const firstRole = reviewerFromLogs.userType === 'staff' && 'roles' in (reviewerFromLogs.profile || {}) 
+                ? (reviewerFromLogs.profile as any).roles?.[0] 
+                : undefined
+              searchableFields.performedBy = firstRole === 'super-admin' ? 'Super Admin' : (reviewerFromLogs.name || "Super Admin")
+            } else {
+              // Default to "Super Admin" since only super-admins can approve/reject onboarding
+              searchableFields.performedBy = "Super Admin"
+            }
+          }
         } else {
           searchableFields.performedBy = "System"
         }
@@ -292,7 +337,7 @@ export default function AuditPage() {
         searchableFields,
       }
     })
-  }, [auditEntries, userMapById, columnFilters])
+  }, [auditEntries, userMapById, userMapByUuid, reviewersFromActivityLogs, columnFilters])
 
   // Filter and sort entries with optimized search
   const filteredAndSortedEntries = useMemo(() => {
@@ -360,16 +405,31 @@ export default function AuditPage() {
   // Find reviewer/causer names (for display)
   const getReviewerName = useCallback((reviewedBy: number | null | undefined) => {
     if (!reviewedBy) return "System"
+    
+    // First, try to find in userMapByIdForDisplay
     const user = userMapByIdForDisplay.get(reviewedBy)
-    if (!user) {
-      return "Admin"
+    if (user) {
+      // Check if user has super-admin role and display accordingly
+      // Only staff users have roles in their profile
+      const firstRole = user.userType === 'staff' && 'roles' in (user.profile || {}) ? (user.profile as any).roles?.[0] : undefined
+      const displayName = firstRole === 'super-admin' ? 'Super Admin' : (user.name || "Super Admin")
+      return displayName
     }
-    // Check if user has super-admin role and display accordingly
-    // Only staff users have roles in their profile
-    const firstRole = user.userType === 'staff' && 'roles' in (user.profile || {}) ? (user.profile as any).roles?.[0] : undefined
-    const displayName = firstRole === 'super-admin' ? 'Super Admin' : (user.name || "Admin")
-    return displayName
-  }, [userMapByIdForDisplay])
+    
+    // If user not found, try to find in reviewersFromActivityLogs
+    // (This was already being collected but not used in the lookup)
+    const reviewerFromLogs = reviewersFromActivityLogs.find(r => r.id === reviewedBy)
+    if (reviewerFromLogs) {
+      const firstRole = reviewerFromLogs.userType === 'staff' && 'roles' in (reviewerFromLogs.profile || {}) 
+        ? (reviewerFromLogs.profile as any).roles?.[0] 
+        : undefined
+      return firstRole === 'super-admin' ? 'Super Admin' : (reviewerFromLogs.name || "Super Admin")
+    }
+    
+    // If still not found, default to "Super Admin" since only super-admins can approve/reject
+    // This is more accurate than "Admin" since the business rule states only super-admins can perform this action
+    return "Super Admin"
+  }, [userMapByIdForDisplay, reviewersFromActivityLogs])
 
   const getCauserName = useCallback((causer: { id?: number; uuid?: string; name?: string } | null | undefined) => {
     if (!causer) return "System"
@@ -394,7 +454,7 @@ export default function AuditPage() {
   const activityLogCount = activityLogs.length
   const totalEntries = filteredAndSortedEntries.length
 
-  const isLoading = isLoadingOnboardings || isLoadingActivityLogs
+  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs
 
   const handleSearchHistorySelect = (query: string) => {
     setSearchQuery(query)

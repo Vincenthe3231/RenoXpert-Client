@@ -203,18 +203,60 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       const userId = entry.data.userId
       const reviewedAt = entry.data.reviewedAt
       
-      // Try to find historical user data from activity logs related to this onboarding
-      // CRITICAL: For onboarding entries, we need the name that was used AT THE TIME of onboarding approval
-      // This means we should look for activity logs created BEFORE the onboarding was reviewed
-      // OR prioritize properties.old (name before change) over properties.attributes (name after change)
+      // PRIORITY 1: Find the onboarding activity log itself (most reliable source of historical data)
+      // The onboarding activity log has logName: "onboarding" and contains the historical name in its description
+      // Example: "Staff onboarding approved for Law Wen Sen with role: staff"
+      // This is IMMUTABLE data created at the time of onboarding approval
       let historicalUserData = null
-      if (userId && reviewedAt && activityLogs && activityLogs.length > 0) {
+      if (onboardingId && reviewedAt && activityLogs && activityLogs.length > 0) {
         const reviewedAtTime = new Date(reviewedAt).getTime()
-        // Look for activity logs with the same subjectId (userId)
-        // Prioritize logs created BEFORE the onboarding was reviewed (to get the name at time of onboarding)
-        // Also include logs created within 1 minute AFTER (in case onboarding approval creates an activity log)
+        
+        // First, look for the onboarding activity log itself
+        // It has logName: "onboarding", event: "approved" or "rejected", and subjectId matches onboardingId
+        const onboardingActivityLog = activityLogs.find((log: any) => {
+          if (log.logName !== 'onboarding') return false
+          if (log.event !== 'approved' && log.event !== 'rejected') return false
+          // Match by onboarding ID (subjectId in onboarding log is the onboarding ID, not user ID)
+          if (log.subjectId && log.subjectId === onboardingId) return true
+          // Also check by timestamp (within 1 minute of reviewedAt)
+          const logTime = new Date(log.createdAt).getTime()
+          const timeDiff = Math.abs(reviewedAtTime - logTime)
+          return timeDiff < 60000 // Within 1 minute
+        })
+        
+        // Extract historical name from onboarding activity log description
+        // Format: "Staff onboarding approved for {name} with role: {role}"
+        // or: "Staff onboarding rejected for {name}"
+        if (onboardingActivityLog && onboardingActivityLog.description) {
+          const descriptionMatch = onboardingActivityLog.description.match(
+            /Staff onboarding (?:approved|rejected) for (.+?)(?:\s+with role:|$)/i
+          )
+          if (descriptionMatch && descriptionMatch[1]) {
+            const extractedName = descriptionMatch[1].trim()
+            if (extractedName && extractedName !== 'for') {
+              historicalUserData = {
+                name: extractedName,
+                email: onboardingUser?.email || null,
+                id: userId || null,
+                uuid: onboardingUser?.uuid || null,
+                status: onboardingUser?.status || null,
+                userType: onboardingUser?.userType || null,
+                profile: onboardingUser?.profile || undefined,
+              }
+              // Return immediately - this is the most reliable historical data
+              if (historicalUserData.name) {
+                return historicalUserData
+              }
+            }
+          }
+        }
+        
+        // PRIORITY 2: Look for activity logs with the same subjectId (userId) created before onboarding
+        // This helps find historical data from user-related logs before the name change
         const relatedLogs = activityLogs.filter((log: any) => {
           if (!log.subjectId || log.subjectId !== userId) return false
+          // Skip the onboarding log itself (already checked above)
+          if (log.logName === 'onboarding') return false
           const logTime = new Date(log.createdAt).getTime()
           const timeDiff = reviewedAtTime - logTime // Positive if log is before reviewedAt
           // Include logs created up to 1 hour before onboarding review, or 1 minute after
@@ -317,6 +359,34 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       return onboardingUser
     } else {
       const log = entry.data
+      
+      // SPECIAL CASE: For onboarding activity logs, extract historical name from description
+      // This ensures immutability - the description contains the name at the time of onboarding
+      // Format: "Staff onboarding approved for {name} with role: {role}"
+      if (log.logName === 'onboarding' && (log.event === 'approved' || log.event === 'rejected')) {
+        if (log.description) {
+          const descriptionMatch = log.description.match(
+            /Staff onboarding (?:approved|rejected) for (.+?)(?:\s+with role:|$)/i
+          )
+          if (descriptionMatch && descriptionMatch[1]) {
+            const extractedName = descriptionMatch[1].trim()
+            if (extractedName && extractedName !== 'for') {
+              // Use the historical name from the immutable activity log description
+              // This preserves audit trail integrity even if user name changes later
+              return {
+                name: extractedName,
+                email: log.subject?.email || null,
+                id: log.subjectId || null,
+                uuid: log.subject?.uuid || null,
+                status: log.subject?.status || null,
+                userType: log.subject?.userType || null,
+                profile: log.subject?.profile || undefined,
+              } as any
+            }
+          }
+        }
+      }
+      
       // Priority 1: If subject object exists, use it (historical data at time of event)
       if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
         if ((log.subject as any).name || (log.subject as any).email || (log.subject as any).id) {
