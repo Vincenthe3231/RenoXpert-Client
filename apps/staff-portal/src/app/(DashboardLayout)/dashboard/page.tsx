@@ -68,48 +68,60 @@ export default function Dashboard() {
     return Array.from(uniqueUsers.values())
   }, [isSuperAdmin, staffUsers, owners])
 
-  // Get all onboardings for stats (only for super-admin)
-  const { data: allOnboardingsData } = useOnboardings()
-  const allOnboardings = isSuperAdmin ? (allOnboardingsData?.data || []) : []
+  // Get all onboardings (approved and rejected)
+  // Only fetch if super-admin (admins don't have access to onboarding data)
+  // For non-super-admins, we'll just use an empty array
+  const { data: onboardingsData } = useOnboardings(
+    isSuperAdmin ? undefined : undefined
+  )
+  const onboardings = isSuperAdmin ? (onboardingsData?.data || []) : []
 
   // Get pending onboardings (only for super-admin)
   const { data: pendingOnboardingsData } = useOnboardings({ status: 'pending' })
   const pendingOnboardings = isSuperAdmin ? (pendingOnboardingsData?.data || []) : []
 
-  // Get all activity logs (only for super-admin) - using cached TanStack Query data
-  // Fetch all three log_name types: user, onboarding, and role for complete audit trail
-  const { data: userActivityLogsData } = useActivityLogs(
-    isSuperAdmin ? { "filter[log_name]": "user" } : undefined
-  )
-  const userActivityLogs = isSuperAdmin ? (userActivityLogsData?.data || []) : []
+  // Get user management activity logs
+  // Used for: deactivate, activate, profile update, role change
+  // NOTE: Always fetch with same params as audit page to share TanStack Query cache
+  // Even though dashboard only renders for super-admin, we need consistent query keys
+  const { data: userActivityLogsData } = useActivityLogs({
+    "filter[log_name]": "user",
+  })
+  const userActivityLogs = userActivityLogsData?.data || []
 
-  const { data: onboardingActivityLogsData } = useActivityLogs(
-    isSuperAdmin ? { "filter[log_name]": "onboarding" } : undefined
-  )
-  const onboardingActivityLogs = isSuperAdmin ? (onboardingActivityLogsData?.data || []) : []
+  // Get onboarding activity logs
+  // Used for: Staff onboarding (approval, rejection)
+  // NOTE: Onboarding activity logs have log_name: "onboarding" (not "user")
+  const { data: onboardingActivityLogsData } = useActivityLogs({
+    "filter[log_name]": "onboarding",
+  })
+  const onboardingActivityLogs = onboardingActivityLogsData?.data || []
 
-  const { data: roleActivityLogsData } = useActivityLogs(
-    isSuperAdmin ? { "filter[log_name]": "role" } : undefined
-  )
-  const roleActivityLogs = isSuperAdmin ? (roleActivityLogsData?.data || []) : []
+  // Get role permissions management activity logs
+  // Used for: Role permissions management
+  const { data: roleActivityLogsData } = useActivityLogs({
+    "filter[log_name]": "role",
+  })
+  const roleActivityLogs = roleActivityLogsData?.data || []
 
   // Combine all activity logs to ensure complete audit trail integrity
+  // This prevents overwriting issues and ensures immutability of all audit data
   const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
 
   // Calculate stats (only for super-admin)
   const stats = {
     total: totalUsers,
     pending: pendingOnboardings.length,
-    approved: allOnboardings.filter(o => o.status === 'approved').length,
-    rejected: allOnboardings.filter(o => o.status === 'rejected').length,
+    approved: onboardings.filter(o => o.status === 'approved').length,
+    rejected: onboardings.filter(o => o.status === 'rejected').length,
   }
 
-  // Get recent decisions (only for super-admin)
+  // Filter to only show decisions (approved or rejected)
   const decisions = useMemo(() => {
-    return allOnboardings.filter(
+    return onboardings.filter(
       o => o.status === 'approved' || o.status === 'rejected'
     )
-  }, [allOnboardings])
+  }, [onboardings])
 
   // Create unified audit entries (onboarding + activity logs)
   // Show both onboarding decisions (from onboardings table) and activity logs
