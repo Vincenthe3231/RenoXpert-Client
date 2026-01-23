@@ -18,6 +18,12 @@ interface ApproveDialogProps {
 const ApproveDialog = ({ open, onOpenChange, onApprove, userName, onboardingId, isLoading = false }: ApproveDialogProps) => {
     const [staffType, setStaffType] = useState<StaffType>("staff");
 
+    // Only allow Admin and Staff types
+    const assignableRoles = [
+        { name: 'admin' as StaffType, displayName: 'Admin' },
+        { name: 'staff' as StaffType, displayName: 'Staff' },
+    ];
+
     const handleApprove = () => {
         onApprove(onboardingId, staffType);
     };
@@ -49,8 +55,11 @@ const ApproveDialog = ({ open, onOpenChange, onApprove, userName, onboardingId, 
                             <SelectValue placeholder="Select staff type" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="staff">Staff</SelectItem>
+                            {assignableRoles.map((role) => (
+                                <SelectItem key={role.name} value={role.name}>
+                                    {role.displayName}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     <p className="text-sm text-muted-foreground">

@@ -9,7 +9,7 @@ This monorepo includes the following packages and applications:
 ### Applications
 
 - **`client-app`** - Main client application (port 3000)
-- **`client-owner`** - Owner dashboard application (port 3001)
+- **`staff-portal`** - Staff portal application (port 3001)
 
 ### Packages
 
@@ -51,7 +51,7 @@ pnpm dev
 This will start:
 
 - `client-app` on http://localhost:3000
-- `client-owner` on http://localhost:3001
+- `staff-portal` on http://localhost:3001
 
 **Start individual applications:**
 
@@ -59,8 +59,8 @@ This will start:
 # Start only client-app
 pnpm --filter client-app dev
 
-# Start only client-owner
-pnpm --filter client-owner dev
+# Start only staff-portal
+pnpm --filter staff-portal dev
 ```
 
 ### Available Scripts
@@ -84,12 +84,12 @@ pnpm --filter client-app serve    # Preview production build
 pnpm --filter client-app test     # Run tests
 pnpm --filter client-app lint     # Lint the application
 
-# For client-owner
-pnpm --filter client-owner dev    # Start dev server on port 3001
-pnpm --filter client-owner build  # Build the application
-pnpm --filter client-owner serve  # Preview production build
-pnpm --filter client-owner test   # Run tests
-pnpm --filter client-owner lint   # Lint the application
+# For staff-portal
+pnpm --filter staff-portal dev    # Start dev server on port 3001
+pnpm --filter staff-portal build  # Build the application
+pnpm --filter staff-portal serve  # Preview production build
+pnpm --filter staff-portal test   # Run tests
+pnpm --filter staff-portal lint   # Lint the application
 ```
 
 ## 🏗️ Building
@@ -106,8 +106,8 @@ pnpm build
 # Build client-app
 pnpm --filter client-app build
 
-# Build client-owner
-pnpm --filter client-owner build
+# Build staff-portal
+pnpm --filter staff-portal build
 
 # Build UI package
 pnpm --filter @repo/ui build
@@ -119,14 +119,14 @@ pnpm --filter @repo/ui build
 
 ```bash
 pnpm --filter client-app test
-pnpm --filter client-owner test
+pnpm --filter staff-portal test
 ```
 
 ### Run Tests in Watch Mode
 
 ```bash
 pnpm --filter client-app test --watch
-pnpm --filter client-owner test --watch
+pnpm --filter staff-portal test --watch
 ```
 
 ## 📦 Production Deployment
@@ -143,8 +143,8 @@ pnpm build
 # Preview client-app
 pnpm --filter client-app serve
 
-# Preview client-owner
-pnpm --filter client-owner serve
+# Preview staff-portal
+pnpm --filter staff-portal serve
 ```
 
 ## 🐳 Docker
@@ -155,8 +155,8 @@ pnpm --filter client-owner serve
 # Build client-app image
 docker build -t renoxpert/client-app -f apps/client-app/Dockerfile .
 
-# Build client-owner image
-docker build -t renoxpert/client-owner -f apps/client-owner/Dockerfile .
+# Build staff-portal image
+docker build -t renoxpert/staff-portal -f apps/staff-portal/Dockerfile .
 ```
 
 ### Run Containers
@@ -165,8 +165,8 @@ docker build -t renoxpert/client-owner -f apps/client-owner/Dockerfile .
 # Run client-app (serves on container port 80)
 docker run --rm -p 3000:80 --env-file apps/client-app/.env renoxpert/client-app
 
-# Run client-owner (serves on container port 80)
-docker run --rm -p 3001:80 --env-file apps/client-owner/.env renoxpert/client-owner
+# Run staff-portal (serves on container port 80)
+docker run --rm -p 3001:80 --env-file apps/staff-portal/.env renoxpert/staff-portal
 ```
 
 ### Environment Variables
@@ -242,7 +242,7 @@ function MyComponent() {
 renoxpert-client/
 ├── apps/
 │   ├── client-app/          # Main client application
-│   └── client-owner/        # Owner dashboard
+│   └── staff-portal/        # Staff portal application
 ├── packages/
 │   ├── ui/                  # Shared UI components
 │   ├── eslint-config/       # ESLint configurations
@@ -263,7 +263,7 @@ Create `.env` files in the respective app directories as needed:
 # apps/client-app/.env
 VITE_API_URL=http://localhost:8000
 
-# apps/client-owner/.env
+# apps/staff-portal/.env
 VITE_API_URL=http://localhost:8000
 ```
 

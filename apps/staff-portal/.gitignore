@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# latest updats from origin/develop branch
+/modernize
+
+# Ignored markdown files
+RBAC_INTEGRATION_PLAN.md
+SPATIE_RBAC_MIGRATION.md

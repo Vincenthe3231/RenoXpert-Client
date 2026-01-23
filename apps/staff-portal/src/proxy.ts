@@ -8,7 +8,9 @@ const AUTH_CACHE_TTL_SECONDS = 30
 const PUBLIC_PATHS = [
     '/login',
     '/register',
-    '/api',
+    '/api/auth/login',
+    '/api/auth/lark',
+    '/auth/larksuite',
 ]
 
 const PUBLIC_ASSETS = [
@@ -20,14 +22,14 @@ const PUBLIC_ASSETS = [
     '/fonts',
 ]
 
+// Routes that unauthorized users (non-active status) can access
+const UNAUTHORIZED_ALLOWED_PATHS = [
+    '/dashboard',
+    '/users',
+]
+
 export async function proxy(req: NextRequest) {
     const { pathname } = req.nextUrl
-
-    // If we recently validated auth, avoid hitting `/api/auth/me` again.
-    // This dramatically reduces `/api/v1/me` traffic, especially with Next.js App Router (RSC/prefetch).
-    if (req.cookies.get(AUTH_CACHE_COOKIE)?.value === '1') {
-        return NextResponse.next()
-    }
 
     // Allow Next.js internals
     if (
@@ -42,12 +44,17 @@ export async function proxy(req: NextRequest) {
         return NextResponse.next()
     }
 
-    // Allow public routes
-    if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
+    // Allow public routes (exact match or starts with)
+    if (PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path))) {
         return NextResponse.next()
     }
 
-    // Auth check
+    // Allow all API routes (they handle their own auth via cookies)
+    if (pathname.startsWith('/api/')) {
+        return NextResponse.next()
+    }
+
+    // Auth check - always perform to verify authorization status for route protection
     const cookie = req.headers.get('cookie') ?? ''
 
     try {
@@ -57,13 +64,87 @@ export async function proxy(req: NextRequest) {
             cache: 'no-store',
         })
 
-        const data = await res.json().catch(() => null)
-        const user = data?.user ?? null
+        const responseData = await res.json().catch(() => null)
+        // Backend returns { message, data: { user, ... } } or { user: null }
+        const user = responseData?.data?.user || responseData?.user || null
 
         if (!user) {
             const redirect = NextResponse.redirect(new URL('/login', req.url))
             redirect.cookies.delete(AUTH_CACHE_COOKIE)
             return redirect
+        }
+
+        // Check if user is authorized (status === 'active')
+        const isAuthorized = user.status === 'active'
+        
+        // If user is unauthorized (not active), restrict access to allowed paths only
+        if (!isAuthorized) {
+            const isAllowedPath = UNAUTHORIZED_ALLOWED_PATHS.some(
+                path => pathname === path || pathname.startsWith(path + '/')
+            )
+            
+            if (!isAllowedPath) {
+                // Redirect unauthorized users trying to access restricted routes to dashboard
+                const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
+                redirect.cookies.set(AUTH_CACHE_COOKIE, '1', {
+                    httpOnly: true,
+                    sameSite: 'lax',
+                    path: '/',
+                    maxAge: AUTH_CACHE_TTL_SECONDS,
+                })
+                return redirect
+            }
+        }
+
+        // Role-based route protection for authorized users
+        if (isAuthorized && user.profile) {
+            const userRoles = user.profile.roles || []
+            const userPermissions = user.profile.permissions || []
+            
+            // Normalize roles for comparison
+            const normalizedUserRoles = userRoles.map(role => {
+                if (typeof role !== 'string') return ''
+                return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
+            }).filter(role => role.length > 0)
+            
+            const isSuperAdmin = normalizedUserRoles.some(role => 
+                role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
+            )
+            
+            // Protect /onboarding route - only super-admin can access
+            if (pathname === '/onboarding' || pathname.startsWith('/onboarding/')) {
+                if (!isSuperAdmin) {
+                    // Redirect non-super-admin users trying to access onboarding
+                    const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
+                    redirect.cookies.set(AUTH_CACHE_COOKIE, '1', {
+                        httpOnly: true,
+                        sameSite: 'lax',
+                        path: '/',
+                        maxAge: AUTH_CACHE_TTL_SECONDS,
+                    })
+                    return redirect
+                }
+            }
+            
+            // Protect /audit route - super-admin or admin with "view activity logs" permission
+            if (pathname === '/audit' || pathname.startsWith('/audit/')) {
+                const hasViewActivityLogsPermission = userPermissions.some(permission => 
+                    typeof permission === 'string' && 
+                    permission.toLowerCase().trim() === 'view activity logs'
+                )
+                
+                if (!isSuperAdmin && !hasViewActivityLogsPermission) {
+                    // Redirect users without permission trying to access audit trail
+                    const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
+                    redirect.cookies.set(AUTH_CACHE_COOKIE, '1', {
+                        httpOnly: true,
+                        sameSite: 'lax',
+                        path: '/',
+                        maxAge: AUTH_CACHE_TTL_SECONDS,
+                    })
+                    return redirect
+                }
+            }
         }
 
         const next = NextResponse.next()
@@ -86,3 +167,4 @@ export const config = {
         '/((?!_next/static|_next/image).*)',
     ],
 }
+

@@ -20,11 +20,11 @@ const Card = React.forwardRef<
       style={{
         borderRadius: `${isBorderRadius}px`,
       }}
-      className={cn(
+        className={cn(
         `p-7 border-0 bg-card ${
           isCardShadow
             ? "dark:shadow-dark-md shadow-md"
-            : "shadow-none border border-ld"
+            : "shadow-none border border-border"
         }`,
         className
       )}
@@ -52,8 +52,8 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      "text-lg font-semibold leading-none tracking-tight text-ld",
+      className={cn(
+      "text-lg font-semibold leading-none tracking-tight text-foreground",
       className
     )}
     {...props}
@@ -67,7 +67,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-15 text-darklink dark:text-bodytext mt-2", className)}
+    className={cn("text-15 text-muted-foreground mt-2", className)}
     {...props}
   />
 ));
@@ -79,7 +79,7 @@ const CardContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("mt-4 text-darklink dark:text-bodytext", className)}
+    className={cn("mt-4 text-foreground", className)}
     {...props}
   />
 ));
@@ -92,7 +92,7 @@ const CardFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "flex items-center mt-4 text-darklink dark:text-bodytext",
+      "flex items-center mt-4 text-foreground",
       className
     )}
     {...props}

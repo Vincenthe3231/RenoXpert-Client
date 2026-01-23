@@ -2,20 +2,117 @@
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Download } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
-import InputPlaceholderAnimate from '@/app/components/animatedComponents/AnimatedInputPlaceholder';
-import { useMemo, useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import UserFilters from "./components/UserFilters";
-import { useUsers } from "@/lib/api/auth/auth.hooks";
+import { useUsers, useAuth, useOwners } from "@/lib/api/auth/auth.hooks";
 import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
 import UserTable from "./components/UserTable";
 
+// Status filter options (in order for keyboard navigation)
+const STATUS_FILTER_OPTIONS: (UserStatus | "all")[] = ["all", "active", "verifying", "deactivated", "rejected"];
+
 const UsersPage = () => {
+    const { data: currentUser } = useAuth();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [typeFilter, setTypeFilter] = useState<string>("staff");
+    // Get initial type filter from URL or default to "staff" for admin/super-admin, "owner" for staff users
+    const typeFilterFromUrl = searchParams.get("type");
+    const [typeFilter, setTypeFilter] = useState<string>(typeFilterFromUrl || "staff");
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+    // Helper function to check if user has required role
+    const hasRequiredRole = useCallback((requiredRole: 'super-admin' | 'admin' | 'staff' | undefined): boolean => {
+        if (!requiredRole) return true;
+        if (!currentUser || !currentUser.profile) return false;
+
+        const userRoles = currentUser.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        const normalizedRequired = requiredRole.toLowerCase();
+
+        if (normalizedUserRoles.includes(normalizedRequired)) {
+            return true;
+        }
+
+        const isSuperAdmin = normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin'
+        );
+        
+        if (isSuperAdmin) {
+            return true;
+        }
+
+        if (normalizedRequired === 'admin' || normalizedRequired === 'staff') {
+            if (normalizedUserRoles.includes('admin')) {
+                return true;
+            }
+        }
+
+        if (normalizedRequired === 'staff') {
+            if (normalizedUserRoles.includes('staff')) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [currentUser]);
+
+    // Check if current user is staff (not admin or super-admin)
+    const isStaff = useMemo(() => {
+        if (!currentUser || !currentUser.profile) return false;
+        const userRoles = currentUser.profile.roles || [];
+        const normalizedUserRoles = userRoles.map(role => {
+            if (typeof role !== 'string') return '';
+            return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
+        }).filter(role => role.length > 0);
+        
+        const isSuperAdmin = normalizedUserRoles.some(role => 
+            role === 'super-admin' || role === 'superadmin'
+        );
+        const isAdmin = normalizedUserRoles.includes('admin');
+        
+        // Staff if they have staff role but not admin or super-admin
+        return normalizedUserRoles.includes('staff') && !isAdmin && !isSuperAdmin;
+    }, [currentUser]);
+
+    // Sync typeFilter with URL when URL changes (e.g., browser back/forward) or when isStaff changes
+    useEffect(() => {
+        // For staff users, always use "owner" and update URL if needed
+        if (isStaff) {
+            const params = new URLSearchParams(searchParams.toString());
+            const currentUrlType = params.get("type");
+            if (currentUrlType !== "owner") {
+                params.set("type", "owner");
+                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            }
+            setTypeFilter("owner");
+        } else {
+            // For admin/super-admin, sync with URL or default to "staff"
+            const urlTypeFilter = searchParams.get("type") || "staff";
+            setTypeFilter(urlTypeFilter);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, isStaff]);
+
+    // Update URL when typeFilter changes (only for admin/super-admin)
+    const handleTypeFilterChange = useCallback((value: string) => {
+        setTypeFilter(value);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("type", value);
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [searchParams, router, pathname]);
 
     // Debounce search query to avoid excessive API calls
     useEffect(() => {
@@ -26,6 +123,82 @@ const UsersPage = () => {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+    // Helper function to navigate filters
+    const navigateFilter = useCallback((direction: 'prev' | 'next') => {
+        setStatusFilter((currentFilter) => {
+            const currentIndex = STATUS_FILTER_OPTIONS.indexOf(currentFilter as UserStatus | "all")
+            if (currentIndex === -1) {
+                // If current filter is not found, default to first
+                return STATUS_FILTER_OPTIONS[0]
+            } else {
+                if (direction === 'prev') {
+                    // Wrap to last if at first index
+                    const previousIndex = currentIndex === 0
+                        ? STATUS_FILTER_OPTIONS.length - 1
+                        : currentIndex - 1
+                    return STATUS_FILTER_OPTIONS[previousIndex]
+                } else {
+                    // Wrap to first if at last index
+                    const nextIndex = currentIndex === STATUS_FILTER_OPTIONS.length - 1
+                        ? 0
+                        : currentIndex + 1
+                    return STATUS_FILTER_OPTIONS[nextIndex]
+                }
+            }
+        })
+    }, [])
+
+    // Keyboard shortcuts for filter navigation (A = left/previous, D = right/next)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Don't trigger if user is typing in an input/textarea/contenteditable
+            const target = e.target as HTMLElement
+            if (
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target.isContentEditable
+            ) {
+                return
+            }
+
+            // Check if modifier keys are pressed (we want only A or D, no modifiers)
+            if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) {
+                return
+            }
+
+            const key = e.key.toLowerCase()
+
+            // A key - navigate to previous filter (left direction)
+            if (key === 'a') {
+                e.preventDefault()
+                navigateFilter('prev')
+            }
+
+            // D key - navigate to next filter (right direction)
+            if (key === 'd') {
+                e.preventDefault()
+                navigateFilter('next')
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [navigateFilter])
+
+    // Listen for custom events from CommandPalette
+    useEffect(() => {
+        const handleFilterPrev = () => navigateFilter('prev')
+        const handleFilterNext = () => navigateFilter('next')
+
+        window.addEventListener('filter-nav-prev', handleFilterPrev)
+        window.addEventListener('filter-nav-next', handleFilterNext)
+
+        return () => {
+            window.removeEventListener('filter-nav-prev', handleFilterPrev)
+            window.removeEventListener('filter-nav-next', handleFilterNext)
+        }
+    }, [navigateFilter])
+
     // Build filter params for the API
     const filterParams = useMemo<GetUsersParams>(() => {
         const params: GetUsersParams = {};
@@ -33,36 +206,105 @@ const UsersPage = () => {
         if (statusFilter !== "all") {
             params.status = statusFilter as UserStatus;
         }
-        // Always include type filter (defaults to "staff")
-        params.type = typeFilter as UserType;
+        // For staff users, always filter by "owner", otherwise use selected typeFilter
+        params.type = (isStaff ? "owner" : typeFilter) as UserType;
         if (debouncedSearchQuery.trim()) {
             params.search = debouncedSearchQuery.trim();
         }
 
         return params;
-    }, [statusFilter, typeFilter, debouncedSearchQuery]);
+    }, [statusFilter, typeFilter, debouncedSearchQuery, isStaff]);
 
-    const { data: usersData, isLoading, error } = useUsers(filterParams);
-    const users = usersData?.data ?? [];
+    // Staff users must use /api/owners endpoint (they don't have permission for /api/auth/users)
+    // Admin and super-admin continue using /api/auth/users endpoint (unchanged)
+    const isStaffFilteringOwners = isStaff && filterParams.type === 'owner';
+    
+    // Only call useOwners when staff is filtering for owners
+    const { data: ownersData, isLoading: isOwnersLoading, error: ownersError } = useOwners(
+        isStaffFilteringOwners ? filterParams : undefined
+    );
+    
+    // Admin and super-admin always use useUsers (unchanged)
+    // Staff users also use useUsers when NOT filtering for owners (though this shouldn't happen due to UI lock)
+    const { data: usersData, isLoading: isUsersLoading, error: usersError } = useUsers(
+        !isStaffFilteringOwners ? filterParams : undefined
+    );
+    
+    // Use owners data for staff filtering owners, users data otherwise (admin/super-admin)
+    const usersDataFinal = isStaffFilteringOwners ? ownersData : usersData;
+    const isLoading = isStaffFilteringOwners ? isOwnersLoading : isUsersLoading;
+    const error = isStaffFilteringOwners ? ownersError : usersError;
+    const users = usersDataFinal?.data ?? [];
+    
+    // For owners missing phone numbers, fetch individual owner details to get complete data
+    // This is needed because the owners list endpoint may not include phone_no/country_code
+    const ownersMissingPhone = useMemo(() => {
+        if (!isStaffFilteringOwners) return []
+        return users.filter((user: any) => user.userType === 'owner' && (!user.phoneNo || !user.countryCode) && user.uuid)
+    }, [users, isStaffFilteringOwners])
+    
+    // Fetch individual owner details for owners missing phone numbers using useQueries
+    const ownerDetailQueries = useQueries({
+        queries: ownersMissingPhone.map((owner: any) => ({
+            queryKey: ['owner', owner.uuid],
+            queryFn: async () => {
+                const { getOwner } = await import('@/lib/api/auth/auth')
+                return getOwner(owner.uuid)
+            },
+            enabled: !!owner.uuid,
+            staleTime: 0, // Always fetch fresh data
+        })),
+    })
+    
+    // Create a map of enriched owner data
+    const enrichedOwnerMap = useMemo(() => {
+        const map = new Map()
+        ownerDetailQueries.forEach((query, index) => {
+            if (query.data && ownersMissingPhone[index]) {
+                map.set(ownersMissingPhone[index].uuid, query.data)
+            }
+        })
+        return map
+    }, [ownerDetailQueries, ownersMissingPhone])
+    
+    // Enrich owners list with phone numbers from individual queries
+    const enrichedUsers = useMemo(() => {
+        if (!isStaffFilteringOwners) return users
+        
+        return users.map((user: any) => {
+            if (user.userType !== 'owner') return user
+            
+            // Check if we have enriched data for this owner
+            const enrichedData = enrichedOwnerMap.get(user.uuid)
+            
+            // If we have enriched data with phone number, use it
+            if (enrichedData && (!user.phoneNo || !user.countryCode)) {
+                return {
+                    ...user,
+                    phoneNo: enrichedData.phoneNo ?? user.phoneNo,
+                    countryCode: enrichedData.countryCode ?? user.countryCode,
+                }
+            }
+            
+            return user
+        })
+    }, [users, isStaffFilteringOwners, enrichedOwnerMap])
+    
+    // Use enriched users for owners, regular users for staff
+    const finalUsers = isStaffFilteringOwners ? enrichedUsers : users;
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-foreground">All Users</h2>
-                    <p className="text-muted-foreground">
-                        Manage and monitor all user accounts
-                    </p>
-                </div>
-                <Button variant="default">
-                    <Plus size={16} className="mr-2" />
-                    Add User
-                </Button>
+            <div>
+                <h2 className="text-2xl font-bold text-foreground">All Users</h2>
+                <p className="text-muted-foreground mt-1">
+                    Manage and monitor all user accounts
+                </p>
             </div>
 
             {/* Filters and Search */}
-            <Card className="p-5">
+            <Card className="p-5 rounded-full shadow-card transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     {/* Status Filters */}
                     <div className="space-y-2">
@@ -76,31 +318,34 @@ const UsersPage = () => {
                         />
                     </div>
 
-                    {/* Type Filters */}
-                    <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">
-                            Filter by Type
-                        </p>
-                        <UserFilters
-                            activeFilter={typeFilter}
-                            onFilterChange={setTypeFilter}
-                            filterType="type"
-                        />
-                    </div>
+                    {/* Type Filters - Only show if not staff */}
+                    {!isStaff && (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Filter by Type
+                            </p>
+                            <UserFilters
+                                activeFilter={typeFilter}
+                                onFilterChange={handleTypeFilterChange}
+                                filterType="type"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Search and Actions */}
-                <div className="mt-4 flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative flex-1 sm:max-w-xs">
+                <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="relative flex-1 sm:max-w-xs isolate">
                         <Search
                             size={18}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-20 pointer-events-none"
                         />
-                        <InputPlaceholderAnimate
+                        <Input
+                            type="text"
                             value={searchQuery}
-                            onChange={(val: string) => setSearchQuery(val)}
-                            placeholders={['Search email...', 'Search name...', 'Search phone...']}
-                            className="pl-10"
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search email, name, phone..."
+                            className="pl-10 relative z-10"
                         />
                     </div>
                     <Button variant="outline" size="sm">
@@ -128,11 +373,11 @@ const UsersPage = () => {
                     </p>
                 </div>
             ) : users.length > 0 ? (
-                <div className="rounded-xl bg-card shadow-card">
-                    <UserTable users={users} />
+                <div className="rounded-full bg-card shadow-card">
+                    <UserTable users={finalUsers} isStaff={isStaff} />
                 </div>
             ) : (
-                <div className="rounded-xl bg-card p-12 text-center shadow-card">
+                <div className="rounded-full bg-card p-12 text-center shadow-card">
                     <p className="text-lg font-medium text-muted-foreground">
                         No users found
                     </p>
@@ -146,7 +391,7 @@ const UsersPage = () => {
             {users.length > 0 && (
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>
-                        Showing {users.length} of {users?.length || 0} users
+                        Showing {users.length} of {usersDataFinal?.meta?.total || users.length} users
                     </span>
                 </div>
             )}
