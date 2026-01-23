@@ -20,6 +20,8 @@ interface AuditTableProps {
   getInitials: (name: string) => string
   users: User[]
   activityLogs: any[] // Activity logs to find historical user data for onboarding entries
+  userMapById?: Map<number | null | undefined, User> // O(1) lookup map by user ID for performance
+  userMapByUuid?: Map<string | null | undefined, User> // O(1) lookup map by user UUID for performance
 }
 
 type SortDirection = "asc" | "desc" | null
@@ -95,7 +97,7 @@ const SortableHeader = ({ label, column, sortConfig, onSort }: SortableHeaderPro
   )
 }
 
-const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, getInitials, users, activityLogs }: AuditTableProps) => {
+const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, getInitials, users, activityLogs, userMapById, userMapByUuid }: AuditTableProps) => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     column: null,
     direction: null,
@@ -113,22 +115,37 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     })
   }
   // Helper to get user avatar URL
+  // Optimized to use O(1) map lookups instead of O(n) .find() operations for better performance
   const getUserAvatarUrl = (user: { profile?: any; id?: any; uuid?: string } | null | undefined) => {
     // First check if user has profile with avatarUrl
     if (user?.profile && 'avatarUrl' in user.profile) {
       const avatarUrl = user.profile.avatarUrl || undefined
       return avatarUrl
     }
-    // Fallback: if user has ID, try to find avatar from users list
+    // Fallback: if user has ID, try to find avatar from users list using O(1) map lookup
     if (user?.id || user?.uuid) {
       const subjectId = user.id
       const subjectUuid = user.uuid
-      const foundUser = users.find((u) => {
-        if (subjectId != null && u.id != null && Number(u.id) === Number(subjectId)) return true
-        if (subjectUuid && u.uuid && String(u.uuid) === String(subjectUuid)) return true
-        if (subjectId != null && u.id != null && String(u.id) === String(subjectId)) return true
-        return false
-      })
+      
+      // Use map lookups for O(1) performance if maps are available
+      let foundUser: User | undefined
+      if (userMapById && subjectId != null) {
+        foundUser = userMapById.get(subjectId)
+      }
+      if (!foundUser && userMapByUuid && subjectUuid) {
+        foundUser = userMapByUuid.get(subjectUuid)
+      }
+      
+      // Fallback to .find() if maps are not available (backward compatibility)
+      if (!foundUser && (!userMapById || !userMapByUuid)) {
+        foundUser = users.find((u) => {
+          if (subjectId != null && u.id != null && Number(u.id) === Number(subjectId)) return true
+          if (subjectUuid && u.uuid && String(u.uuid) === String(subjectUuid)) return true
+          if (subjectId != null && u.id != null && String(u.id) === String(subjectId)) return true
+          return false
+        })
+      }
+      
       if (foundUser?.profile && 'avatarUrl' in foundUser.profile) {
         const avatarUrl = foundUser.profile.avatarUrl || undefined
         return avatarUrl

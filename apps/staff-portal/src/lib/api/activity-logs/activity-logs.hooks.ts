@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery, queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useInfiniteQuery, queryOptions } from "@tanstack/react-query";
 import { ACTIVITY_LOGS_QUERY_KEYS, ACTIVITY_LOGS_QUERY_CONFIG } from "./constants";
 import { getActivityLogs } from "./activity-logs";
 import { GetActivityLogsParams, ActivityLogListResponse } from "./activity-logs.schemas";
@@ -40,6 +40,45 @@ export function useActivityLogs(params?: GetActivityLogsParams) {
         return false // Don't retry permission errors
       }
       return failureCount < 3 // Retry other errors up to 3 times
+    },
+  });
+}
+
+/**
+ * React hook to fetch activity logs with infinite pagination (Load More)
+ * 
+ * AUDIT TRAIL INTEGRITY: Uses infinite query pattern to progressively load logs
+ * while maintaining immutability. Each page is cached separately, and pages
+ * are accumulated without mutating existing data.
+ * 
+ * @param params - Query parameters including filters and sorting (page and perPage are handled internally)
+ * @returns React Query infinite query result with paginated activity logs data
+ */
+export function useInfiniteActivityLogs(params?: Omit<GetActivityLogsParams, 'page'>) {
+  return useInfiniteQuery({
+    queryKey: [...ACTIVITY_LOGS_QUERY_KEYS.LIST, 'infinite', params],
+    queryFn: ({ pageParam = 1 }) => {
+      return getActivityLogs({
+        ...params,
+        page: pageParam,
+        perPage: params?.perPage || 100, // Default to 100 per page
+      });
+    },
+    getNextPageParam: (lastPage) => {
+      const currentPage = lastPage.meta?.currentPage || 1;
+      const lastPageNum = lastPage.meta?.lastPage || 1;
+      return currentPage < lastPageNum ? currentPage + 1 : undefined;
+    },
+    initialPageParam: 1,
+    staleTime: ACTIVITY_LOGS_QUERY_CONFIG.STALE_TIME,
+    refetchOnWindowFocus: false, // Prevent automatic refetch on window focus
+    // Don't retry on 401/403 errors (permission denied)
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        return false; // Don't retry permission errors
+      }
+      return failureCount < 3; // Retry other errors up to 3 times
     },
   });
 }

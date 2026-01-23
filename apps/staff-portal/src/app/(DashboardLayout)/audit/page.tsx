@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { useUsers, useOwners, useAuth, type User } from "@/lib/api/auth"
-import { useActivityLogs } from "@/lib/api/activity-logs"
+import { useInfiniteActivityLogs } from "@/lib/api/activity-logs"
 import AuditHeader from "./components/AuditHeader"
 import AuditStatsCards from "./components/AuditStatsCards"
 import AuditTable from "./AuditTable"
@@ -83,7 +83,7 @@ export default function AuditPage() {
   )
   const onboardings = isSuperAdmin ? (onboardingsData?.data || []) : []
 
-  // Get user management activity logs
+  // Get user management activity logs with infinite pagination
   // Used for: deactivate, activate, profile update, role change
   const { 
     data: userActivityLogsData, 
@@ -91,35 +91,73 @@ export default function AuditPage() {
     error: activityLogsError,
     dataUpdatedAt: activityLogsUpdatedAt,
     status: activityLogsStatus,
-  } = useActivityLogs({
+    fetchNextPage: fetchNextUserLogs,
+    hasNextPage: hasNextUserLogs,
+    isFetchingNextPage: isFetchingNextUserLogs,
+  } = useInfiniteActivityLogs({
     "filter[log_name]": "user",
+    perPage: 100,
   })
-  const userActivityLogs = userActivityLogsData?.data || []
+  // Flatten all pages into a single array (maintains immutability)
+  const userActivityLogs = useMemo(() => {
+    return userActivityLogsData?.pages.flatMap(page => page.data) || []
+  }, [userActivityLogsData])
 
-  // Get onboarding activity logs
+  // Get onboarding activity logs with infinite pagination
   // Used for: Staff onboarding (approval, rejection)
   // NOTE: Onboarding activity logs have log_name: "onboarding" (not "user")
   const { 
     data: onboardingActivityLogsData, 
     isLoading: isLoadingOnboardingActivityLogs,
-  } = useActivityLogs({
+    fetchNextPage: fetchNextOnboardingLogs,
+    hasNextPage: hasNextOnboardingLogs,
+    isFetchingNextPage: isFetchingNextOnboardingLogs,
+  } = useInfiniteActivityLogs({
     "filter[log_name]": "onboarding",
+    perPage: 100,
   })
-  const onboardingActivityLogs = onboardingActivityLogsData?.data || []
+  // Flatten all pages into a single array (maintains immutability)
+  const onboardingActivityLogs = useMemo(() => {
+    return onboardingActivityLogsData?.pages.flatMap(page => page.data) || []
+  }, [onboardingActivityLogsData])
 
-  // Get role permissions management activity logs
+  // Get role permissions management activity logs with infinite pagination
   // Used for: Role permissions management
   const { 
     data: roleActivityLogsData, 
     isLoading: isLoadingRoleActivityLogs,
-  } = useActivityLogs({
+    fetchNextPage: fetchNextRoleLogs,
+    hasNextPage: hasNextRoleLogs,
+    isFetchingNextPage: isFetchingNextRoleLogs,
+  } = useInfiniteActivityLogs({
     "filter[log_name]": "role",
+    perPage: 100,
   })
-  const roleActivityLogs = roleActivityLogsData?.data || []
+  // Flatten all pages into a single array (maintains immutability)
+  const roleActivityLogs = useMemo(() => {
+    return roleActivityLogsData?.pages.flatMap(page => page.data) || []
+  }, [roleActivityLogsData])
 
   // Combine all activity logs to ensure complete audit trail integrity
   // This prevents overwriting issues and ensures immutability of all audit data
   const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
+
+  // Check if any log type has more pages to load
+  const hasMoreLogs = hasNextUserLogs || hasNextOnboardingLogs || hasNextRoleLogs
+  const isFetchingMoreLogs = isFetchingNextUserLogs || isFetchingNextOnboardingLogs || isFetchingNextRoleLogs
+
+  // Load more handler - fetches next page for all log types that have more pages
+  const handleLoadMore = useCallback(() => {
+    if (hasNextUserLogs) {
+      fetchNextUserLogs()
+    }
+    if (hasNextOnboardingLogs) {
+      fetchNextOnboardingLogs()
+    }
+    if (hasNextRoleLogs) {
+      fetchNextRoleLogs()
+    }
+  }, [hasNextUserLogs, hasNextOnboardingLogs, hasNextRoleLogs, fetchNextUserLogs, fetchNextOnboardingLogs, fetchNextRoleLogs])
 
   // Get all users (staff) for additional context
   // Both Admin and Super Admin have backend access to /api/v1/users endpoint
@@ -176,9 +214,10 @@ export default function AuditPage() {
   // When API data is available, this is redundant and causes unnecessary CPU work
   // This maintains same architecture - API data preferred, activity log extraction as fallback
   const subjectsFromActivityLogs = useMemo(() => {
-    // Skip processing if we have API data available (faster loading)
+    // Skip processing if we have API data available OR if API calls are still loading (faster loading)
     // API data is preferred because it's complete and includes avatars
-    const hasApiData = staffUsers.length > 0 || owners.length > 0
+    // This prevents expensive computation during loading phase, which was causing admin to load slower
+    const hasApiData = (staffUsers.length > 0 || owners.length > 0) || isLoadingUsers || isLoadingOwners
     if (hasApiData) {
       return []
     }
@@ -282,7 +321,7 @@ export default function AuditPage() {
     })
     
     return subjectUsers
-  }, [activityLogs, staffUsers.length, owners.length])
+  }, [activityLogs, staffUsers.length, owners.length, isLoadingUsers, isLoadingOwners])
 
   // Merge staff users, owners, users from onboarding entries, reviewers from activity logs, and subjects from activity logs into a single list for lookup
   // This ensures admins have access to user data from activity logs, maintaining the same architecture as super admin
@@ -703,7 +742,31 @@ export default function AuditPage() {
         getInitials={getInitials}
         users={users}
         activityLogs={activityLogs}
+        userMapById={userMapById}
+        userMapByUuid={userMapByUuid}
       />
+      
+      {/* Load More Button - Loads additional pages from API */}
+      {hasMoreLogs && (
+        <div className="flex items-center justify-center pt-4 pb-2">
+          <Button
+            variant="outline"
+            onClick={handleLoadMore}
+            disabled={isFetchingMoreLogs}
+            className="min-w-[120px]"
+          >
+            {isFetchingMoreLogs ? (
+              <>
+                <span className="mr-2">Loading...</span>
+              </>
+            ) : (
+              "Load More"
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Client-side Pagination - Only show if we have more entries than ITEMS_PER_PAGE */}
       {filteredAndSortedEntries.length > ITEMS_PER_PAGE && (
         <div className="flex items-center justify-center pt-4">
           <Pagination

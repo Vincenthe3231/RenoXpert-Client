@@ -86,6 +86,7 @@ export default function Dashboard() {
   // Even though dashboard only renders for super-admin, we need consistent query keys
   const { data: userActivityLogsData } = useActivityLogs({
     "filter[log_name]": "user",
+    perPage: 100,
   })
   const userActivityLogs = userActivityLogsData?.data || []
 
@@ -94,6 +95,7 @@ export default function Dashboard() {
   // NOTE: Onboarding activity logs have log_name: "onboarding" (not "user")
   const { data: onboardingActivityLogsData } = useActivityLogs({
     "filter[log_name]": "onboarding",
+    perPage: 100,
   })
   const onboardingActivityLogs = onboardingActivityLogsData?.data || []
 
@@ -101,6 +103,7 @@ export default function Dashboard() {
   // Used for: Role permissions management
   const { data: roleActivityLogsData } = useActivityLogs({
     "filter[log_name]": "role",
+    perPage: 100,
   })
   const roleActivityLogs = roleActivityLogsData?.data || []
 
