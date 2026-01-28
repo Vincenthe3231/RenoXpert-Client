@@ -281,17 +281,16 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
   /**
    * Helper to get user from audit entry
    * 
-   * AUDIT TRAIL INTEGRITY: This function prioritizes historical data from activity logs
-   * to preserve audit trail integrity. Activity logs are immutable and append-only.
+   * USER COLUMN: Shows current username from log.subject.name (backend provides current user info)
+   * DETAILS COLUMN: Shows historical changes from log.properties (old → new values)
    * 
-   * Priority order:
-   * 1. log.subject (historical user data at time of event)
-   * 2. log.properties.attributes (new values after change) or log.properties.old (old values before change)
-   * 3. log.description (for activated/deactivated/role_changed events)
-   * 4. Current users list (ONLY as last resort for email/avatar, NEVER for name to preserve integrity)
+   * Priority order for USER column:
+   * 1. log.subject.name (current name - backend provides this)
+   * 2. log.subject.email (fallback if name is missing)
+   * 3. Parse description (backward compatibility for old log entries)
+   * 4. Current users list (last resort for email/avatar only)
    * 
-   * For role_changed events: We NEVER use current name from users list - only historical data.
-   * This ensures that historical names are preserved even if user's name changes later.
+   * Note: Historical changes are still preserved in DETAILS column via log.properties
    */
   const getUserFromEntry = (entry: AuditEntry) => {
     if (entry.type === 'onboarding') {
@@ -487,19 +486,134 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         }
       }
       
-      // Priority 1: If subject object exists, use it (historical data at time of event)
+      // Priority 1: Use subject field for current user information (USER column)
+      // Backend now provides current user data in subject field
       if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
-        if ((log.subject as any).name || (log.subject as any).email || (log.subject as any).id) {
-          return log.subject as any
+        const subject = log.subject as any
+        // Use current name from subject (this is what backend provides now)
+        if (subject.name || subject.email) {
+          // Try to get avatar from users list if missing
+          let profile = subject.profile
+          if (!profile?.avatarUrl && log.subjectId) {
+            const subjectId = log.subjectId as any
+            const subjectIdStr = String(subjectId)
+            const foundUser = users.find((u) => {
+              if (u.id != null && Number(u.id) === Number(subjectId)) return true
+              if (u.id != null && String(u.id) === subjectIdStr) return true
+              if (u.uuid && String(u.uuid) === subjectIdStr) return true
+              // eslint-disable-next-line eqeqeq
+              if (u.id != null && (u.id as any) == subjectId) return true
+              return false
+            })
+            if (foundUser?.profile && 'avatarUrl' in foundUser.profile) {
+              profile = { avatarUrl: foundUser.profile.avatarUrl || null }
+            }
+          }
+          return {
+            name: subject.name || subject.email || 'Unknown User',
+            email: subject.email || null,
+            id: subject.id || log.subjectId || null,
+            uuid: subject.uuid || null,
+            status: subject.status || null,
+            userType: subject.userType || subject.user_type || null,
+            profile: profile || undefined,
+          } as any
         }
       }
-
-      // Priority 2: Check properties FIRST for ALL events to get historical data
-      // This prevents showing the current name instead of the historical name
-      // All activity logs (activated, deactivated, profile_updated, role_changed) have historical data in properties
-      const isProfileUpdate = log.event === 'profile_updated' || log.event === 'updated'
       
-      // Check properties for ALL events (not just profile updates) to extract historical user data
+      // Fallback: If subjectId exists but subject is null, user might be deleted
+      if (log.subjectId && !log.subject) {
+        // Try to find in users list as last resort
+        const subjectId = log.subjectId as any
+        const subjectIdStr = String(subjectId)
+        const foundUser = users.find((u) => {
+          if (u.id != null && Number(u.id) === Number(subjectId)) return true
+          if (u.id != null && String(u.id) === subjectIdStr) return true
+          if (u.uuid && String(u.uuid) === subjectIdStr) return true
+          // eslint-disable-next-line eqeqeq
+          if (u.id != null && (u.id as any) == subjectId) return true
+          return false
+        })
+        if (foundUser) {
+          return foundUser
+        }
+        // Return deleted user placeholder
+        return {
+          name: 'Deleted User',
+          email: null,
+          id: log.subjectId,
+          uuid: null,
+          status: null,
+          userType: null,
+          profile: undefined,
+        } as any
+      }
+
+      // Fallback 1: For old log entries without subject field, try to extract from description
+      // This provides backward compatibility for logs created before backend update
+      if (log.description) {
+        // Try to extract name from description patterns (old format)
+        let extractedName: string | null = null
+        
+        // Pattern 1: "Vendor profile updated: {name}" or "Owner profile updated: {name}"
+        const profileUpdateMatch = log.description.match(/(?:Vendor|Owner|Staff|User)\s+profile\s+updated:\s*(.+)$/i)
+        if (profileUpdateMatch && profileUpdateMatch[1]) {
+          extractedName = profileUpdateMatch[1].trim()
+        }
+        
+        // Pattern 2: "User account activated: {name}" or "User account deactivated: {name}"
+        if (!extractedName) {
+          const activatedMatch = log.description.match(/(?:activated|deactivated):\s*(.+)$/i)
+          if (activatedMatch && activatedMatch[1]) {
+            extractedName = activatedMatch[1].trim()
+          }
+        }
+        
+        // Pattern 3: "Role changed for {name}: {old} → {new}"
+        if (!extractedName) {
+          const roleChangedMatch = log.description.match(/role\s+changed\s+for\s+([^:]+?)\s*:/i)
+          if (roleChangedMatch && roleChangedMatch[1]) {
+            extractedName = roleChangedMatch[1].trim()
+          }
+        }
+        
+        if (extractedName && extractedName !== 'for') {
+          // Try to get email/avatar from users list if we have subjectId
+          let email = null
+          let profile = undefined
+          if (log.subjectId) {
+            const subjectId = log.subjectId as any
+            const subjectIdStr = String(subjectId)
+            const foundUser = users.find((u) => {
+              if (u.id != null && Number(u.id) === Number(subjectId)) return true
+              if (u.id != null && String(u.id) === subjectIdStr) return true
+              if (u.uuid && String(u.uuid) === subjectIdStr) return true
+              // eslint-disable-next-line eqeqeq
+              if (u.id != null && (u.id as any) == subjectId) return true
+              return false
+            })
+            if (foundUser) {
+              email = foundUser.email || null
+              if (foundUser.profile && 'avatarUrl' in foundUser.profile) {
+                profile = { avatarUrl: foundUser.profile.avatarUrl || null }
+              }
+            }
+          }
+          return {
+            name: extractedName,
+            email: email,
+            id: log.subjectId || null,
+            uuid: null,
+            status: null,
+            userType: null,
+            profile: profile,
+          } as any
+        }
+      }
+      
+      // Fallback 2: Check properties for old log entries (backward compatibility)
+      // Note: Properties contain historical data, but we use it only as fallback
+      // DETAILS column will continue using properties for showing changes
       if (log.properties && typeof log.properties === 'object') {
         const props: any = log.properties
 
@@ -804,11 +918,20 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
             profile: profile,
           } as any
         }
-        // If no historical name available, return null to preserve integrity
-        // This is better than showing current name which would be incorrect
+        // If no historical name available, return unknown user
       }
 
-      return null
+      // Last resort: Return unknown user
+      // This should rarely happen if backend is providing subject field correctly
+      return {
+        name: 'Unknown User',
+        email: null,
+        id: log.subjectId || null,
+        uuid: null,
+        status: null,
+        userType: null,
+        profile: undefined,
+      } as any
     }
   }
 

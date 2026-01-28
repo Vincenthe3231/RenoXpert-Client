@@ -29,10 +29,15 @@ export const activityLogCauserSchema = z.any().nullable(); // Use any to avoid Z
 
 /**
  * Activity Log Subject (the entity being modified)
- * Can be a full user object or a partial user object with at least id/name
- * Backend may also return subjectId and subjectType instead
+ * Backend now returns current user information in this field
+ * Contains: id, name, email, uuid
  */
-export const activityLogSubjectSchema = z.any().nullable(); // Use any to avoid Zod union issues
+export const activityLogSubjectSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  email: z.string().email(),
+  uuid: z.string().uuid(),
+}).nullable(); // Nullable for old log entries or deleted users
 
 /**
  * Activity Log Entry Schema
@@ -44,8 +49,8 @@ export const activityLogSchema = z.object({
   logName: z.string().optional(), // Allow any string
   description: z.string().optional(), // Backend includes description
   event: z.string(), // Allow any string for flexibility
-  // Subject can be either an object OR just IDs
-  subject: z.any().optional().nullable(), // Subject object (if present)
+  // Subject contains current user information (id, name, email, uuid)
+  subject: activityLogSubjectSchema, // Subject object with current user data
   subjectId: z.number().optional(), // Subject ID (if subject object not present)
   subjectType: z.string().optional(), // Subject type (if subject object not present)
   // Causer can be either an object OR just IDs
