@@ -214,10 +214,9 @@ export default function AuditPage() {
   // When API data is available, this is redundant and causes unnecessary CPU work
   // This maintains same architecture - API data preferred, activity log extraction as fallback
   const subjectsFromActivityLogs = useMemo(() => {
-    // Skip processing if we have API data available OR if API calls are still loading (faster loading)
+    // Skip processing if we have API data available (faster loading)
     // API data is preferred because it's complete and includes avatars
-    // This prevents expensive computation during loading phase, which was causing admin to load slower
-    const hasApiData = (staffUsers.length > 0 || owners.length > 0) || isLoadingUsers || isLoadingOwners
+    const hasApiData = staffUsers.length > 0 || owners.length > 0
     if (hasApiData) {
       return []
     }
@@ -321,7 +320,7 @@ export default function AuditPage() {
     })
     
     return subjectUsers
-  }, [activityLogs, staffUsers.length, owners.length, isLoadingUsers, isLoadingOwners])
+  }, [activityLogs, staffUsers.length, owners.length])
 
   // Merge staff users, owners, users from onboarding entries, reviewers from activity logs, and subjects from activity logs into a single list for lookup
   // This ensures admins have access to user data from activity logs, maintaining the same architecture as super admin
@@ -366,10 +365,68 @@ export default function AuditPage() {
 
   // Create unified audit entries
   // Show both onboarding decisions (from onboardings table) and activity logs
+  // BUT: Filter out onboarding activity logs that duplicate onboarding decisions
+  // (Onboarding activity logs are displayed as "User Management" type, causing confusion)
   const auditEntries: AuditEntry[] = useMemo(() => {
+    // Get user IDs and timestamps from onboarding decisions
+    const onboardingUserTimestamps = new Map<number | string, number>()
+    decisions.forEach(decision => {
+      if (decision.userId && decision.reviewedAt) {
+        onboardingUserTimestamps.set(decision.userId, new Date(decision.reviewedAt).getTime())
+      }
+    })
+    
+    // Filter out onboarding activity logs that duplicate onboarding decisions
+    // Also filter out User Management "approved" logs that are duplicates
+    const filteredActivityLogs = activityLogs.filter(log => {
+      // Filter out onboarding activity logs that have a corresponding onboarding decision
+      // (These show as "User Management" in the UI but are actually onboarding logs)
+      if (log.logName === 'onboarding' && (log.event === 'approved' || log.event === 'rejected')) {
+        // The subjectId in onboarding logs is the onboarding ID, not the user ID
+        // Find the decision that matches this onboarding ID
+        const onboardingId = log.subjectId
+        const decision = decisions.find(d => d.id === onboardingId)
+        
+        if (decision && decision.reviewedAt) {
+          const logTimestamp = new Date(log.createdAt).getTime()
+          const decisionTimestamp = new Date(decision.reviewedAt).getTime()
+          const timeDiff = Math.abs(logTimestamp - decisionTimestamp)
+          
+          // If within 10 seconds, it's a duplicate - filter it out
+          if (timeDiff <= 10000) {
+            return false
+          }
+        }
+      }
+      
+      // Filter out User Management "approved" logs that are duplicates of onboarding decisions
+      if (log.logName === 'user') {
+        const event = String(log.event || '').toLowerCase()
+        
+        // Only filter "approved" events (keep other user management actions)
+        if (event === 'approved' || event === 'approve') {
+          const logTimestamp = new Date(log.createdAt).getTime()
+          const userId = log.subjectId || (log.subject as any)?.id
+          
+          // Check if this user has an onboarding decision around the same time
+          if (userId) {
+            const onboardingTimestamp = onboardingUserTimestamps.get(userId)
+            if (onboardingTimestamp) {
+              const timeDiff = Math.abs(logTimestamp - onboardingTimestamp)
+              // If within 10 seconds, it's a duplicate - filter it out
+              if (timeDiff <= 10000) {
+                return false
+              }
+            }
+          }
+        }
+      }
+      return true
+    })
+    
     return [
       ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
-      ...activityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
+      ...filteredActivityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
     ]
   }, [decisions, activityLogs])
 
@@ -503,16 +560,26 @@ export default function AuditPage() {
       } else {
         const props = entry.data.properties
         if (props) {
-          // Extract meaningful text from properties
+          // Extract meaningful text from properties for search
+          // Format: "Field: old → new" for better searchability
           const parts: string[] = []
-          if (props.old_values) {
-            parts.push(JSON.stringify(props.old_values))
-          }
-          if (props.new_values) {
-            parts.push(JSON.stringify(props.new_values))
-          }
-          if (props.attributes) {
-            parts.push(JSON.stringify(props.attributes))
+          const oldValues = props.old || {}
+          const newValues = props.attributes || {}
+          const allKeys = new Set([...Object.keys(oldValues), ...Object.keys(newValues)])
+          
+          for (const key of allKeys) {
+            const oldVal = oldValues[key]
+            const newVal = newValues[key]
+            if (oldVal !== newVal) {
+              const fieldName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim()
+              parts.push(fieldName)
+              if (oldVal !== null && oldVal !== undefined) {
+                parts.push(String(oldVal))
+              }
+              if (newVal !== null && newVal !== undefined) {
+                parts.push(String(newVal))
+              }
+            }
           }
           searchableFields.details = parts.join(" ")
         }
@@ -742,8 +809,6 @@ export default function AuditPage() {
         getInitials={getInitials}
         users={users}
         activityLogs={activityLogs}
-        userMapById={userMapById}
-        userMapByUuid={userMapByUuid}
       />
       
       {/* Load More Button - Loads additional pages from API */}

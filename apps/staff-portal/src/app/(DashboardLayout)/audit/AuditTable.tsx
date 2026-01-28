@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CheckCircle, XCircle, History, Loader2, UserX, UserCheck, UserCog, UserPen, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { format } from "date-fns"
 import { AuditEntry, getAuditEntryTimestamp } from "./types"
@@ -152,6 +153,88 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       }
     }
     return undefined
+  }
+
+  // Helper to format details from log properties
+  // Shows what changed in a concise format: "Field: old → new"
+  const formatLogDetails = (log: any): string => {
+    const props = log.properties
+    if (!props) {
+      return "—"
+    }
+
+    const changes: string[] = []
+    const oldValues = props.old || {}
+    const newValues = props.attributes || {}
+    
+    // Get all unique keys from both old and new values
+    const allKeys = new Set([...Object.keys(oldValues), ...Object.keys(newValues)])
+    
+    for (const key of allKeys) {
+      const oldVal = oldValues[key]
+      const newVal = newValues[key]
+      
+      // Skip if values are the same
+      if (oldVal === newVal) continue
+      
+      // Format the change
+      const formatValue = (val: any): string => {
+        if (val === null || val === undefined) return "—"
+        if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+        if (typeof val === 'object') return JSON.stringify(val)
+        return String(val)
+      }
+      
+      const oldFormatted = formatValue(oldVal)
+      const newFormatted = formatValue(newVal)
+      
+      // Human-readable field names
+      const fieldName = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim()
+      
+      if (oldVal === null || oldVal === undefined) {
+        changes.push(`${fieldName}: ${newFormatted}`)
+      } else if (newVal === null || newVal === undefined) {
+        changes.push(`${fieldName}: ${oldFormatted} → —`)
+      } else {
+        changes.push(`${fieldName}: ${oldFormatted} → ${newFormatted}`)
+      }
+    }
+    
+    if (changes.length === 0) {
+      return "—"
+    }
+    
+    return changes.join(", ")
+  }
+
+  // Component to render truncated details with tooltip
+  const TruncatedDetails = ({ details, maxLength = 50 }: { details: string; maxLength?: number }) => {
+    if (details === "—") {
+      return <span className="text-sm text-muted-foreground/70">—</span>
+    }
+
+    const shouldTruncate = details.length > maxLength
+    const displayText = shouldTruncate ? details.slice(0, maxLength) + "..." : details
+
+    if (!shouldTruncate) {
+      return <span className="text-sm text-muted-foreground/70">{details}</span>
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-help text-sm text-muted-foreground/70 block truncate max-w-[200px]">
+            {displayText}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs bg-popover/95 backdrop-blur-sm">
+          <p className="text-sm whitespace-pre-wrap">{details}</p>
+        </TooltipContent>
+      </Tooltip>
+    )
   }
 
   // Helper to get event icon and badge - using same styling as UserStatusBadge
@@ -879,18 +962,12 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           if (a.type === 'onboarding') {
             detailsA = a.data.rejectionReason || ""
           } else {
-            const props = a.data.properties
-            if (props?.old_values || props?.new_values) {
-              detailsA = JSON.stringify(props).substring(0, 50)
-            }
+            detailsA = formatLogDetails(a.data)
           }
           if (b.type === 'onboarding') {
             detailsB = b.data.rejectionReason || ""
           } else {
-            const props = b.data.properties
-            if (props?.old_values || props?.new_values) {
-              detailsB = JSON.stringify(props).substring(0, 50)
-            }
+            detailsB = formatLogDetails(b.data)
           }
           comparison = detailsA.localeCompare(detailsB, undefined, { sensitivity: 'base' })
           break
@@ -904,12 +981,13 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
   }, [auditEntries, sortConfig.column, sortConfig.direction, getReviewerName, getCauserName, users])
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="w-full rounded-2xl border border-white/20 dark:border-white/10 bg-card/80 backdrop-blur-xl shadow-xl shadow-primary/5 overflow-hidden"
-    >
+    <TooltipProvider>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="w-full rounded-2xl border border-white/20 dark:border-white/10 bg-card/80 backdrop-blur-xl shadow-xl shadow-primary/5 overflow-hidden"
+      >
       {/* Header with Glassmorphism */}
       <div className="relative border-b border-white/10 dark:border-white/5 bg-gradient-to-r from-muted/50 via-muted/30 to-muted/50 backdrop-blur-sm px-8 py-6">
         {/* Decorative gradient orb */}
@@ -1094,9 +1172,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                               )}
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <span className="text-sm text-muted-foreground/70 max-w-[200px] truncate block">
-                                {decision.rejectionReason || "—"}
-                              </span>
+                              <TruncatedDetails details={decision.rejectionReason || "—"} />
                             </TableCell>
                           </TableRow>
                         )
@@ -1192,11 +1268,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                               )}
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <span className="text-sm text-muted-foreground/70 max-w-[200px] truncate block">
-                                {log.properties?.old_values || log.properties?.new_values 
-                                  ? JSON.stringify(log.properties).substring(0, 50) + '...'
-                                  : "—"}
-                              </span>
+                              <TruncatedDetails details={formatLogDetails(log)} />
                             </TableCell>
                           </TableRow>
                         )
@@ -1209,6 +1281,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         )}
       </div>
     </motion.div>
+    </TooltipProvider>
   )
 }
 

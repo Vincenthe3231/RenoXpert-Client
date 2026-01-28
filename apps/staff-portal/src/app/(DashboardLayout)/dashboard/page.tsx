@@ -128,10 +128,68 @@ export default function Dashboard() {
 
   // Create unified audit entries (onboarding + activity logs)
   // Show both onboarding decisions (from onboardings table) and activity logs
+  // BUT: Filter out onboarding activity logs that duplicate onboarding decisions
+  // (Onboarding activity logs are displayed as "User Management" type, causing confusion)
   const auditEntries: AuditEntry[] = useMemo(() => {
+    // Get user IDs and timestamps from onboarding decisions
+    const onboardingUserTimestamps = new Map<number | string, number>()
+    decisions.forEach(decision => {
+      if (decision.userId && decision.reviewedAt) {
+        onboardingUserTimestamps.set(decision.userId, new Date(decision.reviewedAt).getTime())
+      }
+    })
+    
+    // Filter out onboarding activity logs that duplicate onboarding decisions
+    // Also filter out User Management "approved" logs that are duplicates
+    const filteredActivityLogs = activityLogs.filter(log => {
+      // Filter out onboarding activity logs that have a corresponding onboarding decision
+      // (These show as "User Management" in the UI but are actually onboarding logs)
+      if (log.logName === 'onboarding' && (log.event === 'approved' || log.event === 'rejected')) {
+        // The subjectId in onboarding logs is the onboarding ID, not the user ID
+        // Find the decision that matches this onboarding ID
+        const onboardingId = log.subjectId
+        const decision = decisions.find(d => d.id === onboardingId)
+        
+        if (decision && decision.reviewedAt) {
+          const logTimestamp = new Date(log.createdAt).getTime()
+          const decisionTimestamp = new Date(decision.reviewedAt).getTime()
+          const timeDiff = Math.abs(logTimestamp - decisionTimestamp)
+          
+          // If within 10 seconds, it's a duplicate - filter it out
+          if (timeDiff <= 10000) {
+            return false
+          }
+        }
+      }
+      
+      // Filter out User Management "approved" logs that are duplicates of onboarding decisions
+      if (log.logName === 'user') {
+        const event = String(log.event || '').toLowerCase()
+        
+        // Only filter "approved" events (keep other user management actions)
+        if (event === 'approved' || event === 'approve') {
+          const logTimestamp = new Date(log.createdAt).getTime()
+          const userId = log.subjectId || (log.subject as any)?.id
+          
+          // Check if this user has an onboarding decision around the same time
+          if (userId) {
+            const onboardingTimestamp = onboardingUserTimestamps.get(userId)
+            if (onboardingTimestamp) {
+              const timeDiff = Math.abs(logTimestamp - onboardingTimestamp)
+              // If within 10 seconds, it's a duplicate - filter it out
+              if (timeDiff <= 10000) {
+                return false
+              }
+            }
+          }
+        }
+      }
+      return true
+    })
+    
     return [
       ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
-      ...activityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
+      ...filteredActivityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
     ]
   }, [decisions, activityLogs])
 

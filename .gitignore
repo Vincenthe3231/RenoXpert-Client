@@ -59,3 +59,8 @@ yarn-error.log*
 # Ignored markdown files
 RBAC_INTEGRATION_PLAN.md
 SPATIE_RBAC_MIGRATION.md
+
+apps/nextjs-v5/
+apps/renohub-connect-main/
+apps/website/
+packages/
