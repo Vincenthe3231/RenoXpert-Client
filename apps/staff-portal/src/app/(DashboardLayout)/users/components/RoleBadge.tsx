@@ -39,6 +39,18 @@ const RoleBadge = ({ role }: RoleBadgeProps) => {
       className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100',
       icon: <User size={12} />,
     },
+    'owner': {
+      label: 'Owner',
+      variant: 'outline',
+      className: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+      icon: <User size={12} />,
+    },
+    'vendor': {
+      label: 'Vendor',
+      variant: 'outline',
+      className: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+      icon: <User size={12} />,
+    },
   }
 
   const config = roleConfig[normalizedRole] || {

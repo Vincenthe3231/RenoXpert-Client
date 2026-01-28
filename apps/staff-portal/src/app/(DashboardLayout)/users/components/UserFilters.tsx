@@ -34,6 +34,7 @@ function formatRoleName(roleName: string): string {
 const typeFilters: { label: string; value: UserType }[] = [
     { label: "Staff", value: "staff" },
     { label: "Owner", value: "owner" },
+    { label: "Vendor", value: "vendor" },
 ];
 
 const UserFilters = ({
@@ -124,6 +125,8 @@ const UserFilters = ({
                         return "bg-primary text-white hover:bg-primary/90 border-primary";
                     case "owner":
                         return "bg-secondary text-white hover:bg-secondary/90 border-secondary";
+                    case "vendor":
+                        return "bg-orange-500 text-white hover:bg-orange-600 border-orange-500";
                     default:
                         return "bg-primary text-white hover:bg-primary/90 border-primary";
                 }
@@ -169,6 +172,8 @@ const UserFilters = ({
                         return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
                     case "owner":
                         return "bg-lightsecondary text-secondary hover:bg-lightsecondary/80 border-secondary/20";
+                    case "vendor":
+                        return "bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800";
                     default:
                         return "bg-lightprimary text-primary hover:bg-lightprimary/80 border-primary/20";
                 }

@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save, X, User as UserIcon, Phone, Mail, MapPin, Shield, Globe } from "lucide-react"
-import { StaffUser, OwnerUser, User, StaffType } from "@/lib/api/auth/auth.schemas"
+import { StaffUser, OwnerUser, VendorUser, User, StaffType } from "@/lib/api/auth/auth.schemas"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/api/auth/auth.hooks"
+import { updateOwner, updateVendor } from "@/lib/api/auth/auth"
 import axios from "axios"
 import { useState, useEffect, useMemo } from "react"
 import { AUTH_QUERY_KEYS } from "@/lib/api/auth/constants"
@@ -41,6 +42,12 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   const [countryCode, setCountryCode] = useState<string>("")
   const [phoneNo, setPhoneNo] = useState("")
   const [location, setLocation] = useState("")
+  const [salutation, setSalutation] = useState<string>("")
+  const [address1, setAddress1] = useState("")
+  const [address2, setAddress2] = useState("")
+  const [city, setCity] = useState("")
+  const [state, setState] = useState("")
+  const [postcode, setPostcode] = useState("")
   const [selectedRole, setSelectedRole] = useState<StaffType>("staff")
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -103,23 +110,52 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   // Initialize form when user changes
   useEffect(() => {
     if (user) {
-      setName(user.name || "")
       setEmail(user.email || "")
       setCountryCode(user.countryCode || "")
       setPhoneNo(user.phoneNo || "")
       
-      // Format location from owner address fields
-      if (user.userType === 'owner') {
-        const owner = user as OwnerUser
+      // Handle name - remove salutation prefix if it exists
+      let cleanName = user.name || ""
+      if (user.userType === 'owner' || user.userType === 'vendor') {
+        const ownerOrVendor = user as OwnerUser | VendorUser
+        const salutationValue = ownerOrVendor.profile.salutation || ""
+        
+        // Set salutation
+        setSalutation(salutationValue || "")
+        
+        // Remove salutation from name if it's prefixed
+        if (salutationValue && cleanName.startsWith(salutationValue)) {
+          cleanName = cleanName.substring(salutationValue.length).trim()
+        }
+        
+        // Set address fields
+        setAddress1(ownerOrVendor.profile.address1 || "")
+        setAddress2(ownerOrVendor.profile.address2 || "")
+        setCity(ownerOrVendor.profile.city || "")
+        setState(ownerOrVendor.profile.state || "")
+        setPostcode(ownerOrVendor.profile.postcode || "")
+        
+        // Format location from address fields
         const addressParts = [
-          owner.profile.address1,
-          owner.profile.address2,
-          owner.profile.city,
-          owner.profile.state,
-          owner.profile.postcode,
+          ownerOrVendor.profile.address1,
+          ownerOrVendor.profile.address2,
+          ownerOrVendor.profile.city,
+          ownerOrVendor.profile.state,
+          ownerOrVendor.profile.postcode,
         ].filter(Boolean)
         setLocation(addressParts.join(", ") || "")
+      } else {
+        // Staff users don't have salutation
+        setSalutation("")
+        setAddress1("")
+        setAddress2("")
+        setCity("")
+        setState("")
+        setPostcode("")
+        setLocation("")
       }
+      
+      setName(cleanName)
       
       // Initialize role for staff users
       if (user.userType === 'staff' && (user as StaffUser).profile.roles) {
@@ -141,15 +177,37 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   }, [user])
 
   const updateUser = useMutation({
-    mutationFn: async (data: { name?: string; email?: string; phoneNo?: string; countryCode?: string; staffType?: StaffType }) => {
+    mutationFn: async (data: { 
+      name?: string
+      email?: string
+      phoneNo?: string
+      countryCode?: string
+      salutation?: string
+      address1?: string
+      address2?: string
+      city?: string
+      state?: string
+      postcode?: string
+      staffType?: StaffType 
+    }) => {
       if (!user) throw new Error("No user selected")
       
-      // For owners, prefer UUID (more reliable and universal)
-      // For staff, use ID if available, otherwise UUID
-      const identifier = user.userType === 'owner'
-        ? (user.uuid || (user.id ? String(user.id) : ''))
-        : (user.id ? String(user.id) : user.uuid)
+      // For owners and vendors, use updateOwner/updateVendor functions
+      if (user.userType === 'owner' || user.userType === 'vendor') {
+        const identifier = user.uuid || (user.id ? String(user.id) : '')
+        if (!identifier) {
+          throw new Error("No valid identifier found for user")
+        }
+        
+        if (user.userType === 'owner') {
+          return await updateOwner(identifier, data)
+        } else {
+          return await updateVendor(identifier, data)
+        }
+      }
       
+      // For staff users, use the existing endpoint
+      const identifier = user.id ? String(user.id) : user.uuid
       if (!identifier) {
         throw new Error("No valid identifier found for user")
       }
@@ -161,18 +219,14 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       if (data.phoneNo !== undefined) backendData.phone_no = data.phoneNo
       if (data.countryCode !== undefined) backendData.country_code = data.countryCode
       
-      // IMPORTANT: Backend OwnerController::update() method is not yet implemented
-      // Use /api/users/{id}/profile for owner updates (this endpoint works)
       // Use /api/auth/users/{id}/profile for staff profiles (super-admin/admin only)
-      const endpoint = user.userType === 'owner'
-        ? `/api/users/${identifier}/profile`
-        : `/api/auth/users/${identifier}/profile`
+      const endpoint = `/api/auth/users/${identifier}/profile`
       
       const { data: response } = await axios.put(endpoint, backendData)
       return response
     },
     onSuccess: (response) => {
-      // Invalidate and refetch user/owner queries to ensure UserDetailsDialog updates
+      // Invalidate and refetch user/owner/vendor queries to ensure UserDetailsDialog updates
       if (user) {
         if (user.userType === 'owner') {
           // Invalidate owner list to refresh the table
@@ -182,14 +236,23 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
           queryClient.refetchQueries({ queryKey: ['owner', user.uuid] })
           // Also invalidate user query in case it's being used
           queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
+        } else if (user.userType === 'vendor') {
+          // Invalidate vendor list to refresh the table
+          queryClient.invalidateQueries({ queryKey: ['vendors'] })
+          // Invalidate and refetch individual vendor query to update UserDetailsDialog immediately
+          queryClient.invalidateQueries({ queryKey: ['vendor', user.uuid] })
+          queryClient.refetchQueries({ queryKey: ['vendor', user.uuid] })
+          // Also invalidate user query in case it's being used
+          queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
         } else {
           // Invalidate staff user list to refresh the table
           queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
           // Invalidate and refetch individual user query to update UserDetailsDialog immediately
           queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
           queryClient.refetchQueries({ queryKey: AUTH_QUERY_KEYS.USER(user.uuid) })
-          // Also invalidate owner query in case it's being used
+          // Also invalidate owner/vendor queries in case it's being used
           queryClient.invalidateQueries({ queryKey: ['owner', user.uuid] })
+          queryClient.invalidateQueries({ queryKey: ['vendor', user.uuid] })
         }
       }
       // Refetch activity logs instead of invalidating to preserve previous data during refetch
@@ -244,17 +307,42 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     }
     if (!user) return
 
-    const updateData: { name?: string; email?: string; phoneNo?: string; countryCode?: string } = {}
+    const updateData: { 
+      name?: string
+      email?: string
+      phoneNo?: string
+      countryCode?: string
+      salutation?: string
+      address1?: string
+      address2?: string
+      city?: string
+      state?: string
+      postcode?: string
+    } = {}
+    
     // Only include fields that have actually changed and have non-empty values
     // Treat null/undefined/empty string as equivalent to avoid false positives
-    if (name !== user.name && name.trim() !== '') updateData.name = name
+    
+    // Handle name - compare with clean name (without salutation)
+    let userCleanName = user.name || ""
+    if (user.userType === 'owner' || user.userType === 'vendor') {
+      const ownerOrVendor = user as OwnerUser | VendorUser
+      const userSalutation = ownerOrVendor.profile.salutation || ""
+      if (userSalutation && userCleanName.startsWith(userSalutation)) {
+        userCleanName = userCleanName.substring(userSalutation.length).trim()
+      }
+    }
+    if (name !== userCleanName && name.trim() !== '') updateData.name = name
+    
     if (email !== user.email && email.trim() !== '') updateData.email = email
+    
     // For countryCode: only update if there's a change
     const normalizedCountryCode = countryCode.trim() || null
     const normalizedUserCountryCode = user.countryCode?.trim() || null
     if (normalizedCountryCode !== normalizedUserCountryCode) {
       updateData.countryCode = normalizedCountryCode || ''
     }
+    
     // For phoneNo: only update if there's a meaningful change (handle null vs empty string)
     const normalizedPhoneNo = phoneNo.trim() || null
     const normalizedUserPhoneNo = user.phoneNo?.trim() || null
@@ -262,6 +350,35 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       // Only include phoneNo if it's not empty, or if we're clearing it (user had phone, now empty)
       if (normalizedPhoneNo !== null || normalizedUserPhoneNo !== null) {
         updateData.phoneNo = normalizedPhoneNo || ''
+      }
+    }
+    
+    // Handle salutation and address fields for owners/vendors
+    if (user.userType === 'owner' || user.userType === 'vendor') {
+      const ownerOrVendor = user as OwnerUser | VendorUser
+      
+      // Salutation
+      const normalizedSalutation = salutation.trim() || null
+      const normalizedUserSalutation = ownerOrVendor.profile.salutation?.trim() || null
+      if (normalizedSalutation !== normalizedUserSalutation) {
+        updateData.salutation = normalizedSalutation || ''
+      }
+      
+      // Address fields
+      if (address1 !== ownerOrVendor.profile.address1) {
+        updateData.address1 = address1
+      }
+      if (address2 !== ownerOrVendor.profile.address2) {
+        updateData.address2 = address2
+      }
+      if (city !== ownerOrVendor.profile.city) {
+        updateData.city = city
+      }
+      if (state !== ownerOrVendor.profile.state) {
+        updateData.state = state
+      }
+      if (postcode !== ownerOrVendor.profile.postcode) {
+        updateData.postcode = postcode
       }
     }
 
@@ -392,21 +509,51 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     // Reset form when closing - use fresh user data if available
     const userToReset = freshUserData || initialUser
     if (userToReset) {
-      setName(userToReset.name || "")
       setEmail(userToReset.email || "")
       setCountryCode(userToReset.countryCode || "")
       setPhoneNo(userToReset.phoneNo || "")
-      if (userToReset.userType === 'owner') {
-        const owner = userToReset as OwnerUser
+      
+      // Handle name - remove salutation prefix if it exists
+      let cleanName = userToReset.name || ""
+      if (userToReset.userType === 'owner' || userToReset.userType === 'vendor') {
+        const ownerOrVendor = userToReset as OwnerUser | VendorUser
+        const salutationValue = ownerOrVendor.profile.salutation || ""
+        
+        // Set salutation
+        setSalutation(salutationValue || "")
+        
+        // Remove salutation from name if it's prefixed
+        if (salutationValue && cleanName.startsWith(salutationValue)) {
+          cleanName = cleanName.substring(salutationValue.length).trim()
+        }
+        
+        // Set address fields
+        setAddress1(ownerOrVendor.profile.address1 || "")
+        setAddress2(ownerOrVendor.profile.address2 || "")
+        setCity(ownerOrVendor.profile.city || "")
+        setState(ownerOrVendor.profile.state || "")
+        setPostcode(ownerOrVendor.profile.postcode || "")
+        
+        // Format location from address fields
         const addressParts = [
-          owner.profile.address1,
-          owner.profile.address2,
-          owner.profile.city,
-          owner.profile.state,
-          owner.profile.postcode,
+          ownerOrVendor.profile.address1,
+          ownerOrVendor.profile.address2,
+          ownerOrVendor.profile.city,
+          ownerOrVendor.profile.state,
+          ownerOrVendor.profile.postcode,
         ].filter(Boolean)
         setLocation(addressParts.join(", ") || "")
+      } else {
+        setSalutation("")
+        setAddress1("")
+        setAddress2("")
+        setCity("")
+        setState("")
+        setPostcode("")
+        setLocation("")
       }
+      
+      setName(cleanName)
     }
   }
 
@@ -430,6 +577,32 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
           <div className="max-h-[60vh] space-y-6 overflow-y-auto p-6 pt-4">
             <AdminSection title="Personal Information">
               <div className="grid gap-4 sm:grid-cols-2">
+                {(user.userType === 'owner' || user.userType === 'vendor') && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <UserIcon className="h-4 w-4" />
+                      Salutation
+                    </Label>
+                    <Select
+                      value={salutation ? salutation : "__none__"}
+                      onValueChange={(value) => {
+                        // Handle special "__none__" value to clear salutation
+                        setSalutation(value === "__none__" ? "" : value)
+                      }}
+                      disabled={updateUser.isPending}
+                    >
+                      <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Select salutation" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="__none__">None</SelectItem>
+                        <SelectItem value="Mr">Mr</SelectItem>
+                        <SelectItem value="Mrs">Mrs</SelectItem>
+                        <SelectItem value="Ms">Ms</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <AdminFormField
                   id="name"
                   label="Full Name"
@@ -509,15 +682,65 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
                   placeholder="Enter phone number"
                   disabled={updateUser.isPending}
                 />
-                <AdminFormField
-                  id="location"
-                  label="Location"
-                  icon={MapPin}
-                  value={location || ""}
-                  onChange={setLocation}
-                  placeholder="Enter location"
-                  disabled={updateUser.isPending}
-                />
+                {(user.userType === 'owner' || user.userType === 'vendor') ? (
+                  <>
+                    <AdminFormField
+                      id="address1"
+                      label="Address Line 1"
+                      icon={MapPin}
+                      value={address1 || ""}
+                      onChange={setAddress1}
+                      placeholder="Enter address line 1"
+                      disabled={updateUser.isPending}
+                    />
+                    <AdminFormField
+                      id="address2"
+                      label="Address Line 2"
+                      icon={MapPin}
+                      value={address2 || ""}
+                      onChange={setAddress2}
+                      placeholder="Enter address line 2 (optional)"
+                      disabled={updateUser.isPending}
+                    />
+                    <AdminFormField
+                      id="city"
+                      label="City"
+                      icon={MapPin}
+                      value={city || ""}
+                      onChange={setCity}
+                      placeholder="Enter city"
+                      disabled={updateUser.isPending}
+                    />
+                    <AdminFormField
+                      id="state"
+                      label="State"
+                      icon={MapPin}
+                      value={state || ""}
+                      onChange={setState}
+                      placeholder="Enter state"
+                      disabled={updateUser.isPending}
+                    />
+                    <AdminFormField
+                      id="postcode"
+                      label="Postcode"
+                      icon={MapPin}
+                      value={postcode || ""}
+                      onChange={setPostcode}
+                      placeholder="Enter postcode"
+                      disabled={updateUser.isPending}
+                    />
+                  </>
+                ) : (
+                  <AdminFormField
+                    id="location"
+                    label="Location"
+                    icon={MapPin}
+                    value={location || ""}
+                    onChange={setLocation}
+                    placeholder="Enter location"
+                    disabled={updateUser.isPending}
+                  />
+                )}
               </div>
             </AdminSection>
 

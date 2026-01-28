@@ -9,7 +9,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import UserFilters from "./components/UserFilters";
-import { useUsers, useAuth, useOwners } from "@/lib/api/auth/auth.hooks";
+import { useUsers, useAuth, useOwners, useVendors } from "@/lib/api/auth/auth.hooks";
 import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
 import UserTable from "./components/UserTable";
 
@@ -215,67 +215,88 @@ const UsersPage = () => {
         return params;
     }, [statusFilter, typeFilter, debouncedSearchQuery, isStaff]);
 
-    // Staff users must use /api/owners endpoint (they don't have permission for /api/auth/users)
+    // Staff users must use /api/owners or /api/vendors endpoint (they don't have permission for /api/auth/users)
     // Admin and super-admin continue using /api/auth/users endpoint (unchanged)
     const isStaffFilteringOwners = isStaff && filterParams.type === 'owner';
+    const isStaffFilteringVendors = isStaff && filterParams.type === 'vendor';
+    const isStaffFiltering = isStaffFilteringOwners || isStaffFilteringVendors;
     
     // Only call useOwners when staff is filtering for owners
     const { data: ownersData, isLoading: isOwnersLoading, error: ownersError } = useOwners(
         isStaffFilteringOwners ? filterParams : undefined
     );
     
-    // Admin and super-admin always use useUsers (unchanged)
-    // Staff users also use useUsers when NOT filtering for owners (though this shouldn't happen due to UI lock)
-    const { data: usersData, isLoading: isUsersLoading, error: usersError } = useUsers(
-        !isStaffFilteringOwners ? filterParams : undefined
+    // Only call useVendors when staff is filtering for vendors
+    const { data: vendorsData, isLoading: isVendorsLoading, error: vendorsError } = useVendors(
+        isStaffFilteringVendors ? filterParams : undefined
     );
     
-    // Use owners data for staff filtering owners, users data otherwise (admin/super-admin)
-    const usersDataFinal = isStaffFilteringOwners ? ownersData : usersData;
-    const isLoading = isStaffFilteringOwners ? isOwnersLoading : isUsersLoading;
-    const error = isStaffFilteringOwners ? ownersError : usersError;
+    // Admin and super-admin always use useUsers (unchanged)
+    // Staff users also use useUsers when NOT filtering for owners/vendors (though this shouldn't happen due to UI lock)
+    const { data: usersData, isLoading: isUsersLoading, error: usersError } = useUsers(
+        !isStaffFiltering ? filterParams : undefined
+    );
+    
+    // Use owners data for staff filtering owners, vendors data for staff filtering vendors, users data otherwise
+    const usersDataFinal = isStaffFilteringOwners ? ownersData : isStaffFilteringVendors ? vendorsData : usersData;
+    const isLoading = isStaffFilteringOwners ? isOwnersLoading : isStaffFilteringVendors ? isVendorsLoading : isUsersLoading;
+    const error = isStaffFilteringOwners ? ownersError : isStaffFilteringVendors ? vendorsError : usersError;
     const users = usersDataFinal?.data ?? [];
     
-    // For owners missing phone numbers, fetch individual owner details to get complete data
-    // This is needed because the owners list endpoint may not include phone_no/country_code
-    const ownersMissingPhone = useMemo(() => {
-        if (!isStaffFilteringOwners) return []
-        return users.filter((user: any) => user.userType === 'owner' && (!user.phoneNo || !user.countryCode) && user.uuid)
-    }, [users, isStaffFilteringOwners])
+    // For owners/vendors missing phone numbers, fetch individual details to get complete data
+    // This is needed because the owners/vendors list endpoint may not include phone_no/country_code
+    const ownersOrVendorsMissingPhone = useMemo(() => {
+        if (!isStaffFiltering) return []
+        return users.filter((user: any) => 
+            (user.userType === 'owner' || user.userType === 'vendor') && 
+            (!user.phoneNo || !user.countryCode) && 
+            user.uuid
+        )
+    }, [users, isStaffFiltering])
     
-    // Fetch individual owner details for owners missing phone numbers using useQueries
-    const ownerDetailQueries = useQueries({
-        queries: ownersMissingPhone.map((owner: any) => ({
-            queryKey: ['owner', owner.uuid],
+    // Fetch individual owner/vendor details for missing phone numbers using useQueries
+    // Note: For now, vendors will use the same pattern as owners
+    // If you create a getVendor function later, update this to use it
+    const ownerOrVendorDetailQueries = useQueries({
+        queries: ownersOrVendorsMissingPhone.map((user: any) => ({
+            queryKey: [user.userType === 'owner' ? 'owner' : 'vendor', user.uuid],
             queryFn: async () => {
                 const { getOwner } = await import('@/lib/api/auth/auth')
-                return getOwner(owner.uuid)
+                // For now, vendors use the same endpoint pattern as owners
+                // If backend has a separate /api/vendors/{id} endpoint, create getVendor function
+                if (user.userType === 'owner') {
+                    return getOwner(user.uuid)
+                } else {
+                    // For vendors, we'll use getOwner pattern for now
+                    // TODO: Create getVendor function if backend has separate endpoint
+                    return getOwner(user.uuid)
+                }
             },
-            enabled: !!owner.uuid,
+            enabled: !!user.uuid,
             staleTime: 0, // Always fetch fresh data
         })),
     })
     
-    // Create a map of enriched owner data
-    const enrichedOwnerMap = useMemo(() => {
+    // Create a map of enriched owner/vendor data
+    const enrichedOwnerOrVendorMap = useMemo(() => {
         const map = new Map()
-        ownerDetailQueries.forEach((query, index) => {
-            if (query.data && ownersMissingPhone[index]) {
-                map.set(ownersMissingPhone[index].uuid, query.data)
+        ownerOrVendorDetailQueries.forEach((query, index) => {
+            if (query.data && ownersOrVendorsMissingPhone[index]) {
+                map.set(ownersOrVendorsMissingPhone[index].uuid, query.data)
             }
         })
         return map
-    }, [ownerDetailQueries, ownersMissingPhone])
+    }, [ownerOrVendorDetailQueries, ownersOrVendorsMissingPhone])
     
-    // Enrich owners list with phone numbers from individual queries
+    // Enrich owners/vendors list with phone numbers from individual queries
     const enrichedUsers = useMemo(() => {
-        if (!isStaffFilteringOwners) return users
+        if (!isStaffFiltering) return users
         
         return users.map((user: any) => {
-            if (user.userType !== 'owner') return user
+            if (user.userType !== 'owner' && user.userType !== 'vendor') return user
             
-            // Check if we have enriched data for this owner
-            const enrichedData = enrichedOwnerMap.get(user.uuid)
+            // Check if we have enriched data for this owner/vendor
+            const enrichedData = enrichedOwnerOrVendorMap.get(user.uuid)
             
             // If we have enriched data with phone number, use it
             if (enrichedData && (!user.phoneNo || !user.countryCode)) {
@@ -288,10 +309,10 @@ const UsersPage = () => {
             
             return user
         })
-    }, [users, isStaffFilteringOwners, enrichedOwnerMap])
+    }, [users, isStaffFiltering, enrichedOwnerOrVendorMap])
     
-    // Use enriched users for owners, regular users for staff
-    const finalUsers = isStaffFilteringOwners ? enrichedUsers : users;
+    // Use enriched users for owners/vendors, regular users for staff
+    const finalUsers = isStaffFiltering ? enrichedUsers : users;
 
     return (
         <div className="space-y-6">

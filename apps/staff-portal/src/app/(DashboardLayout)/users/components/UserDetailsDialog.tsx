@@ -16,7 +16,7 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react"
-import { StaffUser, OwnerUser, User } from "@/lib/api/auth/auth.schemas"
+import { StaffUser, OwnerUser, VendorUser, User } from "@/lib/api/auth/auth.schemas"
 import { useUser, useActivateUser, useDeactivateUser, useAuth, useOwner } from "@/lib/api/auth/auth.hooks"
 import { useQueryClient } from "@tanstack/react-query"
 import UserStatusBadge from "./UserStatusBadge"
@@ -260,13 +260,13 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     icon={MapPin}
                     label="Location"
                     value={
-                      user.userType === "owner"
+                      user.userType === "owner" || user.userType === "vendor"
                         ? ([
-                            (user as OwnerUser).profile.address1,
-                            (user as OwnerUser).profile.address2,
-                            (user as OwnerUser).profile.city,
-                            (user as OwnerUser).profile.state,
-                            (user as OwnerUser).profile.postcode,
+                            (user as OwnerUser | VendorUser).profile.address1,
+                            (user as OwnerUser | VendorUser).profile.address2,
+                            (user as OwnerUser | VendorUser).profile.city,
+                            (user as OwnerUser | VendorUser).profile.state,
+                            (user as OwnerUser | VendorUser).profile.postcode,
                           ]
                             .filter(Boolean)
                             .join(", ") || "Not provided")
@@ -286,7 +286,11 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     value={
                       user.userType === "staff"
                         ? (user as StaffUser).profile.roles?.join(", ") || "—"
-                        : "Owner"
+                        : user.userType === "owner"
+                        ? "Owner"
+                        : user.userType === "vendor"
+                        ? "Vendor"
+                        : "—"
                     }
                     index={5}
                   />

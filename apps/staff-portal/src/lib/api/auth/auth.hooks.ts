@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners, getOwner, updateOwner, deleteOwner } from './auth'
+import { login, getMe, logout, getUsers, getUser, deactivateUser, activateUser, getOwners, getOwner, updateOwner, deleteOwner, getVendors } from './auth'
 import type {
     StaffUser,
     LoginInput,
@@ -32,7 +32,7 @@ export function useAuth() {
 export function useLogin() {
     const queryClient = useQueryClient()
 
-    return useMutation<StaffUser, Error, LoginInput>({
+    return useMutation<User, Error, LoginInput>({
         mutationFn: login,
         onSuccess: (user) => {
             // Clear all queries first to ensure no stale data
@@ -96,6 +96,27 @@ export function ownersQueryOptions(params?: GetUsersParams) {
  */
 export function useOwners(params?: GetUsersParams) {
     return useQuery(ownersQueryOptions(params))
+}
+
+/**
+ * Query options factory for vendors list (for staff users)
+ */
+export function vendorsQueryOptions(params?: GetUsersParams) {
+    return queryOptions({
+        queryKey: ['vendors', params],
+        queryFn: () => getVendors(params),
+        enabled: params !== undefined,
+        placeholderData: keepPreviousData,
+        staleTime: USER_QUERY_CONFIG.STALE_TIME,
+    })
+}
+
+/**
+ * Hook to fetch vendors list
+ * Used by staff users who don't have permission to access /users endpoint
+ */
+export function useVendors(params?: GetUsersParams) {
+    return useQuery(vendorsQueryOptions(params))
 }
 
 /**

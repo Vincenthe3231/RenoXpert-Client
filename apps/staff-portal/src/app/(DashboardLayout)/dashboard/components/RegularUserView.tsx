@@ -1,11 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Clock, XCircle, Ban, AlertCircle } from "lucide-react"
-import { StaffUser, UserStatus } from "@/lib/api/auth"
+import { User, UserStatus, StaffUser } from "@/lib/api/auth"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatusBadge"
 
 interface RegularUserViewProps {
-  user: StaffUser | null | undefined
+  user: User | null | undefined
 }
 
 const RegularUserView = ({ user }: RegularUserViewProps) => {
@@ -54,6 +54,24 @@ const RegularUserView = ({ user }: RegularUserViewProps) => {
 
   const config = statusConfig[status]
 
+  // Determine role based on userType
+  const getUserRole = (): string => {
+    if (!user) return "Staff"
+    
+    // For staff users, use profile.roles
+    if (user.userType === 'staff' && 'profile' in user && 'roles' in user.profile) {
+      const roles = (user as StaffUser).profile.roles || []
+      return roles[0] || "Staff"
+    }
+    
+    // For owners and vendors, use userType (capitalize first letter)
+    if (user.userType === 'owner' || user.userType === 'vendor') {
+      return user.userType.charAt(0).toUpperCase() + user.userType.slice(1)
+    }
+    
+    return "Staff"
+  }
+
   return (
     <div className="space-y-6">
       <Card className="max-w-2xl mx-auto shadow-card rounded-full">
@@ -80,7 +98,7 @@ const RegularUserView = ({ user }: RegularUserViewProps) => {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Role:</span>
-                <RoleBadge role={user?.profile?.roles?.[0] || "Staff"} />
+                <RoleBadge role={getUserRole()} />
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Status:</span>

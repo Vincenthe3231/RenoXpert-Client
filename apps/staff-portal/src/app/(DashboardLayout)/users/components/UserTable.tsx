@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { User, StaffUser, OwnerUser } from "@/lib/api/auth/auth.schemas";
+import { User, StaffUser, OwnerUser, VendorUser } from "@/lib/api/auth/auth.schemas";
 import { useDeactivateUser, useAuth } from "@/lib/api/auth/auth.hooks";
 import { useToast } from "@/hooks/use-toast";
 import UserDetailsDialog from "./UserDetailsDialog";
@@ -7,6 +7,7 @@ import { DeactivateUserDialog } from "./DeactivateUserDialog";
 import EditUserDialog from "./EditUserDialog";
 import { StaffTable } from "./StaffTable";
 import { OwnerTable } from "./OwnerTable";
+import { VendorTable } from "./VendorTable";
 
 interface UserTableProps {
     users: User[];
@@ -17,6 +18,7 @@ interface UserTableProps {
 // Type guards
 const isStaffUser = (user: User): user is StaffUser => user.userType === "staff";
 const isOwnerUser = (user: User): user is OwnerUser => user.userType === "owner";
+const isVendorUser = (user: User): user is VendorUser => user.userType === "vendor";
 
 const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
     const { data: currentUser } = useAuth();
@@ -159,6 +161,7 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
     // Group users by type
     const staffUsers = users.filter(isStaffUser);
     const ownerUsers = users.filter(isOwnerUser);
+    const vendorUsers = users.filter(isVendorUser);
 
     return (
         <>
@@ -177,6 +180,16 @@ const UserTable = ({ users, onViewUser, isStaff = false }: UserTableProps) => {
                 {ownerUsers.length > 0 && (
                     <OwnerTable 
                         users={ownerUsers} 
+                        onView={handleViewDetails} 
+                        onDeactivate={handleDeactivateClick}
+                        onEdit={canEditOwners ? handleEditClick : undefined}
+                        hideDeactivate={isStaff}
+                        canEdit={canEditOwners}
+                    />
+                )}
+                {vendorUsers.length > 0 && (
+                    <VendorTable 
+                        users={vendorUsers} 
                         onView={handleViewDetails} 
                         onDeactivate={handleDeactivateClick}
                         onEdit={canEditOwners ? handleEditClick : undefined}

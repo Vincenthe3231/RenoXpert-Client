@@ -1,13 +1,13 @@
 import { z } from 'zod'
 
 // User Types
-export type UserType = "staff" | "owner";
+export type UserType = "staff" | "owner" | "vendor";
 export type StaffType = "super-admin" | "admin" | "staff";
 export type OwnerType = "owner";
 export type UserStatus = "active" | "deactivated" | "verifying" | "rejected";
 
 // Zod Schemas
-export const userTypeSchema = z.enum(["staff", "owner"]);
+export const userTypeSchema = z.enum(["staff", "owner", "vendor"]);
 export const staffRoleSchema = z.enum(["super-admin", "admin", "staff"]);
 export const ownerRoleSchema = z.enum(["owner"]);
 export const userStatusSchema = z.enum(["active", "deactivated", "verifying", "rejected"]);
@@ -68,10 +68,20 @@ export const ownerUserSchema = z.object({
     profile: ownerProfileSchema,
 });
 
+export const vendorProfileSchema = z.object({
+    salutation: z.string().nullable().optional(),
+    ic: z.string().nullable().optional(),
+    address1: z.string().nullable().optional(),
+    address2: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    state: z.string().nullable().optional(),
+    postcode: z.string().nullable().optional(),
+});
+
 export const vendorUserSchema = z.object({
     ...baseUserSchema,
     userType: z.literal('vendor'),
-    profile: z.record(z.any(), z.any()),
+    profile: vendorProfileSchema,
 });
 
 // Full user types with proper inheritance + discriminator
@@ -90,7 +100,7 @@ export const LoginInputSchema = z.object({
 export const LoginResponseSchema = z.object({
     message: z.string().optional(),
     data: z.object({
-        user: staffUserSchema,
+        user: z.union([staffUserSchema, ownerUserSchema, vendorUserSchema]),
         accessStatus: z.string().optional(),
         rejectionReason: z.string().nullable().optional(),
         token: z.string().optional(),
@@ -104,7 +114,7 @@ export const MeResponseSchema = z.union([
     z.object({
         message: z.string().optional(),
         data: z.object({
-            user: staffUserSchema,
+            user: z.union([staffUserSchema, ownerUserSchema, vendorUserSchema]),
             accessStatus: z.string().optional(),
             rejectionReason: z.string().nullable().optional(),
             token: z.string().optional(),
