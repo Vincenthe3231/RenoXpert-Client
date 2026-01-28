@@ -238,7 +238,23 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
   }
 
   // Helper to get event icon and badge - using same styling as UserStatusBadge
-  const getEventDisplay = (event: string) => {
+  const getEventDisplay = (event: string, log?: any) => {
+    // Special case: 'pending' event that represents an approval
+    // Backend sends event: 'pending' when status changes from pending → approved
+    if (
+      event === 'pending' &&
+      log?.logName === 'onboarding' &&
+      log?.properties?.old?.status === 'pending' &&
+      log?.properties?.attributes?.status === 'approved'
+    ) {
+      return {
+        icon: CheckCircle,
+        label: 'Pending', // Shows previous status before approval
+        variant: 'outline' as const,
+        className: 'gap-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
+      }
+    }
+
     switch (event) {
       case 'deactivated':
         return {
@@ -268,10 +284,25 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           variant: 'outline' as const,
           className: 'gap-1 bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
         }
+      case 'verifying':
+        return {
+          icon: Loader2,
+          label: 'Verifying',
+          variant: 'outline' as const,
+          className: 'gap-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
+        }
+      case 'pending':
+        // Regular pending status (not an approval)
+        return {
+          icon: History,
+          label: 'Pending',
+          variant: 'outline' as const,
+          className: 'gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100',
+        }
       default:
         return {
           icon: History,
-          label: event,
+          label: event.charAt(0).toUpperCase() + event.slice(1), // Capitalize first letter
           variant: 'outline' as const,
           className: 'gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100',
         }
@@ -311,10 +342,16 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         const reviewedAtTime = new Date(reviewedAt).getTime()
         
         // First, look for the onboarding activity log itself
-        // It has logName: "onboarding", event: "approved" or "rejected", and subjectId matches onboardingId
+        // It has logName: "onboarding", event: "approved", "rejected", "verifying", or "pending" (approval), and subjectId matches onboardingId
         const onboardingActivityLog = activityLogs.find((log: any) => {
           if (log.logName !== 'onboarding') return false
-          if (log.event !== 'approved' && log.event !== 'rejected') return false
+          const isApprovalPending = log.event === 'pending' && 
+            log.properties?.old?.status === 'pending' && 
+            log.properties?.attributes?.status === 'approved'
+          if (log.event !== 'approved' && 
+              log.event !== 'rejected' && 
+              log.event !== 'verifying' && 
+              !isApprovalPending) return false
           // Match by onboarding ID (subjectId in onboarding log is the onboarding ID, not user ID)
           if (log.subjectId && log.subjectId === onboardingId) return true
           // Also check by timestamp (within 1 minute of reviewedAt)
@@ -326,9 +363,11 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         // Extract historical name from onboarding activity log description
         // Format: "Staff onboarding approved for {name} with role: {role}"
         // or: "Staff onboarding rejected for {name}"
+        // or: "Staff onboarding verifying for {name}"
+        // or: "Staff onboarding pending for {name}" (when pending represents approval)
         if (onboardingActivityLog && onboardingActivityLog.description) {
           const descriptionMatch = onboardingActivityLog.description.match(
-            /Staff onboarding (?:approved|rejected) for (.+?)(?:\s+with role:|$)/i
+            /Staff onboarding (?:approved|rejected|verifying|pending) for (.+?)(?:\s+with role:|$)/i
           )
           if (descriptionMatch && descriptionMatch[1]) {
             const extractedName = descriptionMatch[1].trim()
@@ -462,10 +501,20 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       // SPECIAL CASE: For onboarding activity logs, extract historical name from description
       // This ensures immutability - the description contains the name at the time of onboarding
       // Format: "Staff onboarding approved for {name} with role: {role}"
-      if (log.logName === 'onboarding' && (log.event === 'approved' || log.event === 'rejected')) {
+      // or: "Staff onboarding verifying for {name}"
+      // or: "Staff onboarding pending for {name}" (when pending represents approval)
+      const isApprovalPending = log.event === 'pending' && 
+        log.properties?.old?.status === 'pending' && 
+        log.properties?.attributes?.status === 'approved'
+      if (log.logName === 'onboarding' && (
+        log.event === 'approved' || 
+        log.event === 'rejected' || 
+        log.event === 'verifying' ||
+        isApprovalPending
+      )) {
         if (log.description) {
           const descriptionMatch = log.description.match(
-            /Staff onboarding (?:approved|rejected) for (.+?)(?:\s+with role:|$)/i
+            /Staff onboarding (?:approved|rejected|verifying|pending) for (.+?)(?:\s+with role:|$)/i
           )
           if (descriptionMatch && descriptionMatch[1]) {
             const extractedName = descriptionMatch[1].trim()
@@ -1013,13 +1062,13 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           if (a.type === 'onboarding') {
             actionA = a.data.status || "Unknown"
           } else {
-            const eventDisplay = getEventDisplay(a.data.event)
+            const eventDisplay = getEventDisplay(a.data.event, a.data)
             actionA = eventDisplay.label
           }
           if (b.type === 'onboarding') {
             actionB = b.data.status || "Unknown"
           } else {
-            const eventDisplay = getEventDisplay(b.data.event)
+            const eventDisplay = getEventDisplay(b.data.event, b.data)
             actionB = eventDisplay.label
           }
           comparison = actionA.localeCompare(actionB, undefined, { sensitivity: 'base' })
@@ -1301,7 +1350,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                         )
                       } else {
                         const log = entry.data
-                        const eventDisplay = getEventDisplay(log.event)
+                        const eventDisplay = getEventDisplay(log.event, log)
                         const EventIcon = eventDisplay.icon
                         
                         return (
@@ -1333,7 +1382,9 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                             </TableCell>
                             <TableCell className="py-5 px-6">
                               <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-3 py-1 text-xs font-medium text-primary shadow-sm">
-                                User Management
+                                {log.logName === 'onboarding' || log.properties?.module === 'onboarding' 
+                                  ? 'Onboarding' 
+                                  : 'User Management'}
                               </span>
                             </TableCell>
                             <TableCell className="py-5 px-6">

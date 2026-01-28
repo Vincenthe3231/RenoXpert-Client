@@ -380,8 +380,16 @@ export default function AuditPage() {
     // Also filter out User Management "approved" logs that are duplicates
     const filteredActivityLogs = activityLogs.filter(log => {
       // Filter out onboarding activity logs that have a corresponding onboarding decision
-      // (These show as "User Management" in the UI but are actually onboarding logs)
-      if (log.logName === 'onboarding' && (log.event === 'approved' || log.event === 'rejected')) {
+      // (These show as "Onboarding" in the UI but are actually onboarding logs)
+      const isApprovalPending = log.event === 'pending' && 
+        log.properties?.old?.status === 'pending' && 
+        log.properties?.attributes?.status === 'approved'
+      if (log.logName === 'onboarding' && (
+        log.event === 'approved' || 
+        log.event === 'rejected' || 
+        log.event === 'verifying' ||
+        isApprovalPending
+      )) {
         // The subjectId in onboarding logs is the onboarding ID, not the user ID
         // Find the decision that matches this onboarding ID
         const onboardingId = log.subjectId
