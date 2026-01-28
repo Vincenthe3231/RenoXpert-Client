@@ -312,234 +312,70 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
   /**
    * Helper to get user from audit entry
    * 
-   * USER COLUMN: Shows current username from log.subject.name (backend provides current user info)
+   * BUSINESS LOGIC: Always use current username - the latest username change overwrites all previous usernames
+   * 
+   * USER COLUMN: Shows current username (always from current user data)
    * DETAILS COLUMN: Shows historical changes from log.properties (old → new values)
    * 
-   * Priority order for USER column:
-   * 1. log.subject.name (current name - backend provides this)
-   * 2. log.subject.email (fallback if name is missing)
-   * 3. Parse description (backward compatibility for old log entries)
-   * 4. Current users list (last resort for email/avatar only)
+   * Priority order for USER column (always current):
+   * 1. Current user from entry.data.user (onboarding entries) or users list (activity logs)
+   * 2. log.subject.name (if backend provides current data)
+   * 3. Fallback to description parsing (only if current data unavailable)
    * 
    * Note: Historical changes are still preserved in DETAILS column via log.properties
    */
   const getUserFromEntry = (entry: AuditEntry) => {
     if (entry.type === 'onboarding') {
-      // CRITICAL AUDIT TRAIL INTEGRITY ISSUE:
-      // entry.data.user might contain CURRENT user data (after profile updates) instead of HISTORICAL data
-      // We need to preserve the historical name that was used at the time of onboarding
+      // BUSINESS LOGIC: Always use current username from entry.data.user
+      // The latest username change should overwrite all previous usernames in the audit trail
       const onboardingUser = entry.data.user
-      const onboardingId = entry.data.id
       const userId = entry.data.userId
-      const reviewedAt = entry.data.reviewedAt
       
-      // PRIORITY 1: Find the onboarding activity log itself (most reliable source of historical data)
-      // The onboarding activity log has logName: "onboarding" and contains the historical name in its description
-      // Example: "Staff onboarding approved for Law Wen Sen with role: staff"
-      // This is IMMUTABLE data created at the time of onboarding approval
-      let historicalUserData = null
-      if (onboardingId && reviewedAt && activityLogs && activityLogs.length > 0) {
-        const reviewedAtTime = new Date(reviewedAt).getTime()
-        
-        // First, look for the onboarding activity log itself
-        // It has logName: "onboarding", event: "approved", "rejected", "verifying", or "pending" (approval), and subjectId matches onboardingId
-        const onboardingActivityLog = activityLogs.find((log: any) => {
-          if (log.logName !== 'onboarding') return false
-          const isApprovalPending = log.event === 'pending' && 
-            log.properties?.old?.status === 'pending' && 
-            log.properties?.attributes?.status === 'approved'
-          if (log.event !== 'approved' && 
-              log.event !== 'rejected' && 
-              log.event !== 'verifying' && 
-              !isApprovalPending) return false
-          // Match by onboarding ID (subjectId in onboarding log is the onboarding ID, not user ID)
-          if (log.subjectId && log.subjectId === onboardingId) return true
-          // Also check by timestamp (within 1 minute of reviewedAt)
-          const logTime = new Date(log.createdAt).getTime()
-          const timeDiff = Math.abs(reviewedAtTime - logTime)
-          return timeDiff < 60000 // Within 1 minute
+      // PRIORITY 1: Use current user data from onboarding entry (always current)
+      if (onboardingUser?.name) {
+        return onboardingUser
+      }
+      
+      // PRIORITY 2: If name missing in entry.data.user, try to get from current users list
+      if (userId) {
+        const foundUser = userMapById?.get(userId) || users.find((u) => {
+          if (u.id != null && Number(u.id) === Number(userId)) return true
+          if (u.uuid && onboardingUser?.uuid && String(u.uuid) === String(onboardingUser.uuid)) return true
+          return false
         })
-        
-        // Extract historical name from onboarding activity log description
-        // Format: "Staff onboarding approved for {name} with role: {role}"
-        // or: "Staff onboarding rejected for {name}"
-        // or: "Staff onboarding verifying for {name}"
-        // or: "Staff onboarding pending for {name}" (when pending represents approval)
-        if (onboardingActivityLog && onboardingActivityLog.description) {
-          const descriptionMatch = onboardingActivityLog.description.match(
-            /Staff onboarding (?:approved|rejected|verifying|pending) for (.+?)(?:\s+with role:|$)/i
-          )
-          if (descriptionMatch && descriptionMatch[1]) {
-            const extractedName = descriptionMatch[1].trim()
-            if (extractedName && extractedName !== 'for') {
-              historicalUserData = {
-                name: extractedName,
-                email: onboardingUser?.email || null,
-                id: userId || null,
-                uuid: onboardingUser?.uuid || null,
-                status: onboardingUser?.status || null,
-                userType: onboardingUser?.userType || null,
-                profile: onboardingUser?.profile || undefined,
-              }
-              // Return immediately - this is the most reliable historical data
-              if (historicalUserData.name) {
-                return historicalUserData
-              }
-            }
-          }
-        }
-        
-        // PRIORITY 2: Look for activity logs with the same subjectId (userId) created before onboarding
-        // This helps find historical data from user-related logs before the name change
-        const relatedLogs = activityLogs.filter((log: any) => {
-          if (!log.subjectId || log.subjectId !== userId) return false
-          // Skip the onboarding log itself (already checked above)
-          if (log.logName === 'onboarding') return false
-          const logTime = new Date(log.createdAt).getTime()
-          const timeDiff = reviewedAtTime - logTime // Positive if log is before reviewedAt
-          // Include logs created up to 1 hour before onboarding review, or 1 minute after
-          return (timeDiff >= 0 && timeDiff < 3600000) || (timeDiff < 0 && Math.abs(timeDiff) < 60000)
-        })
-        
-        // Sort by creation time (newest first, but prioritize logs before reviewedAt)
-        relatedLogs.sort((a: any, b: any) => {
-          const aTime = new Date(a.createdAt).getTime()
-          const bTime = new Date(b.createdAt).getTime()
-          const aBefore = aTime <= reviewedAtTime
-          const bBefore = bTime <= reviewedAtTime
-          // Prioritize logs created before reviewedAt
-          if (aBefore && !bBefore) return -1
-          if (!aBefore && bBefore) return 1
-          // If both before or both after, sort by time (newest first)
-          return bTime - aTime
-        })
-        
-        // Extract historical user data from the most relevant activity log
-        // For onboarding entries, prioritize OLD values (properties.old) over NEW values (properties.attributes)
-        // because we want the name that existed BEFORE any changes, which is what was used at onboarding time
-        // Priority: log.subject > log.properties.old > log.description (extract name) > log.properties.attributes
-        for (const log of relatedLogs) {
-          // Check log.subject first (most reliable historical data)
-          if (log.subject && typeof log.subject === 'object' && log.subject !== null && (log.subject as any).name) {
-            historicalUserData = {
-              name: (log.subject as any).name,
-              email: (log.subject as any).email || onboardingUser?.email || null,
-              id: log.subjectId || userId || null,
-              uuid: (log.subject as any).uuid || onboardingUser?.uuid || null,
-              status: (log.subject as any).status || onboardingUser?.status || null,
-              userType: (log.subject as any).userType || onboardingUser?.userType || null,
-              profile: (log.subject as any).profile || onboardingUser?.profile || undefined,
-            }
-            break
-          }
-          
-          // Check log.properties.old FIRST (old values before change) - this is the historical name
-          // For onboarding, we want the name that existed BEFORE any profile updates
-          if (log.properties?.old && typeof log.properties.old === 'object' && log.properties.old.name) {
-            historicalUserData = {
-              name: log.properties.old.name,
-              email: log.properties.old.email || onboardingUser?.email || null,
-              id: log.subjectId || userId || null,
-              uuid: log.properties.old.uuid || onboardingUser?.uuid || null,
-              status: log.properties.old.status || onboardingUser?.status || null,
-              userType: log.properties.old.userType || onboardingUser?.userType || null,
-              profile: log.properties.old.profile || onboardingUser?.profile || undefined,
-            }
-            break
-          }
-          
-          // Try to extract name from description field (e.g., "Role changed for Law Wen Sen: admin → staff")
-          if (log.description) {
-            const descriptionMatch = log.description.match(/role\s+changed\s+for\s+([^:]+?)\s*:/i) ||
-                                     log.description.match(/(?:activated|deactivated):\s*(.+)$/i)
-            if (descriptionMatch && descriptionMatch[1]) {
-              const extractedName = descriptionMatch[1].trim()
-              if (extractedName && extractedName !== 'for') {
-                historicalUserData = {
-                  name: extractedName,
-                  email: onboardingUser?.email || null,
-                  id: log.subjectId || userId || null,
-                  uuid: onboardingUser?.uuid || null,
-                  status: onboardingUser?.status || null,
-                  userType: onboardingUser?.userType || null,
-                  profile: onboardingUser?.profile || undefined,
-                }
-                break
-              }
-            }
-          }
-          
-          // Last resort: Check log.properties.attributes (new values after change)
-          // Only use this if we haven't found historical data yet
-          if (!historicalUserData && log.properties?.attributes && typeof log.properties.attributes === 'object' && log.properties.attributes.name) {
-            historicalUserData = {
-              name: log.properties.attributes.name,
-              email: log.properties.attributes.email || onboardingUser?.email || null,
-              id: log.subjectId || userId || null,
-              uuid: log.properties.attributes.uuid || onboardingUser?.uuid || null,
-              status: log.properties.attributes.status || onboardingUser?.status || null,
-              userType: log.properties.attributes.userType || onboardingUser?.userType || null,
-              profile: log.properties.attributes.profile || onboardingUser?.profile || undefined,
-            }
-            break
-          }
+        if (foundUser?.name) {
+          return foundUser
         }
       }
       
-      // If we found historical data, use it instead of current user data
-      // This preserves audit trail integrity by showing the name that was used at the time of onboarding
-      if (historicalUserData && historicalUserData.name) {
-        return historicalUserData
-      }
-      
-      // If no historical data found, return the user data from onboarding entry
-      // This might be current data, but we have no other option
+      // Last resort: return whatever we have from onboarding entry
       return onboardingUser
     } else {
       const log = entry.data
       
-      // SPECIAL CASE: For onboarding activity logs, extract historical name from description
-      // This ensures immutability - the description contains the name at the time of onboarding
-      // Format: "Staff onboarding approved for {name} with role: {role}"
-      // or: "Staff onboarding verifying for {name}"
-      // or: "Staff onboarding pending for {name}" (when pending represents approval)
-      const isApprovalPending = log.event === 'pending' && 
-        log.properties?.old?.status === 'pending' && 
-        log.properties?.attributes?.status === 'approved'
-      if (log.logName === 'onboarding' && (
-        log.event === 'approved' || 
-        log.event === 'rejected' || 
-        log.event === 'verifying' ||
-        isApprovalPending
-      )) {
-        if (log.description) {
-          const descriptionMatch = log.description.match(
-            /Staff onboarding (?:approved|rejected|verifying|pending) for (.+?)(?:\s+with role:|$)/i
-          )
-          if (descriptionMatch && descriptionMatch[1]) {
-            const extractedName = descriptionMatch[1].trim()
-            if (extractedName && extractedName !== 'for') {
-              // Use the historical name from the immutable activity log description
-              // This preserves audit trail integrity even if user name changes later
-              return {
-                name: extractedName,
-                email: log.subject?.email || null,
-                id: log.subjectId || null,
-                uuid: log.subject?.uuid || null,
-                status: log.subject?.status || null,
-                userType: log.subject?.userType || null,
-                profile: log.subject?.profile || undefined,
-              } as any
-            }
-          }
+      // BUSINESS LOGIC: Always use current username - prioritize current users list first
+      // The latest username change should overwrite all previous usernames in the audit trail
+      
+      // PRIORITY 1: Get current user from users list (most up-to-date)
+      if (log.subjectId) {
+        const subjectId = log.subjectId as any
+        const subjectIdStr = String(subjectId)
+        const foundUser = userMapById?.get(subjectId) || users.find((u) => {
+          if (u.id != null && Number(u.id) === Number(subjectId)) return true
+          if (u.id != null && String(u.id) === subjectIdStr) return true
+          if (u.uuid && String(u.uuid) === subjectIdStr) return true
+          // eslint-disable-next-line eqeqeq
+          if (u.id != null && (u.id as any) == subjectId) return true
+          return false
+        })
+        if (foundUser?.name) {
+          return foundUser
         }
       }
       
-      // Priority 1: Use subject field for current user information (USER column)
-      // Backend now provides current user data in subject field
+      // PRIORITY 2: Use subject field (backend provides current user data)
       if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
         const subject = log.subject as any
-        // Use current name from subject (this is what backend provides now)
         if (subject.name || subject.email) {
           // Try to get avatar from users list if missing
           let profile = subject.profile
@@ -572,20 +408,6 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       
       // Fallback: If subjectId exists but subject is null, user might be deleted
       if (log.subjectId && !log.subject) {
-        // Try to find in users list as last resort
-        const subjectId = log.subjectId as any
-        const subjectIdStr = String(subjectId)
-        const foundUser = users.find((u) => {
-          if (u.id != null && Number(u.id) === Number(subjectId)) return true
-          if (u.id != null && String(u.id) === subjectIdStr) return true
-          if (u.uuid && String(u.uuid) === subjectIdStr) return true
-          // eslint-disable-next-line eqeqeq
-          if (u.id != null && (u.id as any) == subjectId) return true
-          return false
-        })
-        if (foundUser) {
-          return foundUser
-        }
         // Return deleted user placeholder
         return {
           name: 'Deleted User',
