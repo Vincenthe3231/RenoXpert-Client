@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
 import {
   Activity,
+  Building,
   Clock,
   Hash,
   Mail,
@@ -294,17 +295,25 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     }
                     index={5}
                   />
+                  {user.userType === "staff" && (
+                    <AdminInfoCard
+                      icon={Building}
+                      label="Department"
+                      value={(user as StaffUser).profile?.department || "Not assigned"}
+                      index={6}
+                    />
+                  )}
                   <AdminInfoCard
                     icon={Activity}
                     label="Status"
                     value={<UserStatusBadge status={user.status} />}
-                    index={6}
+                    index={user.userType === "staff" ? 7 : 6}
                   />
                   <AdminInfoCard
                     icon={Clock}
                     label="Last Active"
                     value={user.lastLoginAt ? format(new Date(user.lastLoginAt), "MMM d, yyyy 'at' h:mm a") : "Never"}
-                    index={7}
+                    index={user.userType === "staff" ? 8 : 7}
                   />
                 </div>
               </AdminSection>

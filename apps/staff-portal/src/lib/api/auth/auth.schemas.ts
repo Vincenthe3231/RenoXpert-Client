@@ -43,6 +43,7 @@ export const staffProfileSchema = z.object({
     status: z.string().optional(),
     roles: z.array(z.string()).optional().default([]),
     permissions: z.array(z.string()).optional().default([]), // Always returned (even if empty array)
+    department: z.string().nullable().optional(), // Department assignment (e.g., "Owner Sales", "Renovation", "Technician", "Finance & Account")
 }).passthrough(); // Allow extra fields that might be present
 
 export const staffUserSchema = z.object({
