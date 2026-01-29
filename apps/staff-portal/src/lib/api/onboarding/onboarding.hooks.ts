@@ -28,8 +28,8 @@ export function useApproveOnboarding() {
     const qc = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ onboardingId, staffType }: { onboardingId: number; staffType: StaffType }) =>
-            onboardingApproval(onboardingId, staffType),
+        mutationFn: ({ onboardingId, staffType, department }: { onboardingId: number; staffType: StaffType; department?: string }) =>
+            onboardingApproval(onboardingId, staffType, department),
         onSuccess: () => qc.invalidateQueries({ queryKey: ONBOARDING_QUERY_KEYS.LIST }),
     });
 }

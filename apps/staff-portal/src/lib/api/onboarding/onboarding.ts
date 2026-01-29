@@ -15,6 +15,22 @@ import {
     rejectOnboardingSchema,
 } from "./onboarding.schemas"
 
+/**
+ * Maps frontend department values (snake_case/lowercase) to backend format (capitalized with spaces)
+ * Backend expects: "Owner Sales", "Renovation", "Technician", "Finance & Account"
+ */
+function mapDepartmentToBackendFormat(frontendDepartment: string): string {
+    const departmentMap: Record<string, string> = {
+        "owner_sales": "Owner Sales",
+        "renovation": "Renovation",
+        "technician": "Technician",
+        "finance_account": "Finance & Account",
+    }
+    
+    // Return mapped value if exists, otherwise return as-is (fallback)
+    return departmentMap[frontendDepartment] || frontendDepartment
+}
+
 export async function getOnboardings(params?: GetOnboardingParams): Promise<OnboardingListResponse> {
     if (params) {
         getOnboardingParamsSchema.parse(params)
@@ -32,9 +48,19 @@ export async function getOnboardings(params?: GetOnboardingParams): Promise<Onbo
 
 export async function onboardingApproval(
     onboardingId: number,
-    staffType: StaffType
+    staffType: StaffType,
+    department?: string
 ) {
-    const payload: ApproveOnboardingInput = { staffType }
+    // Build payload: department is required for "staff" type, not sent for others
+    // Transform department value to backend format (capitalized with spaces)
+    const payload: ApproveOnboardingInput = {
+        staffType,
+        ...(staffType === "staff" && department ? { 
+            department: mapDepartmentToBackendFormat(department) 
+        } : {}),
+    }
+    
+    // Validate payload before sending
     approveOnboardingSchema.parse(payload)
 
     const { data } = await axios.post(

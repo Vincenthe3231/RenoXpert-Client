@@ -44,7 +44,21 @@ export const getOnboardingParamsSchema = z.object({
 
 export const approveOnboardingSchema = z.object({
     staffType: staffRoleSchema,
-});
+    // Department is required when staffType is "staff"
+    department: z.string().min(1, "Department is required").optional(),
+}).refine(
+    (data) => {
+        // If staffType is "staff", department must be provided
+        if (data.staffType === "staff") {
+            return data.department !== undefined && data.department.length > 0;
+        }
+        return true;
+    },
+    {
+        message: "Department is required when staff type is Staff",
+        path: ["department"],
+    }
+);
 
 export const rejectOnboardingSchema = z.object({
     rejectionReason: z.string().min(5, "Reason must be at least 5 characters").max(500),

@@ -58,9 +58,17 @@ export async function POST(
 
         // Handle Laravel API errors
         const status = error?.response?.status || 500
-        const message = error?.response?.data?.message || 'Failed to approve onboarding'
+        const laravelData = error?.response?.data
+        
+        // Laravel validation errors are typically in errors object
+        const validationErrors = laravelData?.errors
+        const message = laravelData?.message || 'Failed to approve onboarding'
+        
         return NextResponse.json(
-            { error: message },
+            { 
+                error: message,
+                ...(validationErrors && { errors: validationErrors })
+            },
             { status }
         )
     }

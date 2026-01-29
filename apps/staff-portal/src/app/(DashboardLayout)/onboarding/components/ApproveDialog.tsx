@@ -9,7 +9,7 @@ import { StaffType } from "@/lib/api/auth";
 interface ApproveDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onApprove: (onboardingId: number, staffType: StaffType) => void;
+    onApprove: (onboardingId: number, staffType: StaffType, department?: string) => void;
     userName: string;
     onboardingId: number;
     isLoading?: boolean;
@@ -17,6 +17,8 @@ interface ApproveDialogProps {
 
 const ApproveDialog = ({ open, onOpenChange, onApprove, userName, onboardingId, isLoading = false }: ApproveDialogProps) => {
     const [staffType, setStaffType] = useState<StaffType>("staff");
+    const [department, setDepartment] = useState<string>("");
+    const [departmentError, setDepartmentError] = useState<string | null>(null);
 
     // Only allow Admin and Staff types
     const assignableRoles = [
@@ -24,8 +26,21 @@ const ApproveDialog = ({ open, onOpenChange, onApprove, userName, onboardingId, 
         { name: 'staff' as StaffType, displayName: 'Staff' },
     ];
 
+    // Department options match Roles (Staff)
+    const departments = [
+        { value: "owner_sales", label: "Owner Sales" },
+        { value: "renovation", label: "Renovation" },
+        { value: "technician", label: "Technician" },
+        { value: "finance_account", label: "Finance & Account" },
+    ];
+
     const handleApprove = () => {
-        onApprove(onboardingId, staffType);
+        if (!department) {
+            setDepartmentError("Please select a department.");
+            return;
+        }
+        setDepartmentError(null);
+        onApprove(onboardingId, staffType, department);
     };
 
     const handleClose = () => {
@@ -44,29 +59,58 @@ const ApproveDialog = ({ open, onOpenChange, onApprove, userName, onboardingId, 
                     </DialogTitle>
                     <DialogDescription>
                         You are about to approve <span className="font-medium text-foreground">{userName}</span>.
-                        Please select the staff type for this user.
+                        Please select the staff type and department for this user.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <Label htmlFor="staffType">Staff Type</Label>
-                    <Select value={staffType} onValueChange={(value: StaffType) => setStaffType(value)}>
-                        <SelectTrigger id="staffType">
-                            <SelectValue placeholder="Select staff type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {assignableRoles.map((role) => (
-                                <SelectItem key={role.name} value={role.name}>
-                                    {role.displayName}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <p className="text-sm text-muted-foreground">
-                        {staffType === "admin"
-                            ? "Admins have elevated permissions to manage users and settings."
-                            : "Staff members have standard access to the system."}
-                    </p>
+                    <div className="space-y-2">
+                        <Label htmlFor="staffType">Staff Type</Label>
+                        <Select value={staffType} onValueChange={(value: StaffType) => setStaffType(value)}>
+                            <SelectTrigger id="staffType">
+                                <SelectValue placeholder="Select staff type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {assignableRoles.map((role) => (
+                                    <SelectItem key={role.name} value={role.name}>
+                                        {role.displayName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground">
+                            {staffType === "admin"
+                                ? "Admins have elevated permissions to manage users and settings."
+                                : "Staff members have standard access to the system."}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="department">Department</Label>
+                        <Select
+                            value={department}
+                            onValueChange={(value: string) => {
+                                setDepartment(value);
+                                if (departmentError) setDepartmentError(null);
+                            }}
+                        >
+                            <SelectTrigger id="department">
+                                <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {departments.map((dept) => (
+                                    <SelectItem key={dept.value} value={dept.value}>
+                                        {dept.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {departmentError && (
+                            <p className="text-xs text-destructive">
+                                {departmentError}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">

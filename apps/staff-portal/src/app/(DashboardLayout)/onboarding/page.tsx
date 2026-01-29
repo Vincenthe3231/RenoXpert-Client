@@ -124,9 +124,9 @@ const OnboardingPage = () => {
         }
     };
 
-    const handleApproveConfirm = async (onboardingId: number, staffType: StaffType) => {
+    const handleApproveConfirm = async (onboardingId: number, staffType: StaffType, department?: string) => {
         try {
-            await approveOnboarding.mutateAsync({ onboardingId, staffType });
+            await approveOnboarding.mutateAsync({ onboardingId, staffType, department });
             setApproveDialogOpen(false);
             setSelectedOnboarding(null);
             toast({
