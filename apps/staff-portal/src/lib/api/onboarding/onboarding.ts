@@ -15,21 +15,8 @@ import {
     rejectOnboardingSchema,
 } from "./onboarding.schemas"
 
-/**
- * Maps frontend department values (snake_case/lowercase) to backend format (capitalized with spaces)
- * Backend expects: "Owner Sales", "Renovation", "Technician", "Finance & Account"
- */
-function mapDepartmentToBackendFormat(frontendDepartment: string): string {
-    const departmentMap: Record<string, string> = {
-        "owner_sales": "Owner Sales",
-        "renovation": "Renovation",
-        "technician": "Technician",
-        "finance_account": "Finance & Account",
-    }
-    
-    // Return mapped value if exists, otherwise return as-is (fallback)
-    return departmentMap[frontendDepartment] || frontendDepartment
-}
+// Import shared department mapping utility
+import { mapDepartmentToBackendFormat } from '../utils/department'
 
 export async function getOnboardings(params?: GetOnboardingParams): Promise<OnboardingListResponse> {
     if (params) {

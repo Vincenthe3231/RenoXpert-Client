@@ -642,3 +642,102 @@ export async function deleteOwner(id: string): Promise<void> {
         throw error
     }
 }
+
+/**
+ * Update staff user by ID
+ * Uses PUT /api/users/{id} which calls Laravel's PUT /api/v1/users/{id} endpoint
+ * 
+ * @param id - Staff user ID (integer) or UUID string
+ * @param data - Partial staff data (camelCase fields will be converted to snake_case for backend)
+ * @param options - Optional configuration for CSRF handling
+ */
+export async function updateStaff(
+    id: string,
+    data: {
+        name?: string
+        email?: string
+        phoneNo?: string
+        countryCode?: string
+        department?: string
+        staffType?: string
+    },
+    options?: {
+        initializeCsrf?: boolean // Whether to initialize CSRF cookie before request
+    }
+): Promise<User> {
+    try {
+        // Import department mapping utility
+        const { mapDepartmentToBackendFormat } = await import('../utils/department')
+        const { laravelRootApi } = await import('../axios')
+
+        // Initialize CSRF cookie if requested (recommended for first request)
+        if (options?.initializeCsrf !== false) {
+            try {
+                await laravelRootApi.get('/sanctum/csrf-cookie')
+            } catch (csrfError) {
+                // Log but don't fail - CSRF might already be set
+                console.warn('CSRF cookie initialization failed, continuing anyway:', csrfError)
+            }
+        }
+
+        // Transform camelCase to snake_case for backend
+        const backendData: Record<string, any> = {
+            user_type: 'staff'
+        }
+        
+        if (data.name !== undefined) backendData.name = data.name
+        if (data.email !== undefined) backendData.email = data.email
+        if (data.phoneNo !== undefined) backendData.phone_no = data.phoneNo
+        if (data.countryCode !== undefined) backendData.country_code = data.countryCode
+        if (data.staffType !== undefined) backendData.staff_type = data.staffType
+        
+        // Map department to backend format (capitalized with spaces)
+        if (data.department !== undefined) {
+            backendData.department = mapDepartmentToBackendFormat(data.department)
+        }
+
+        // Use the Next.js API route which handles CSRF and authentication
+        const { data: response } = await axios.put(`/api/users/${id}`, backendData)
+
+        // Backend returns: { message: "...", data: { user: {...} } }
+        const userData = response?.data?.user || response?.user || response?.data || response
+
+        if (!userData) {
+            throw new Error('User data not found in response')
+        }
+
+        // Validate response with schema
+        const result = userSchema.safeParse(userData)
+        if (!result.success) {
+            console.error('Update staff response validation failed:', result.error.issues)
+            console.error('Received data:', JSON.stringify(response, null, 2))
+            console.error('User data:', JSON.stringify(userData, null, 2))
+            throw new Error(`Invalid user data: ${result.error.message}`)
+        }
+        
+        return result.data
+    } catch (error: any) {
+        // Handle backend error format: { error: "ERROR_CODE", message: "...", status: 400, fields?: {...} }
+        if (error?.response?.data?.error) {
+            const backendError = error.response.data
+            const customError = new Error(backendError.message || 'Failed to update staff')
+            ;(customError as any).status = backendError.status || error.response?.status || 500
+            ;(customError as any).fields = backendError.fields || {}
+            throw customError
+        }
+        
+        // Handle 419 CSRF token mismatch - retry with fresh CSRF
+        if (error?.response?.status === 419) {
+            try {
+                const { laravelRootApi } = await import('../axios')
+                await laravelRootApi.get('/sanctum/csrf-cookie')
+                // Retry the request
+                return updateStaff(id, data, { initializeCsrf: false })
+            } catch (retryError) {
+                throw new Error('CSRF token refresh failed. Please try again.')
+            }
+        }
+        
+        throw error
+    }
+}

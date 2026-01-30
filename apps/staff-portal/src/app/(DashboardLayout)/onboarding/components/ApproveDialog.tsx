@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
-import { StaffType } from "@/lib/api/auth";
+import { StaffType, UserDepartments } from "@/lib/api/auth";
 
 interface ApproveDialogProps {
     open: boolean;
@@ -26,13 +26,11 @@ const ApproveDialog = ({ open, onOpenChange, onApprove, userName, onboardingId, 
         { name: 'staff' as StaffType, displayName: 'Staff' },
     ];
 
-    // Department options match Roles (Staff)
-    const departments = [
-        { value: "owner_sales", label: "Owner Sales" },
-        { value: "renovation", label: "Renovation" },
-        { value: "technician", label: "Technician" },
-        { value: "finance_account", label: "Finance & Account" },
-    ];
+    // Department options from centralized schema
+    const departments = UserDepartments.map(dept => ({
+        value: dept,
+        label: dept
+    }));
 
     const handleApprove = () => {
         if (!department) {

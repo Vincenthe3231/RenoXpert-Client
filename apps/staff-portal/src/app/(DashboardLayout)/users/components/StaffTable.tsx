@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { StaffUser, User } from "@/lib/api/auth/auth.schemas";
+import { DepartmentBadge } from "../../audit/components/DepartmentBadge";
 import UserStatusBadge from "./UserStatusBadge";
 import RoleBadge from "./RoleBadge";
 import { UserAvatar } from "./UserAvatar";
@@ -38,6 +39,7 @@ export const StaffTable = ({
                 <TableRow className="bg-muted/5 hover:bg-muted/10">
                     <TableHead className="font-semibold">Name</TableHead>
                     <TableHead className="font-semibold">Roles</TableHead>
+                    <TableHead className="font-semibold">Department</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
                     <TableHead className="font-semibold">Email</TableHead>
                     <TableHead className="text-right font-semibold">Actions</TableHead>
@@ -83,6 +85,9 @@ export const StaffTable = ({
                                     <RoleBadge key={role} role={role} />
                                 ))}
                             </div>
+                        </TableCell>
+                        <TableCell>
+                            <DepartmentBadge department={user.profile.department} />
                         </TableCell>
                         <TableCell>
                             <UserStatusBadge status={user.status} />

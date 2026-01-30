@@ -15,8 +15,8 @@ export const userStatusSchema = z.enum(["active", "deactivated", "verifying", "r
 // Custom datetime schema that accepts both ISO 8601 and space-separated formats
 // Backend may return: "2026-01-16T11:42:26.000000Z" (ISO 8601) or "2026-01-16 11:42:26" (space-separated)
 const datetimeSchema = z.union([
-  z.string().datetime(), // ISO 8601 format: "2026-01-16T11:42:26.000000Z"
-  z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/), // Space-separated: "2026-01-16 11:42:26"
+    z.string().datetime(), // ISO 8601 format: "2026-01-16T11:42:26.000000Z"
+    z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/), // Space-separated: "2026-01-16 11:42:26"
 ]).nullable()
 
 const baseUserSchema = {
@@ -32,6 +32,16 @@ const baseUserSchema = {
 };
 
 
+export const UserDepartments = [
+    "Owner Sales",
+    "Renovation",
+    "Technician",
+    "Finance & Account"
+] as const;
+
+export type UserDepartment = typeof UserDepartments[number];
+export const userDepartmentSchema = z.enum(UserDepartments);
+
 // Profile schemas (only extra fields)
 // Based on StaffResource: larksuiteOpenId, larksuiteUnionId, avatarUrl, avatarBig, status, roles, permissions
 // Made more lenient to handle variations in backend responses for staff users
@@ -43,7 +53,7 @@ export const staffProfileSchema = z.object({
     status: z.string().optional(),
     roles: z.array(z.string()).optional().default([]),
     permissions: z.array(z.string()).optional().default([]), // Always returned (even if empty array)
-    department: z.string().nullable().optional(), // Department assignment (e.g., "Owner Sales", "Renovation", "Technician", "Finance & Account")
+    department: userDepartmentSchema.nullable().optional(), // Department assignment
 }).passthrough(); // Allow extra fields that might be present
 
 export const staffUserSchema = z.object({

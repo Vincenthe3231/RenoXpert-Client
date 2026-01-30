@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { staffUserSchema, userSchema } from "../auth/auth.schemas";
+import { staffUserSchema, userSchema, userDepartmentSchema } from "../auth/auth.schemas";
 import { staffProfileSchema } from "../auth/auth.schemas";
 import { staffRoleSchema } from "../auth/auth.schemas";
 
@@ -45,12 +45,12 @@ export const getOnboardingParamsSchema = z.object({
 export const approveOnboardingSchema = z.object({
     staffType: staffRoleSchema,
     // Department is required when staffType is "staff"
-    department: z.string().min(1, "Department is required").optional(),
+    department: userDepartmentSchema.optional(),
 }).refine(
     (data) => {
         // If staffType is "staff", department must be provided
         if (data.staffType === "staff") {
-            return data.department !== undefined && data.department.length > 0;
+            return data.department !== undefined;
         }
         return true;
     },

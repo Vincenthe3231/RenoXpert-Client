@@ -11,6 +11,7 @@ import { User } from "@/lib/api/auth"
 import AuditEmptyState from "./components/AuditEmptyState"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatusBadge"
+import { DepartmentBadge } from "./components/DepartmentBadge"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface AuditTableProps {
@@ -115,6 +116,27 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       return { column: null, direction: null }
     })
   }
+  // Helper to extract department from user (from roles array)
+  const getUserDepartment = (user: { profile?: any; roles?: string[] } | null | undefined): string | null => {
+    if (!user) return null
+
+    // Priority 1: Check direct department field in profile (new schema)
+    if (user.profile?.department) {
+      return user.profile.department
+    }
+    
+    // Priority 2: Check if user has roles array in profile
+    const roles = user.profile?.roles || user.roles || []
+    
+    // Department values that match backend format
+    const validDepartments = UserDepartments
+    
+    // Find the first role that matches a valid department
+    const department = roles.find((role: string) => validDepartments.includes(role as any))
+    
+    return department || null
+  }
+
   // Helper to get user avatar URL
   // Optimized to use O(1) map lookups instead of O(n) .find() operations for better performance
   const getUserAvatarUrl = (user: { profile?: any; id?: any; uuid?: string } | null | undefined) => {
@@ -157,10 +179,10 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
 
   // Helper to format details from log properties
   // Shows what changed in a concise format: "Field: old → new"
-  const formatLogDetails = (log: any): string => {
+  const formatLogDetails = (log: any): string[] => {
     const props = log.properties
     if (!props) {
-      return "—"
+      return ["—"]
     }
 
     const changes: string[] = []
@@ -204,23 +226,27 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     }
     
     if (changes.length === 0) {
-      return "—"
+      return ["—"]
     }
     
-    return changes.join(", ")
+    return changes
   }
 
   // Component to render truncated details with tooltip
-  const TruncatedDetails = ({ details, maxLength = 50 }: { details: string; maxLength?: number }) => {
-    if (details === "—") {
+  const TruncatedDetails = ({ details, maxLength = 50 }: { details: string | string[]; maxLength?: number }) => {
+    const detailsList = Array.isArray(details) ? details : [details]
+    const flatText = detailsList.join(", ")
+
+    if (flatText === "—" || !flatText) {
       return <span className="text-sm text-muted-foreground/70">—</span>
     }
 
-    const shouldTruncate = details.length > maxLength
-    const displayText = shouldTruncate ? details.slice(0, maxLength) + "..." : details
+    const shouldTruncate = flatText.length > maxLength
+    const displayText = shouldTruncate ? flatText.slice(0, maxLength) + "..." : flatText
+    const hasMultipleItems = detailsList.length > 1
 
-    if (!shouldTruncate) {
-      return <span className="text-sm text-muted-foreground/70">{details}</span>
+    if (!shouldTruncate && !hasMultipleItems) {
+      return <span className="text-sm text-muted-foreground/70">{flatText}</span>
     }
 
     return (
@@ -231,7 +257,13 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs bg-popover/95 backdrop-blur-sm">
-          <p className="text-sm whitespace-pre-wrap">{details}</p>
+          <div className="flex flex-col gap-1.5 py-0.5">
+            {detailsList.map((item, i) => (
+              <span key={i} className="text-sm break-words leading-snug">
+                {item}
+              </span>
+            ))}
+          </div>
         </TooltipContent>
       </Tooltip>
     )
@@ -1103,13 +1135,16 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                                     {user?.name ? getInitials(user.name) : "U"}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div>
+                                <div className="space-y-1">
                                   <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
                                     {user?.name || "Unknown"}
                                   </p>
                                   <p className="text-xs text-muted-foreground/70">
                                     {user?.email || "—"}
                                   </p>
+                                  {getUserDepartment(user) && (
+                                    <DepartmentBadge department={getUserDepartment(user)!} size="sm" />
+                                  )}
                                 </div>
                               </div>
                             </TableCell>
@@ -1192,13 +1227,16 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                                     {user?.name ? getInitials(user.name) : "U"}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div>
+                                <div className="space-y-1">
                                   <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
                                     {user?.name || "Unknown"}
                                   </p>
                                   <p className="text-xs text-muted-foreground/70">
                                     {user?.email || "—"}
                                   </p>
+                                  {getUserDepartment(user) && (
+                                    <DepartmentBadge department={getUserDepartment(user)!} size="sm" />
+                                  )}
                                 </div>
                               </div>
                             </TableCell>

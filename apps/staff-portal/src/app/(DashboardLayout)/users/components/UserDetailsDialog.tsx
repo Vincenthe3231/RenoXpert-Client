@@ -21,6 +21,8 @@ import { StaffUser, OwnerUser, VendorUser, User } from "@/lib/api/auth/auth.sche
 import { useUser, useActivateUser, useDeactivateUser, useAuth, useOwner } from "@/lib/api/auth/auth.hooks"
 import { useQueryClient } from "@tanstack/react-query"
 import UserStatusBadge from "./UserStatusBadge"
+import { DepartmentBadge } from "../../audit/components/DepartmentBadge"
+import { UserAvatar } from "./UserAvatar"
 import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
@@ -299,7 +301,13 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     <AdminInfoCard
                       icon={Building}
                       label="Department"
-                      value={(user as StaffUser).profile?.department || "Not assigned"}
+                      value={
+                        (user as StaffUser).profile?.department ? (
+                          <DepartmentBadge department={(user as StaffUser).profile.department} />
+                        ) : (
+                          "Not assigned"
+                        )
+                      }
                       index={6}
                     />
                   )}
