@@ -14,6 +14,15 @@ export async function POST(
         // Validate request body
         const validatedData = approveOnboardingSchema.parse(body)
 
+        // Transform camelCase to snake_case for backend
+        const backendPayload: Record<string, any> = {}
+        if (validatedData.staffType !== undefined) {
+            backendPayload.staff_type = validatedData.staffType
+        }
+        if (validatedData.department !== undefined) {
+            backendPayload.department = validatedData.department
+        }
+
         // Get cookies for authentication
         const cookieStore = await cookies()
         
@@ -26,7 +35,7 @@ export async function POST(
         // Make request to Laravel backend
         const laravelRes = await laravelApi.post(
             `/onboarding/${id}/approval`,
-            validatedData,
+            backendPayload,
             {
                 headers: cookieString ? { cookie: cookieString } : undefined,
             }

@@ -38,11 +38,12 @@ export async function onboardingApproval(
     staffType: StaffType,
     department?: string
 ) {
-    // Build payload: department is required for "staff" type, not sent for others
+    // Build payload: department is required for all staff types
     // Transform department value to backend format (capitalized with spaces)
     const payload: ApproveOnboardingInput = {
         staffType,
-        ...(staffType === "staff" && department ? { 
+        // Always include department if provided (required by backend for all types)
+        ...(department ? { 
             department: mapDepartmentToBackendFormat(department) 
         } : {}),
     }
