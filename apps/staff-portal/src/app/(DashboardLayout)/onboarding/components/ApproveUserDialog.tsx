@@ -16,20 +16,28 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminDialogHeader } from "@/app/(DashboardLayout)/users/components/AdminDialogHeader";
-import { DepartmentBadge } from "@/app/(DashboardLayout)/audit/components/DepartmentBadge";
+import { AdminDialogHeader } from "./AdminDialogHeader";
+import { DepartmentBadge } from "./DepartmentBadge";
 import { useDepartments } from "@/hooks/useDepartmentData";
-import { StaffType } from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
 
-interface ApproveDialogProps {
+interface ApproveUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApprove: (onboardingId: number, staffType: StaffType, department?: string) => void;
-  userName: string;
-  onboardingId: number;
-  isLoading?: boolean;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  } | null;
+  onApprove: (data: {
+    userId: string;
+    staffType: "staff" | "admin";
+    departmentId: string;
+  }) => void;
 }
+
+type StaffType = "staff" | "admin";
 
 const staffTypeOptions: {
   value: StaffType;
@@ -78,48 +86,47 @@ const itemVariants = {
   },
 };
 
-const ApproveDialog = ({ 
-  open, 
-  onOpenChange, 
-  onApprove, 
-  userName, 
-  onboardingId, 
-  isLoading = false 
-}: ApproveDialogProps) => {
+export function ApproveUserDialog({
+  open,
+  onOpenChange,
+  user,
+  onApprove,
+}: ApproveUserDialogProps) {
   const [staffType, setStaffType] = useState<StaffType>("staff");
   const [departmentId, setDepartmentId] = useState<string>("");
   const { data: departments, isLoading: departmentsLoading } = useDepartments();
 
-  // Reset form when dialog opens
+  // Reset form when dialog opens with a new user
   useEffect(() => {
-    if (open) {
+    if (open && user) {
       setStaffType("staff");
       setDepartmentId("");
     }
-  }, [open]);
+  }, [open, user]);
 
   const selectedDepartment = departments?.find((d) => d.id === departmentId);
   const isFormValid = staffType && departmentId;
 
   const handleApprove = () => {
-    if (!isFormValid || !selectedDepartment) return;
-    onApprove(onboardingId, staffType, selectedDepartment.name);
+    if (!user || !isFormValid) return;
+    onApprove({
+      userId: user.id,
+      staffType,
+      departmentId,
+    });
+    onOpenChange(false);
   };
 
-  const handleClose = () => {
-    if (!isLoading) {
-      onOpenChange(false);
-    }
-  };
+  if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg gap-0 overflow-hidden p-0 sm:rounded-2xl border-border/40 shadow-2xl">
         {/* Gradient Header */}
         <AdminDialogHeader
-          avatarUrl={undefined}
-          name={userName}
-          email=""
+          avatarUrl={user.avatarUrl}
+          name={user.name}
+          email={user.email}
           rightContent={
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -170,13 +177,11 @@ const ApproveDialog = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setStaffType(option.value)}
-                    disabled={isLoading}
                     className={cn(
                       "relative flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 p-4 text-left transition-all duration-300",
                       isSelected
                         ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
-                        : "border-border/60 bg-card/50 hover:border-primary/40 hover:bg-accent/20",
-                      isLoading && "opacity-50 cursor-not-allowed"
+                        : "border-border/60 bg-card/50 hover:border-primary/40 hover:bg-accent/20"
                     )}
                   >
                     {/* Gradient overlay for selected */}
@@ -256,7 +261,7 @@ const ApproveDialog = ({
             {departmentsLoading ? (
               <Skeleton className="h-12 w-full rounded-xl" />
             ) : (
-              <Select value={departmentId} onValueChange={setDepartmentId} disabled={isLoading}>
+              <Select value={departmentId} onValueChange={setDepartmentId}>
                 <SelectTrigger className="h-12 rounded-xl bg-card/60 border-border/60 backdrop-blur-sm hover:bg-accent/30 transition-colors">
                   <SelectValue placeholder="Select department...">
                     {selectedDepartment && (
@@ -329,7 +334,7 @@ const ApproveDialog = ({
 
               <div className="relative">
                 <p className="text-sm text-muted-foreground mb-4">
-                  After approval, <span className="font-semibold text-foreground">{userName}</span> will receive:
+                  After approval, <span className="font-semibold text-foreground">{user.name}</span> will receive:
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
@@ -395,7 +400,6 @@ const ApproveDialog = ({
                           <DepartmentBadge
                             department={selectedDepartment.name}
                             size="md"
-                            colorScheme={selectedDepartment.colorScheme}
                           />
                         </motion.div>
                       ) : (
@@ -443,8 +447,7 @@ const ApproveDialog = ({
         <DialogFooter className="border-t border-border/50 bg-gradient-to-r from-muted/50 via-muted/30 to-muted/50 px-6 py-4">
           <Button
             variant="ghost"
-            onClick={handleClose}
-            disabled={isLoading}
+            onClick={() => onOpenChange(false)}
             className="gap-2 hover:bg-destructive/10 hover:text-destructive"
           >
             <X className="h-4 w-4" />
@@ -452,10 +455,10 @@ const ApproveDialog = ({
           </Button>
           <Button
             onClick={handleApprove}
-            disabled={!isFormValid || isLoading}
+            disabled={!isFormValid}
             className={cn(
               "gap-2 relative overflow-hidden",
-              "bg-gradient-to-r from-primary to-secondary",
+              "bg-gradient-to-r from-admin-gradient-start to-admin-gradient-end",
               "hover:shadow-lg hover:shadow-primary/25",
               "transition-all duration-300",
               "text-white border-0",
@@ -464,22 +467,18 @@ const ApproveDialog = ({
           >
             <span className="relative z-10 flex items-center gap-2">
               <Check className="h-4 w-4" />
-              {isLoading ? "Approving..." : "Confirm Approval"}
+              Confirm Approval
             </span>
             {/* Shine effect */}
-            {!isLoading && (
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                initial={{ x: "-100%" }}
-                animate={{ x: "100%" }}
-                transition={{ repeat: Infinity, duration: 2, ease: "linear", repeatDelay: 3 }}
-              />
-            )}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              initial={{ x: "-100%" }}
+              animate={{ x: "100%" }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear", repeatDelay: 3 }}
+            />
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default ApproveDialog;
+}

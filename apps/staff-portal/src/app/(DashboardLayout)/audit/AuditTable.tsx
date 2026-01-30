@@ -12,7 +12,9 @@ import AuditEmptyState from "./components/AuditEmptyState"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatusBadge"
 import { DepartmentBadge } from "./components/DepartmentBadge"
+import { AuditDetailDialog } from "./components/AuditDetailDialog"
 import { motion, AnimatePresence } from "framer-motion"
+import { VALID_DEPARTMENTS } from "@/lib/api/utils/department"
 
 interface AuditTableProps {
   auditEntries: AuditEntry[]
@@ -105,6 +107,10 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     direction: null,
   })
 
+  // State for detail dialog
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+
   const handleSort = (column: SortColumn) => {
     setSortConfig((prev) => {
       if (prev.column !== column) {
@@ -129,7 +135,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     const roles = user.profile?.roles || user.roles || []
     
     // Department values that match backend format
-    const validDepartments = UserDepartments
+    const validDepartments = VALID_DEPARTMENTS
     
     // Find the first role that matches a valid department
     const department = roles.find((role: string) => validDepartments.includes(role as any))
@@ -881,6 +887,13 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     }
   }
 
+  // Handle row click to open detail dialog
+  const handleRowClick = (entry: AuditEntry, index: number) => {
+    const entryKey = getEntryKey(entry, index)
+    setSelectedEntryId(entryKey)
+    setIsDetailDialogOpen(true)
+  }
+
   // Sort entries based on sortConfig
   const sortedEntries = useMemo(() => {
     if (!sortConfig.column || !sortConfig.direction) {
@@ -988,12 +1001,14 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           if (a.type === 'onboarding') {
             detailsA = a.data.rejectionReason || ""
           } else {
-            detailsA = formatLogDetails(a.data)
+            const detailsArray = formatLogDetails(a.data)
+            detailsA = Array.isArray(detailsArray) ? detailsArray.join(", ") : String(detailsArray)
           }
           if (b.type === 'onboarding') {
             detailsB = b.data.rejectionReason || ""
           } else {
-            detailsB = formatLogDetails(b.data)
+            const detailsArray = formatLogDetails(b.data)
+            detailsB = Array.isArray(detailsArray) ? detailsArray.join(", ") : String(detailsArray)
           }
           comparison = detailsA.localeCompare(detailsB, undefined, { sensitivity: 'base' })
           break
@@ -1121,7 +1136,8 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                         return (
                           <TableRow
                             key={uniqueKey}
-                            className="group border-b border-border/30 bg-transparent transition-all duration-300 ease-in-out hover:bg-muted/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 animate-in fade-in slide-in-from-left-4"
+                            onClick={() => handleRowClick(entry, index)}
+                            className="group border-b border-border/30 bg-transparent transition-all duration-300 ease-in-out hover:bg-muted/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 cursor-pointer animate-in fade-in slide-in-from-left-4"
                             style={{ 
                               animationDelay: `${index * 40}ms`,
                               animationFillMode: 'both'
@@ -1213,7 +1229,8 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                         return (
                           <TableRow
                             key={uniqueKey}
-                            className="group border-b border-border/30 bg-transparent transition-all duration-300 ease-in-out hover:bg-muted/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 animate-in fade-in slide-in-from-left-4"
+                            onClick={() => handleRowClick(entry, index)}
+                            className="group border-b border-border/30 bg-transparent transition-all duration-300 ease-in-out hover:bg-muted/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 cursor-pointer animate-in fade-in slide-in-from-left-4"
                             style={{ 
                               animationDelay: `${index * 40}ms`,
                               animationFillMode: 'both'
@@ -1302,7 +1319,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                               )}
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <TruncatedDetails details={formatLogDetails(log)} />
+                              <TruncatedDetails details={formatLogDetails(log).join(", ")} />
                             </TableCell>
                           </TableRow>
                         )
@@ -1314,6 +1331,14 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           </div>
         )}
       </div>
+
+      {/* Detail Dialog */}
+      <AuditDetailDialog
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        entryId={selectedEntryId}
+        auditEntries={auditEntries}
+      />
     </motion.div>
     </TooltipProvider>
   )

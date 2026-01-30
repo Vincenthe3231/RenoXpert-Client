@@ -2,10 +2,13 @@ import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserDepartment } from "@/lib/api/auth/auth.schemas";
 
+type ColorScheme = "cyan" | "pink" | "emerald" | "violet" | "amber" | "slate";
+
 interface DepartmentBadgeProps {
   department: string | null | undefined;
   size?: "sm" | "md";
   className?: string;
+  colorScheme?: ColorScheme;
 }
 
 const departmentConfig: Record<string, { bg: string; border: string; text: string }> = {
@@ -31,16 +34,52 @@ const departmentConfig: Record<string, { bg: string; border: string; text: strin
   },
 };
 
+const colorSchemeConfig: Record<ColorScheme, { bg: string; border: string; text: string }> = {
+  cyan: {
+    bg: "bg-cyan-500/10 dark:bg-cyan-500/20",
+    border: "border-cyan-400/30 dark:border-cyan-400/40",
+    text: "text-cyan-600 dark:text-cyan-400",
+  },
+  pink: {
+    bg: "bg-pink-500/10 dark:bg-pink-500/20",
+    border: "border-pink-400/30 dark:border-pink-400/40",
+    text: "text-pink-600 dark:text-pink-400",
+  },
+  emerald: {
+    bg: "bg-emerald-500/10 dark:bg-emerald-500/20",
+    border: "border-emerald-400/30 dark:border-emerald-400/40",
+    text: "text-emerald-600 dark:text-emerald-400",
+  },
+  violet: {
+    bg: "bg-violet-500/10 dark:bg-violet-500/20",
+    border: "border-violet-400/30 dark:border-violet-400/40",
+    text: "text-violet-600 dark:text-violet-400",
+  },
+  amber: {
+    bg: "bg-amber-500/10 dark:bg-amber-500/20",
+    border: "border-amber-400/30 dark:border-amber-400/40",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+  slate: {
+    bg: "bg-slate-500/10 dark:bg-slate-500/20",
+    border: "border-slate-400/30 dark:border-slate-400/40",
+    text: "text-slate-600 dark:text-slate-400",
+  },
+};
+
 const defaultConfig = {
   bg: "bg-muted/50",
   border: "border-border/50",
   text: "text-muted-foreground",
 };
 
-export function DepartmentBadge({ department, size = "sm", className }: DepartmentBadgeProps) {
+export function DepartmentBadge({ department, size = "sm", className, colorScheme }: DepartmentBadgeProps) {
   if (!department) return null;
 
-  const config = departmentConfig[department] || defaultConfig;
+  // If colorScheme is provided, use it; otherwise fall back to departmentConfig
+  const config = colorScheme 
+    ? colorSchemeConfig[colorScheme] 
+    : (departmentConfig[department] || defaultConfig);
   
   const sizeStyles = {
     sm: "text-[10px] px-2 py-0.5 gap-1",

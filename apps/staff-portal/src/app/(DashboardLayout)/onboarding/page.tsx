@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, CheckCircle2, Loader2, Lock, ChevronLeft } from "lucide-react";
+import { Clock, CheckCircle2, Loader2, Lock, ChevronLeft, Building2 } from "lucide-react";
 import { Onboarding, useOnboardings } from "@/lib/api/onboarding";
 import OnboardingTable from "./OnboardingTable";
 import { useState, useEffect } from "react";
@@ -10,11 +10,13 @@ import RejectDialog from "./components/RejectDialog";
 import { StaffType, StaffUser, useAuth } from "@/lib/api/auth";
 import ApproveDialog from "./components/ApproveDialog";
 import { useApproveOnboarding, useRejectOnboarding } from "@/lib/api/onboarding/onboarding.hooks";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AddDepartmentDialog } from "./components/AddDepartmentDialog";
 
 const OnboardingPage = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { data: user, isLoading: isAuthLoading } = useAuth();
     const { data: onboardingListData, isLoading, error, refetch } = useOnboardings({ status: 'pending' });
     
@@ -76,6 +78,17 @@ const OnboardingPage = () => {
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [selectedOnboarding, setSelectedOnboarding] = useState<Onboarding | null>(null);
+    const [addDepartmentDialogOpen, setAddDepartmentDialogOpen] = useState(false);
+
+    // Check if we should auto-open the add department dialog
+    useEffect(() => {
+        const action = searchParams.get("action");
+        if (action === "add-department" && isSuperAdmin) {
+            setAddDepartmentDialogOpen(true);
+            // Clean up URL parameter
+            router.replace("/onboarding", { scroll: false });
+        }
+    }, [searchParams, isSuperAdmin, router]);
 
     const handleRejectClick = (onboardingId: number, userName: string) => {
         setSelectedOnboarding({ id: onboardingId, user: { name: userName } as StaffUser } as Onboarding);
@@ -192,22 +205,33 @@ const OnboardingPage = () => {
                             Review and approve users awaiting verification
                         </p>
                     </div>
-                    {/* Count of pending approvals */}
-                    {isLoading ? (
-                        <div className="flex items-center gap-2 rounded-lg bg-lightmuted/20 px-4 py-2 text-lightmuted">
-                            <Loader2 size={18} className="animate-spin" />
-                        </div>
-                    ) : onboardingList && onboardingList.length > 0 ? (
-                        <div className="flex items-center gap-2 rounded-lg bg-lightwarning px-4 py-2 text-warning">
-                            <Clock size={18} />
-                            <span className="font-medium">{onboardingList.length} pending</span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 rounded-lg bg-lightsuccess px-4 py-2 text-success">
-                            <CheckCircle2 size={18} />
-                            <span className="font-medium">All Caught Up!</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {/* Add Department Button */}
+                        <Button
+                            variant="default"
+                            onClick={() => setAddDepartmentDialogOpen(true)}
+                            className="flex items-center gap-2"
+                        >
+                            <Building2 className="h-4 w-4" />
+                            Add Department
+                        </Button>
+                        {/* Count of pending approvals */}
+                        {isLoading ? (
+                            <div className="flex items-center gap-2 rounded-lg bg-lightmuted/20 px-4 py-2 text-lightmuted">
+                                <Loader2 size={18} className="animate-spin" />
+                            </div>
+                        ) : onboardingList && onboardingList.length > 0 ? (
+                            <div className="flex items-center gap-2 rounded-lg bg-lightwarning px-4 py-2 text-warning">
+                                <Clock size={18} />
+                                <span className="font-medium">{onboardingList.length} pending</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 rounded-lg bg-lightsuccess px-4 py-2 text-success">
+                                <CheckCircle2 size={18} />
+                                <span className="font-medium">All Caught Up!</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -259,6 +283,12 @@ const OnboardingPage = () => {
                     onboardingId={selectedOnboarding.id as number}
                 />
             )}
+
+            {/* Add Department Dialog */}
+            <AddDepartmentDialog
+                open={addDepartmentDialogOpen}
+                onOpenChange={setAddDepartmentDialogOpen}
+            />
         </>
     )
 }
