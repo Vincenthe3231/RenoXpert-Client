@@ -247,6 +247,11 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       if (data.phoneNo !== undefined) backendData.phone_no = data.phoneNo
       if (data.countryCode !== undefined) backendData.country_code = data.countryCode
       
+      // Include staff_type in the same request
+      if (data.staffType !== undefined) {
+        backendData.staff_type = data.staffType
+      }
+      
       // Map department to backend format (capitalized with spaces)
       if (data.department !== undefined) {
         backendData.department = mapDepartmentToBackendFormat(data.department)
@@ -349,6 +354,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       city?: string
       state?: string
       postcode?: string
+      staffType?: StaffType
       department?: string
     } = {}
 
@@ -424,7 +430,12 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       updateData.department = selectedDepartment
     }
 
-    if (Object.keys(updateData).length === 0 && !hasRoleChange) {
+    // Include staffType in updateData if role changed
+    if (hasRoleChange) {
+      updateData.staffType = selectedRole
+    }
+
+    if (Object.keys(updateData).length === 0) {
       toast({
         title: 'No changes',
         description: 'No changes were made.',
@@ -432,27 +443,20 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
       return
     }
 
-    const hasUserInfoChanges = Object.keys(updateData).length > 0
-    const mutations: Promise<any>[] = []
-
     try {
-      if (hasUserInfoChanges) {
-        mutations.push(updateUser.mutateAsync(updateData))
-      }
-      if (hasRoleChange) {
-        mutations.push(changeStaffType.mutateAsync({ staffType: selectedRole }))
-      }
-
-      await Promise.all(mutations)
+      // SINGLE REQUEST with all fields (name, phone, department, staff_type)
+      await updateUser.mutateAsync(updateData)
 
       const changes: string[] = []
-      const otherInfoChanges = Object.keys(updateData).filter(k => k !== 'department').length > 0
+      const otherInfoChanges = Object.keys(updateData).filter(k => k !== 'department' && k !== 'staffType').length > 0
 
-      if (otherInfoChanges && hasDeptChange) changes.push('user information and department')
+      if (otherInfoChanges && hasDeptChange && hasRoleChange) changes.push('user information, department, and role')
+      else if (otherInfoChanges && hasDeptChange) changes.push('user information and department')
+      else if (otherInfoChanges && hasRoleChange) changes.push('user information and role')
+      else if (hasDeptChange && hasRoleChange) changes.push('department and role')
       else if (otherInfoChanges) changes.push('user information')
       else if (hasDeptChange) changes.push('department')
-
-      if (hasRoleChange) changes.push('role')
+      else if (hasRoleChange) changes.push('role')
 
       toast({
         title: 'User updated successfully',
@@ -517,7 +521,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
     name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
   const handleClose = () => {
-    if (updateUser.isPending || changeStaffType.isPending) return
+    if (updateUser.isPending) return
     onOpenChange(false)
     // Reset form when closing - use fresh user data if available
     const userToReset = freshUserData || initialUser
@@ -805,7 +809,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
                       <Select
                         value={selectedRole}
                         onValueChange={handleRoleChange}
-                        disabled={updateUser.isPending || changeStaffType.isPending}
+                        disabled={updateUser.isPending}
                       >
                         <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
                           <SelectValue placeholder="Select role" />
@@ -828,7 +832,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
                       <Select
                         value={selectedDepartment}
                         onValueChange={setSelectedDepartment}
-                        disabled={updateUser.isPending || changeStaffType.isPending}
+                        disabled={updateUser.isPending}
                       >
                         <SelectTrigger className="h-11 border-border/50 bg-[var(--field-bg)] dark:bg-[var(--field-bg)] transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20">
                           <SelectValue placeholder="Select department" />
@@ -861,7 +865,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={updateUser.isPending || changeStaffType.isPending}
+              disabled={updateUser.isPending}
               className="gap-2 transition-all duration-200 hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -869,10 +873,10 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
             </Button>
             <Button
               type="submit"
-              disabled={updateUser.isPending || changeStaffType.isPending}
+              disabled={updateUser.isPending}
               className="gap-2 bg-gradient-to-r from-primary to-secondary text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg"
             >
-              {updateUser.isPending || changeStaffType.isPending ? (
+              {updateUser.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Saving...
