@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Clock, CheckCircle2, XCircle, ArrowRight, UserX, UserCheck, UserCog, UserPen } from "lucide-react"
+import { Clock, CheckCircle2, XCircle, ArrowRight, UserX, UserCheck, UserCog, UserPen, Loader2 } from "lucide-react"
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -396,7 +396,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
         return {
           icon: CheckCircle2,
           label: "Approved",
-          className: "bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20 dark:text-green-400",
+          className: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
           iconClassName: "text-green-500",
           typeLabel: "Onboarding",
         }
@@ -404,8 +404,16 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
         return {
           icon: XCircle,
           label: "Rejected",
-          className: "bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 dark:text-red-400",
+          className: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
           iconClassName: "text-red-500",
+          typeLabel: "Onboarding",
+        }
+      } else if (status === "pending") {
+        return {
+          icon: Clock,
+          label: "Pending",
+          className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+          iconClassName: "text-amber-500",
           typeLabel: "Onboarding",
         }
       }
@@ -416,7 +424,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
           return {
             icon: UserX,
             label: 'Deactivated',
-            className: 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 dark:text-red-400',
+            className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
             iconClassName: 'text-red-500',
             typeLabel: 'User Management',
           }
@@ -424,7 +432,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
           return {
             icon: UserCheck,
             label: 'Activated',
-            className: 'bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20 dark:text-green-400',
+            className: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
             iconClassName: 'text-green-500',
             typeLabel: 'User Management',
           }
@@ -432,7 +440,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
           return {
             icon: UserCog,
             label: 'Role Changed',
-            className: 'bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20 dark:text-blue-400',
+            className: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
             iconClassName: 'text-blue-500',
             typeLabel: 'User Management',
           }
@@ -440,25 +448,62 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
           return {
             icon: UserPen,
             label: 'Profile Updated',
-            className: 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 dark:text-purple-400',
+            className: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800',
             iconClassName: 'text-purple-500',
             typeLabel: 'User Management',
           }
-        default:
+        case 'approved':
+          return {
+            icon: CheckCircle2,
+            label: 'Approved',
+            className: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+            iconClassName: 'text-green-500',
+            typeLabel: 'User Management',
+          }
+        case 'rejected':
+          return {
+            icon: XCircle,
+            label: 'Rejected',
+            className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
+            iconClassName: 'text-red-500',
+            typeLabel: 'User Management',
+          }
+        case 'pending':
           return {
             icon: Clock,
-            label: event,
-            className: 'bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted/70',
-            iconClassName: 'text-muted-foreground',
+            label: 'Pending',
+            className: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+            iconClassName: 'text-amber-500',
+            typeLabel: 'User Management',
+          }
+        case 'verifying':
+          return {
+            icon: Loader2,
+            label: 'Verifying',
+            className: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+            iconClassName: 'text-amber-500',
+            typeLabel: 'User Management',
+          }
+        default:
+          // Capitalize first letter of event name for better display
+          const capitalizedLabel = event && typeof event === 'string' 
+            ? event.charAt(0).toUpperCase() + event.slice(1).toLowerCase()
+            : 'Unknown'
+          return {
+            icon: Clock,
+            label: capitalizedLabel,
+            className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
+            iconClassName: 'text-gray-500',
             typeLabel: 'User Management',
           }
       }
     }
+    // Fallback for onboarding entries without a recognized status
     return {
       icon: Clock,
       label: "Pending",
-      className: "bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted/70",
-      iconClassName: "text-muted-foreground",
+      className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+      iconClassName: "text-amber-500",
       typeLabel: "Onboarding",
     }
   }
@@ -544,7 +589,8 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
                     activityConfig.iconClassName.includes('red') && "bg-red-500",
                     activityConfig.iconClassName.includes('blue') && "bg-blue-500",
                     activityConfig.iconClassName.includes('purple') && "bg-purple-500",
-                    activityConfig.iconClassName.includes('gray') && "bg-gray-400"
+                    activityConfig.iconClassName.includes('amber') && "bg-amber-500",
+                    (activityConfig.iconClassName.includes('gray') || activityConfig.iconClassName.includes('muted')) && "bg-gray-400"
                   )} />
                 </div>
 
@@ -561,8 +607,8 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
                 {/* Action Category */}
                 <div className="hidden lg:flex flex-1 items-center">
                   <Badge
-                    variant="secondary"
-                    className="bg-muted/40 text-muted-foreground border-border/50 font-normal py-0.5 px-2.5 text-[10px]"
+                    variant="outline"
+                    className="bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800 gap-1 font-normal py-0.5 px-2.5 text-[10px]"
                   >
                     {activityConfig.typeLabel}
                   </Badge>
@@ -573,10 +619,11 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] px-2 py-0.5 font-medium rounded-md border shadow-sm",
+                      "text-[10px] px-2 py-0.5 font-medium gap-1",
                       activityConfig.className
                     )}
                   >
+                    <activityConfig.icon size={12} />
                     {activityConfig.label}
                   </Badge>
                   <DepartmentBadge department={department} size="sm" />

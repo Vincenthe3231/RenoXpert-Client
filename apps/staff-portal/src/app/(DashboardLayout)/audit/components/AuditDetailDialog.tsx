@@ -9,11 +9,14 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { motion } from "framer-motion";
 import { AuditEntry } from "../types";
 
+import { User } from "@/lib/api/auth";
+
 interface AuditDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entryId: string | null;
   auditEntries: AuditEntry[];
+  users: User[];
 }
 
 export function AuditDetailDialog({
@@ -21,8 +24,9 @@ export function AuditDetailDialog({
   onOpenChange,
   entryId,
   auditEntries,
+  users,
 }: AuditDetailDialogProps) {
-  const { data: entry, isLoading } = useAuditEntry(entryId, auditEntries);
+  const { data: entry, isLoading } = useAuditEntry(entryId, auditEntries, users);
 
   if (!entryId) return null;
 
@@ -123,9 +127,13 @@ export function AuditDetailDialog({
                       Details
                     </span>
                   </div>
-                  <p className="text-sm leading-relaxed text-foreground">
-                    {entry.details}
-                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {entry.details.split('\n').filter(line => line.trim()).map((line, index) => (
+                      <p key={index} className="text-sm leading-relaxed text-foreground">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
                 </motion.div>
               </AdminSection>
             </div>

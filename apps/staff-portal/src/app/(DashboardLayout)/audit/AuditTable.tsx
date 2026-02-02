@@ -308,7 +308,13 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
 
   // Component to render truncated details with tooltip
   const TruncatedDetails = ({ details, maxLength = 50 }: { details: string | string[]; maxLength?: number }) => {
-    const detailsList = Array.isArray(details) ? details : [details]
+    // Handle both array and string (with newlines) formats
+    const detailsList = Array.isArray(details) 
+      ? details 
+      : details.includes('\n') 
+        ? details.split('\n').filter(line => line.trim())
+        : [details]
+    
     const flatText = detailsList.join(", ")
 
     if (flatText === "—" || !flatText) {
@@ -1427,6 +1433,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         onOpenChange={setIsDetailDialogOpen}
         entryId={selectedEntryId}
         auditEntries={auditEntries}
+        users={users}
       />
     </motion.div>
     </TooltipProvider>

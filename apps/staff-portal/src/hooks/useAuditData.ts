@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { AuditEntry } from "@/app/(DashboardLayout)/audit/types";
+import { User } from "@/lib/api/auth";
 
 /**
  * Hook to get audit entry data by entry ID
@@ -7,7 +8,8 @@ import { AuditEntry } from "@/app/(DashboardLayout)/audit/types";
  */
 export function useAuditEntry(
   entryId: string | null,
-  auditEntries: AuditEntry[]
+  auditEntries: AuditEntry[],
+  users: User[] = []
 ): { data: AuditEntryData | null; isLoading: boolean } {
   const entry = useMemo(() => {
     if (!entryId) return null;
@@ -40,8 +42,8 @@ export function useAuditEntry(
     if (!foundEntry) return null;
 
     // Transform entry to AuditEntryData format
-    return transformEntryToData(foundEntry);
-  }, [entryId, auditEntries]);
+    return transformEntryToData(foundEntry, users);
+  }, [entryId, auditEntries, users]);
 
   return {
     data: entry,
@@ -50,9 +52,43 @@ export function useAuditEntry(
 }
 
 /**
+ * Helper to get user avatar URL from users list
+ */
+function getUserAvatarUrl(
+  user: { profile?: any; id?: any; uuid?: string } | null | undefined,
+  users: User[]
+): string | null {
+  // First check if user has profile with avatarUrl
+  if (user?.profile && 'avatarUrl' in user.profile) {
+    const avatarUrl = user.profile.avatarUrl || null;
+    if (avatarUrl) return avatarUrl;
+  }
+  
+  // Fallback: if user has ID, try to find avatar from users list
+  if (user?.id || user?.uuid) {
+    const subjectId = user.id;
+    const subjectUuid = user.uuid;
+    
+    const foundUser = users.find((u) => {
+      if (subjectId != null && u.id != null && Number(u.id) === Number(subjectId)) return true;
+      if (subjectUuid && u.uuid && String(u.uuid) === String(subjectUuid)) return true;
+      if (subjectId != null && u.id != null && String(u.id) === String(subjectId)) return true;
+      return false;
+    });
+    
+    if (foundUser?.profile && 'avatarUrl' in foundUser.profile) {
+      const avatarUrl = foundUser.profile.avatarUrl || null;
+      if (avatarUrl) return avatarUrl;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Transform AuditEntry to AuditEntryData format for the dialog
  */
-function transformEntryToData(entry: AuditEntry): AuditEntryData {
+function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntryData {
   if (entry.type === "onboarding") {
     const decision = entry.data;
     const timestamp = decision.reviewedAt
@@ -61,12 +97,16 @@ function transformEntryToData(entry: AuditEntry): AuditEntryData {
       ? new Date(decision.createdAt)
       : new Date();
 
+    const user = decision.user;
+    const avatarUrl = getUserAvatarUrl(user, users) || 
+                      (user?.profile?.avatarUrl || null);
+
     return {
       user: {
-        name: decision.user?.name || "Unknown",
-        email: decision.user?.email || "",
-        avatarUrl: decision.user?.profile?.avatarUrl || null,
-        department: extractDepartment(decision.user),
+        name: user?.name || "Unknown",
+        email: user?.email || "",
+        avatarUrl: avatarUrl,
+        department: extractDepartment(user),
       },
       type: "Onboarding",
       action: decision.status === "approved" ? "Approved" : decision.status === "rejected" ? "Rejected" : "Pending",
@@ -78,7 +118,59 @@ function transformEntryToData(entry: AuditEntry): AuditEntryData {
   } else {
     const log = entry.data;
     const timestamp = log.createdAt ? new Date(log.createdAt) : new Date();
-    const user = log.subject || (log.subjectId ? { id: log.subjectId } : null);
+
+    // Extract user following the same priority logic as AuditTable.getUserFromEntry
+    // PRIORITY 1: Get current user from users list (most up-to-date)
+    let user: any = null;
+    if (log.subjectId) {
+      const subjectId = log.subjectId as any;
+      const subjectIdStr = String(subjectId);
+      const foundUser = users.find((u) => {
+        if (u.id != null && Number(u.id) === Number(subjectId)) return true;
+        if (u.id != null && String(u.id) === subjectIdStr) return true;
+        if (u.uuid && String(u.uuid) === subjectIdStr) return true;
+        return false;
+      });
+      if (foundUser) {
+        user = foundUser;
+      }
+    }
+
+    // PRIORITY 2: Use subject field (backend provides current user data)
+    if (!user && log.subject && typeof log.subject === 'object' && log.subject !== null) {
+      const subject = log.subject as any;
+      if (subject.name || subject.email) {
+        // Try to get avatar from users list if missing
+        let profile = subject.profile;
+        if (!profile?.avatarUrl && log.subjectId) {
+          const subjectId = log.subjectId as any;
+          const subjectIdStr = String(subjectId);
+          const foundUser = users.find((u) => {
+            if (u.id != null && Number(u.id) === Number(subjectId)) return true;
+            if (u.id != null && String(u.id) === subjectIdStr) return true;
+            if (u.uuid && String(u.uuid) === subjectIdStr) return true;
+            return false;
+          });
+          if (foundUser?.profile && 'avatarUrl' in foundUser.profile) {
+            profile = { avatarUrl: foundUser.profile.avatarUrl || null };
+          }
+        }
+        user = {
+          name: subject.name || subject.email || 'Unknown User',
+          email: subject.email || null,
+          id: subject.id || log.subjectId || null,
+          uuid: subject.uuid || null,
+          status: subject.status || null,
+          userType: subject.userType || subject.user_type || null,
+          profile: profile || undefined,
+        };
+      }
+    }
+
+    // PRIORITY 3: Fallback to minimal user object with just ID
+    if (!user && log.subjectId) {
+      user = { id: log.subjectId };
+    }
 
     // Extract role from properties
     const role =
@@ -107,12 +199,16 @@ function transformEntryToData(entry: AuditEntry): AuditEntryData {
     // Get details
     const details = formatLogDetails(log);
 
+    // Get avatar URL - try from user object first, then lookup from users list
+    const avatarUrl = getUserAvatarUrl(user, users) ||
+                      (user?.profile?.avatarUrl || user?.avatarUrl || null);
+
     return {
       user: {
-        name: (user as any)?.name || "Unknown",
-        email: (user as any)?.email || "",
-        avatarUrl: (user as any)?.profile?.avatarUrl || (user as any)?.avatarUrl || null,
-        department: extractDepartment(user as any),
+        name: user?.name || "Unknown",
+        email: user?.email || "",
+        avatarUrl: avatarUrl,
+        department: extractDepartment(user),
       },
       type,
       action,
@@ -257,7 +353,7 @@ function formatLogDetails(log: any): string {
     }
   });
 
-  return changes.length > 0 ? changes.join(", ") : "—";
+  return changes.length > 0 ? changes.join("\n") : "—";
 }
 
 /**
