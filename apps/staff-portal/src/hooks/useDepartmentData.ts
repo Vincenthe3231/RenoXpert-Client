@@ -15,7 +15,6 @@ export type ColorScheme = typeof colorSchemeOptions[number]["value"];
 
 interface AddDepartmentParams {
   name: string;
-  description?: string;
   colorScheme: ColorScheme;
 }
 

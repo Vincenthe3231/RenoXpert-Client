@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +24,6 @@ import { cn } from "@/lib/utils";
 
 const departmentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  description: z.string().optional(),
   colorScheme: z.enum(["cyan", "pink", "emerald", "violet", "amber", "slate"]),
 });
 
@@ -51,7 +49,6 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     resolver: zodResolver(departmentSchema),
     defaultValues: {
       name: "",
-      description: "",
       colorScheme: "cyan",
     },
   });
@@ -69,7 +66,6 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     try {
       await addDepartment.mutateAsync({
         name: data.name,
-        description: data.description,
         colorScheme: data.colorScheme,
       });
       toast({
@@ -116,16 +112,6 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
               {errors.name && (
                 <p className="text-xs text-destructive">{errors.name.message}</p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Textarea
-                id="description"
-                placeholder="Brief description of the department..."
-                {...register("description")}
-                className="bg-background/50 min-h-[80px] resize-none"
-              />
             </div>
 
             <div className="space-y-3">
