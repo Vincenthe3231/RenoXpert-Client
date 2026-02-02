@@ -9,7 +9,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AuditEntry } from "@/app/(DashboardLayout)/audit/types"
-import { User, UserDepartments } from "@/lib/api/auth"
+import { User } from "@/lib/api/auth"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
@@ -46,16 +46,14 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
   const getUserDepartment = (user: { profile?: { department?: string | null; roles?: string[] }; roles?: string[] } | null | undefined): string | null => {
     if (!user) return null
 
-    // Priority 1: Check direct department field in profile (new schema)
+    // Priority 1: Check direct department field in profile (new dynamic schema from backend)
     if (user.profile?.department) {
       return user.profile.department
     }
 
-    // Priority 2: Check if user has roles array in profile
+    // Priority 2: Fallback to roles array if present - use the first role as a best-effort guess
     const roles = user.profile?.roles || user.roles || []
-
-    // Find the first role that matches a valid department
-    const department = roles.find((role: string) => (UserDepartments as readonly string[]).includes(role))
+    const department = roles[0]
 
     return department || null
   }

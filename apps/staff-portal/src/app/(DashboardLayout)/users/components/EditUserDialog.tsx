@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Building2, Loader2, Save, X, User as UserIcon, Phone, Mail, MapPin, Shield, Globe } from "lucide-react"
-import { StaffUser, OwnerUser, VendorUser, User, StaffType, UserDepartments } from "@/lib/api/auth/auth.schemas"
+import { StaffUser, OwnerUser, VendorUser, User, StaffType } from "@/lib/api/auth/auth.schemas"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/api/auth/auth.hooks"
@@ -18,6 +18,7 @@ import { useState, useEffect, useMemo } from "react"
 import { AUTH_QUERY_KEYS } from "@/lib/api/auth/constants"
 import { ACTIVITY_LOGS_QUERY_KEYS } from "@/lib/api/activity-logs/constants"
 import { useUser } from "@/lib/api/auth/auth.hooks"
+import { useDepartments } from "@/hooks/useDepartmentData"
 import { AdminDialogHeader } from "./AdminDialogHeader"
 import { AdminSection } from "./AdminSection"
 import { AdminFormField } from "./AdminFormField"
@@ -31,11 +32,6 @@ interface EditUserDialogProps {
   onOpenChange: (open: boolean) => void
   user: User | null
 }
-
-const DEPARTMENTS = UserDepartments.map(dept => ({
-  value: dept,
-  label: dept
-}))
 
 const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialogProps) => {
   const { data: currentUser } = useAuth()
@@ -59,6 +55,7 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
   const [selectedDepartment, setSelectedDepartment] = useState<string>("")
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { data: departments } = useDepartments()
 
   // Check if current user is super-admin
   const isSuperAdmin = useMemo(() => {
@@ -182,20 +179,15 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
         setSelectedRole(newRole)
 
         // Initialize department for staff users
-        const validDepartments = UserDepartments
         const userProfile = (user as StaffUser).profile
 
         // Priority 1: Direct department field
         if (userProfile.department) {
           setSelectedDepartment(userProfile.department)
         } else {
-          // Priority 2: Fallback to roles extraction
-          const department = roles.find((role: string) => validDepartments.includes(role as any))
-          if (department) {
-            setSelectedDepartment(department)
-          } else {
-            setSelectedDepartment("")
-          }
+          // Priority 2: Fallback to roles extraction (use first role if present)
+          const departmentFromRoles = roles[0]
+          setSelectedDepartment(departmentFromRoles || "")
         }
       }
     }

@@ -5,7 +5,9 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -122,6 +124,9 @@ export function ApproveUserDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg gap-0 overflow-hidden p-0 sm:rounded-2xl border-border/40 shadow-2xl">
+        <VisuallyHidden>
+          <DialogTitle>Approve User</DialogTitle>
+        </VisuallyHidden>
         {/* Gradient Header */}
         <AdminDialogHeader
           avatarUrl={user.avatarUrl}

@@ -222,15 +222,21 @@ function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntry
 
 /**
  * Extract department from user object
+ *
+ * Backend now stores department as a dedicated field on the staff profile.
+ * We prefer that field and only fall back to roles as a best-effort guess.
  */
 function extractDepartment(user: any): string {
   if (!user) return "";
-  
+
+  // Priority 1: explicit department field from backend
+  if (user.profile?.department) {
+    return user.profile.department;
+  }
+
+  // Priority 2: fallback to roles array (use the first role if present)
   const roles = user.profile?.roles || user.roles || [];
-  const validDepartments = ["Owner Sales", "Renovation", "Technician", "Finance & Account"];
-  
-  const department = roles.find((role: string) => validDepartments.includes(role));
-  return department || "";
+  return (roles[0] as string) || "";
 }
 
 /**

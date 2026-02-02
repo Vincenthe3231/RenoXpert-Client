@@ -19,7 +19,9 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -161,6 +163,9 @@ const RejectDialog = ({
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="max-w-lg w-full mx-4 sm:mx-auto gap-0 overflow-hidden rounded-xl sm:rounded-2xl border-0 p-0 shadow-2xl">
+                <VisuallyHidden>
+                    <DialogTitle>Reject User Onboarding</DialogTitle>
+                </VisuallyHidden>
                     {/* Destructive Gradient Header */}
                 <div
                     className={cn(

@@ -14,7 +14,6 @@ import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatus
 import { DepartmentBadge } from "./components/DepartmentBadge"
 import { AuditDetailDialog } from "./components/AuditDetailDialog"
 import { motion, AnimatePresence } from "framer-motion"
-import { VALID_DEPARTMENTS } from "@/lib/api/utils/department"
 
 interface AuditTableProps {
   auditEntries: AuditEntry[]
@@ -122,7 +121,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       return { column: null, direction: null }
     })
   }
-  // Helper to extract department from user (from roles array)
+  // Helper to extract department from user (from profile/roles)
   const getUserDepartment = (user: { profile?: any; roles?: string[] } | null | undefined): string | null => {
     if (!user) return null
 
@@ -131,15 +130,10 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       return user.profile.department
     }
     
-    // Priority 2: Check if user has roles array in profile
+    // Priority 2: Check if user has roles array in profile and fall back to first role
     const roles = user.profile?.roles || user.roles || []
-    
-    // Department values that match backend format
-    const validDepartments = VALID_DEPARTMENTS
-    
-    // Find the first role that matches a valid department
-    const department = roles.find((role: string) => validDepartments.includes(role as any))
-    
+    const department = roles[0]
+
     return department || null
   }
 

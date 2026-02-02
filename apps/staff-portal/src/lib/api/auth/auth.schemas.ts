@@ -31,7 +31,16 @@ const baseUserSchema = {
     status: userStatusSchema,
 };
 
-
+/**
+ * Department handling
+ *
+ * Backend now stores departments in a dedicated table and validates that
+ * the department string exists and is active. The frontend should accept
+ * any non-empty string and let the backend enforce the allowed values.
+ *
+ * We keep `UserDepartments` only as a legacy/fallback list (e.g. for
+ * static UIs or seeds), but the actual validation uses a flexible string.
+ */
 export const UserDepartments = [
     "Owner Sales",
     "Renovation",
@@ -39,8 +48,9 @@ export const UserDepartments = [
     "Finance & Account"
 ] as const;
 
-export type UserDepartment = typeof UserDepartments[number];
-export const userDepartmentSchema = z.enum(UserDepartments);
+// Flexible department type/schema – any non-empty string is allowed.
+export const userDepartmentSchema = z.string().min(1);
+export type UserDepartment = z.infer<typeof userDepartmentSchema>;
 
 // Profile schemas (only extra fields)
 // Based on StaffResource: larksuiteOpenId, larksuiteUnionId, avatarUrl, avatarBig, status, roles, permissions
