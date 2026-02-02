@@ -139,66 +139,125 @@ function extractDepartment(user: any): string {
 
 /**
  * Format log details from activity log properties
+ * Returns "-" for pending entries with no details
  */
 function formatLogDetails(log: any): string {
-  if (!log.properties) {
-    return log.description || "No details available";
+  // Safety check: if log is null/undefined
+  if (!log) {
+    return "—";
   }
 
-  const changes: string[] = [];
+  // For pending entries, always return empty
+  if (log.event === 'pending') {
+    return "—";
+  }
+
+  if (!log.properties) {
+    return "—";
+  }
+
   const oldValues = log.properties.old || {};
   const newValues = log.properties.attributes || {};
 
-  // Format common field changes
-  const fieldMappings: Record<string, string> = {
-    status: "Status",
-    name: "Name",
-    email: "Email",
-    phone_no: "Phone Number",
-    phoneNo: "Phone Number",
-    country_code: "Country Code",
-    countryCode: "Country Code",
-    roles: "Role",
-    department: "Department",
-  };
-
-  // Check for role changes
-  if (oldValues.roles?.[0] !== newValues.roles?.[0]) {
-    const oldRole = oldValues.roles?.[0] || "—";
-    const newRole = newValues.roles?.[0] || "—";
-    changes.push(`Role: ${oldRole} → ${newRole}`);
+  // If both old and attributes are empty, return empty
+  if (Object.keys(oldValues).length === 0 && Object.keys(newValues).length === 0) {
+    return "—";
   }
 
-  // Check for department changes
-  if (oldValues.department !== newValues.department) {
-    const oldDept = oldValues.department || "—";
-    const newDept = newValues.department || "—";
-    changes.push(`Department: ${oldDept} → ${newDept}`);
+  const changes: string[] = [];
+
+  // 1. Format status change (if status changed)
+  if (oldValues.status && newValues.status && oldValues.status !== newValues.status) {
+    changes.push(`Status: ${oldValues.status} → ${newValues.status}`);
   }
 
-  // Check for status changes
-  if (oldValues.status !== newValues.status) {
-    const oldStatus = oldValues.status || "—";
-    const newStatus = newValues.status || "—";
-    changes.push(`Status: ${oldStatus} → ${newStatus}`);
+  // 2. Format role (for onboarding approvals or role changes)
+  // Handle roles array (backend may send roles as array)
+  const oldRole = Array.isArray(oldValues.roles) ? oldValues.roles[0] : oldValues.role || oldValues.roles?.[0];
+  const newRole = Array.isArray(newValues.roles) ? newValues.roles[0] : newValues.role || newValues.roles?.[0];
+
+  if (newRole) {
+    if (oldRole && oldRole !== newRole) {
+      // Role changed
+      changes.push(`Role: ${oldRole} → ${newRole}`);
+    } else if (!oldRole) {
+      // Role assigned (no old role)
+      changes.push(`Role: ${newRole}`);
+    }
   }
 
-  // Check for other field changes
+  // 3. Format department (for onboarding approvals or department changes)
+  if (newValues.department) {
+    if (oldValues.department !== undefined && oldValues.department !== newValues.department) {
+      // Department changed
+      const oldDept = oldValues.department || 'null';
+      changes.push(`Department: ${oldDept} → ${newValues.department}`);
+    } else if (!oldValues.department) {
+      // Department assigned (no old department)
+      changes.push(`Department: ${newValues.department}`);
+    }
+  }
+
+  // 4. Format other field changes (name, phone, etc. for user updates)
   Object.keys(newValues).forEach((key) => {
-    if (key === "roles" || key === "department" || key === "status") return; // Already handled
-    if (oldValues[key] !== newValues[key]) {
-      const fieldName = fieldMappings[key] || key;
-      const oldVal = oldValues[key] || "—";
-      const newVal = newValues[key] || "—";
-      changes.push(`${fieldName}: ${oldVal} → ${newVal}`);
+    // Skip these fields (already handled or metadata)
+    if (['status', 'role', 'roles', 'department', 'module', 'ip', 'staff_onboarding_id'].includes(key)) {
+      return;
+    }
+
+    const oldVal = oldValues[key];
+    const newVal = newValues[key];
+
+    // Only show if value actually changed
+    if (oldVal !== undefined && newVal !== undefined && oldVal !== newVal) {
+      // Format field name (convert snake_case to Title Case)
+      const fieldName = key
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      // Format values
+      const formatValue = (val: any): string => {
+        if (val === null || val === undefined) return 'null';
+        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+      };
+
+      const oldFormatted = formatValue(oldVal);
+      const newFormatted = formatValue(newVal);
+
+      changes.push(`${fieldName}: "${oldFormatted}" → "${newFormatted}"`);
     }
   });
 
-  if (changes.length > 0) {
-    return changes.join(", ");
-  }
+  // Also check for fields that were removed (in old but not in new)
+  Object.keys(oldValues).forEach((key) => {
+    // Skip already handled fields
+    if (['status', 'role', 'roles', 'department', 'module', 'ip', 'staff_onboarding_id'].includes(key)) {
+      return;
+    }
 
-  return log.description || "No changes recorded";
+    // Only show if field was removed (exists in old but not in new)
+    if (oldValues[key] !== undefined && newValues[key] === undefined) {
+      const fieldName = key
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      const formatValue = (val: any): string => {
+        if (val === null || val === undefined) return 'null';
+        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+      };
+
+      const oldFormatted = formatValue(oldValues[key]);
+      changes.push(`${fieldName}: "${oldFormatted}" → null`);
+    }
+  });
+
+  return changes.length > 0 ? changes.join(", ") : "—";
 }
 
 /**

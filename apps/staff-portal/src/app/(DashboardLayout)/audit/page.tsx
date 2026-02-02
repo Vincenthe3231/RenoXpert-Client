@@ -142,6 +142,53 @@ export default function AuditPage() {
   // This prevents overwriting issues and ensures immutability of all audit data
   const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
 
+  // Filter to only show decisions (approved or rejected)
+  // Must be declared before useEffect hooks that use it
+  const decisions = useMemo(() => {
+    return onboardings.filter(
+      o => o.status === 'approved' || o.status === 'rejected'
+    )
+  }, [onboardings])
+
+  // Debug logging for activity logs (development only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && activityLogs.length > 0) {
+      console.log('📊 Activity Logs from API:', {
+        total: activityLogs.length,
+        userLogs: userActivityLogs.length,
+        onboardingLogs: onboardingActivityLogs.length,
+        roleLogs: roleActivityLogs.length,
+        logs: activityLogs.map(log => ({
+          id: log.id,
+          event: log.event,
+          logName: log.logName,
+          createdAt: log.createdAt,
+          staffOnboardingId: log.properties?.staff_onboarding_id || log.properties?.staffOnboardingId,
+          subjectId: log.subjectId,
+          hasAttributes: !!log.properties?.attributes,
+          attributes: log.properties?.attributes,
+          old: log.properties?.old,
+        }))
+      })
+    }
+  }, [activityLogs, userActivityLogs, onboardingActivityLogs, roleActivityLogs])
+
+  // Debug logging for decisions (development only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && decisions.length > 0) {
+      console.log('📋 Decisions from Onboardings:', {
+        total: decisions.length,
+        decisions: decisions.map(d => ({
+          id: d.id,
+          status: d.status,
+          userId: d.userId,
+          reviewedAt: d.reviewedAt,
+          createdAt: d.createdAt,
+        }))
+      })
+    }
+  }, [decisions])
+
   // Check if any log type has more pages to load
   const hasMoreLogs = hasNextUserLogs || hasNextOnboardingLogs || hasNextRoleLogs
   const isFetchingMoreLogs = isFetchingNextUserLogs || isFetchingNextOnboardingLogs || isFetchingNextRoleLogs
@@ -356,16 +403,26 @@ export default function AuditPage() {
     return new Map(users.map(u => [u.uuid, u]))
   }, [users])
 
-  // Filter to only show decisions (approved or rejected)
-  const decisions = useMemo(() => {
-    return onboardings.filter(
-      o => o.status === 'approved' || o.status === 'rejected'
-    )
-  }, [onboardings])
+  // Helper function to find matching activity log for a decision
+  const findMatchingActivityLog = useCallback((
+    decision: typeof decisions[0],
+    activityLogs: typeof activityLogs
+  ) => {
+    // Try to find matching activity log by staff_onboarding_id (handle both formats)
+    return activityLogs.find(log => {
+      const logOnboardingId = 
+        log.properties?.staff_onboarding_id || 
+        log.properties?.staffOnboardingId || 
+        log.subjectId
+      
+      return logOnboardingId === decision.id
+    }) || null
+  }, [])
 
   // Create unified audit entries
   // Show both onboarding decisions (from onboardings table) and activity logs
   // BUT: Filter out onboarding activity logs that duplicate onboarding decisions
+  // AND: Skip decision entries that have matching activity logs to prevent duplicates
   // (Onboarding activity logs are displayed as "User Management" type, causing confusion)
   const auditEntries: AuditEntry[] = useMemo(() => {
     // Get user IDs and timestamps from onboarding decisions
@@ -376,35 +433,51 @@ export default function AuditPage() {
       }
     })
     
-    // Filter out onboarding activity logs that duplicate onboarding decisions
-    // Also filter out User Management "approved" logs that are duplicates
+    // Filter activity logs to remove duplicates while preserving all pending entries
+    // Show all onboarding logs (pending, approved, rejected) - backend handles deduplication
     const filteredActivityLogs = activityLogs.filter(log => {
-      // Filter out onboarding activity logs that have a corresponding onboarding decision
-      // (These show as "Onboarding" in the UI but are actually onboarding logs)
-      const isApprovalPending = log.event === 'pending' && 
-        log.properties?.old?.status === 'pending' && 
-        log.properties?.attributes?.status === 'approved'
-      if (log.logName === 'onboarding' && (
-        log.event === 'approved' || 
-        log.event === 'rejected' || 
-        log.event === 'verifying' ||
-        isApprovalPending
-      )) {
-        // The subjectId in onboarding logs is the onboarding ID, not the user ID
-        // Find the decision that matches this onboarding ID
-        const onboardingId = log.subjectId
-        const decision = decisions.find(d => d.id === onboardingId)
-        
-        if (decision && decision.reviewedAt) {
-          const logTimestamp = new Date(log.createdAt).getTime()
-          const decisionTimestamp = new Date(decision.reviewedAt).getTime()
-          const timeDiff = Math.abs(logTimestamp - decisionTimestamp)
+      // For onboarding logs, show ALL entries (pending, approved, rejected, verifying)
+      // Regular pending entries should always be shown
+      if (log.logName === 'onboarding') {
+        // Always show regular pending entries (not the approval-pending case)
+        if (log.event === 'pending') {
+          // Check if this is a "real" pending entry (not an old approval entry with wrong event)
+          const isRealPending = !log.properties?.attributes?.status || 
+                               log.properties?.attributes?.status === 'pending' ||
+                               (Object.keys(log.properties?.attributes || {}).length === 0)
           
-          // If within 10 seconds, it's a duplicate - filter it out
-          if (timeDiff <= 10000) {
-            return false
+          if (isRealPending) {
+            // This is a real pending entry - always show it
+            return true
+          }
+          // Otherwise, it might be an old approval entry with wrong event - check for duplicates below
+        }
+        
+        // For approved/rejected/verifying entries, check for duplicates with decisions
+        // Only filter if there's an exact match with a decision AND it's within time window
+        if (log.event === 'approved' || log.event === 'rejected' || log.event === 'verifying') {
+          // Find matching decision by onboarding ID - handle both snake_case and camelCase
+          const onboardingId = log.subjectId || 
+            log.properties?.staff_onboarding_id || 
+            log.properties?.staffOnboardingId
+          const decision = decisions.find(d => d.id === onboardingId)
+          
+          if (decision && decision.reviewedAt) {
+            const logTimestamp = new Date(log.createdAt).getTime()
+            const decisionTimestamp = new Date(decision.reviewedAt).getTime()
+            const timeDiff = Math.abs(logTimestamp - decisionTimestamp)
+            
+            // Only filter if within 30 seconds (increased from 10 seconds for better accuracy)
+            // AND the event matches the decision status exactly
+            if (timeDiff <= 30000 && decision.status === log.event) {
+              // This log is a duplicate of the decision - filter it out
+              return false
+            }
           }
         }
+        
+        // For all other onboarding logs (including pending entries that passed through), show them
+        return true
       }
       
       // Filter out User Management "approved" logs that are duplicates of onboarding decisions
@@ -421,22 +494,74 @@ export default function AuditPage() {
             const onboardingTimestamp = onboardingUserTimestamps.get(userId)
             if (onboardingTimestamp) {
               const timeDiff = Math.abs(logTimestamp - onboardingTimestamp)
-              // If within 10 seconds, it's a duplicate - filter it out
-              if (timeDiff <= 10000) {
+              // If within 30 seconds (increased from 10 seconds), it's a duplicate - filter it out
+              if (timeDiff <= 30000) {
                 return false
               }
             }
           }
         }
       }
+      
+      // For all other log types, show them
       return true
     })
     
-    return [
-      ...decisions.map(decision => ({ type: 'onboarding' as const, data: decision })),
-      ...filteredActivityLogs.map(log => ({ type: 'activity_log' as const, data: log })),
-    ]
-  }, [decisions, activityLogs])
+    // Build audit entries with deduplication
+    // Skip decision entries that have matching activity logs to prevent showing duplicates
+    const entries: AuditEntry[] = []
+    
+    // Process decisions - only add if there's no matching activity log
+    decisions.forEach(decision => {
+      // Check if there's a matching activity log for this decision
+      const matchingLog = findMatchingActivityLog(decision, filteredActivityLogs)
+      
+      // Only add decision entry if there's NO matching activity log
+      // OR if the matching log is a pending entry (decisions and pending logs can coexist)
+      if (!matchingLog || matchingLog.event === 'pending') {
+        entries.push({ type: 'onboarding' as const, data: decision })
+      } else {
+        // If there's a matching activity log (approved/rejected), skip the decision entry
+        // The activity log will be added separately
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔍 Skipping decision ${decision.id} - has matching activity log ${matchingLog.id} (event: ${matchingLog.event})`)
+        }
+      }
+    })
+    
+    // Process activity logs - add all filtered activity logs
+    filteredActivityLogs.forEach(log => {
+      entries.push({ type: 'activity_log' as const, data: log })
+    })
+    
+    // Sort by date (most recent first)
+    const sortedEntries = entries.sort((a, b) => {
+      const dateA = a.type === 'onboarding'
+        ? new Date(a.data.reviewedAt || a.data.createdAt).getTime()
+        : new Date(a.data.createdAt).getTime()
+      const dateB = b.type === 'onboarding'
+        ? new Date(b.data.reviewedAt || b.data.createdAt).getTime()
+        : new Date(b.data.createdAt).getTime()
+      return dateB - dateA
+    })
+
+    // Debug logging for final combined entries (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Final Audit Entries:', {
+        total: sortedEntries.length,
+        decisions: sortedEntries.filter(e => e.type === 'onboarding').length,
+        activityLogs: sortedEntries.filter(e => e.type === 'activity_log').length,
+        entries: sortedEntries.map(e => ({
+          type: e.type,
+          id: e.data.id,
+          status: e.type === 'onboarding' ? e.data.status : e.data.event,
+          createdAt: e.type === 'onboarding' ? e.data.createdAt : e.data.createdAt,
+        }))
+      })
+    }
+
+    return sortedEntries
+  }, [decisions, activityLogs, findMatchingActivityLog])
 
   // Pre-compute searchable text for each entry (runs once when data changes)
   const entriesWithSearchableText = useMemo(() => {

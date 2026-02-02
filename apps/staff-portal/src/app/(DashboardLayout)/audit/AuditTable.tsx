@@ -185,57 +185,125 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
 
   // Helper to format details from log properties
   // Shows what changed in a concise format: "Field: old → new"
+  // Returns "-" for pending entries with no details
   const formatLogDetails = (log: any): string[] => {
+    // Safety check: if log is null/undefined
+    if (!log) {
+      return ["—"]
+    }
+
+    // For pending entries, always return empty
+    if (log.event === 'pending') {
+      return ["—"]
+    }
+
     const props = log.properties
     if (!props) {
       return ["—"]
     }
 
-    const changes: string[] = []
     const oldValues = props.old || {}
     const newValues = props.attributes || {}
     
-    // Get all unique keys from both old and new values
-    const allKeys = new Set([...Object.keys(oldValues), ...Object.keys(newValues)])
+    // If both old and attributes are empty, return empty
+    if (Object.keys(oldValues).length === 0 && Object.keys(newValues).length === 0) {
+      return ["—"]
+    }
+
+    const changes: string[] = []
     
-    for (const key of allKeys) {
+    // 1. Format status change (if status changed)
+    if (oldValues.status && newValues.status && oldValues.status !== newValues.status) {
+      changes.push(`Status: ${oldValues.status} → ${newValues.status}`)
+    }
+    
+    // 2. Format role (for onboarding approvals or role changes)
+    // Handle roles array (backend may send roles as array)
+    const oldRole = Array.isArray(oldValues.roles) ? oldValues.roles[0] : oldValues.role || oldValues.roles?.[0]
+    const newRole = Array.isArray(newValues.roles) ? newValues.roles[0] : newValues.role || newValues.roles?.[0]
+    
+    if (newRole) {
+      if (oldRole && oldRole !== newRole) {
+        // Role changed
+        changes.push(`Role: ${oldRole} → ${newRole}`)
+      } else if (!oldRole) {
+        // Role assigned (no old role)
+        changes.push(`Role: ${newRole}`)
+      }
+    }
+    
+    // 3. Format department (for onboarding approvals or department changes)
+    if (newValues.department) {
+      if (oldValues.department !== undefined && oldValues.department !== newValues.department) {
+        // Department changed
+        const oldDept = oldValues.department || 'null'
+        changes.push(`Department: ${oldDept} → ${newValues.department}`)
+      } else if (!oldValues.department) {
+        // Department assigned (no old department)
+        changes.push(`Department: ${newValues.department}`)
+      }
+    }
+    
+    // 4. Format other field changes (name, phone, etc. for user updates)
+    Object.keys(newValues).forEach((key) => {
+      // Skip these fields (already handled or metadata)
+      if (['status', 'role', 'roles', 'department', 'module', 'ip', 'staff_onboarding_id'].includes(key)) {
+        return
+      }
+      
       const oldVal = oldValues[key]
       const newVal = newValues[key]
       
-      // Skip if values are the same
-      if (oldVal === newVal) continue
-      
-      // Format the change
-      const formatValue = (val: any): string => {
-        if (val === null || val === undefined) return "—"
-        if (typeof val === 'boolean') return val ? 'Yes' : 'No'
-        if (typeof val === 'object') return JSON.stringify(val)
-        return String(val)
+      // Only show if value actually changed
+      if (oldVal !== undefined && newVal !== undefined && oldVal !== newVal) {
+        // Format field name (convert snake_case to Title Case)
+        const fieldName = key
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ')
+        
+        // Format values
+        const formatValue = (val: any): string => {
+          if (val === null || val === undefined) return 'null'
+          if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+          if (typeof val === 'object') return JSON.stringify(val)
+          return String(val)
+        }
+        
+        const oldFormatted = formatValue(oldVal)
+        const newFormatted = formatValue(newVal)
+        
+        changes.push(`${fieldName}: "${oldFormatted}" → "${newFormatted}"`)
+      }
+    })
+    
+    // Also check for fields that were removed (in old but not in new)
+    Object.keys(oldValues).forEach((key) => {
+      // Skip already handled fields
+      if (['status', 'role', 'roles', 'department', 'module', 'ip', 'staff_onboarding_id'].includes(key)) {
+        return
       }
       
-      const oldFormatted = formatValue(oldVal)
-      const newFormatted = formatValue(newVal)
-      
-      // Human-readable field names
-      const fieldName = key
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, str => str.toUpperCase())
-        .trim()
-      
-      if (oldVal === null || oldVal === undefined) {
-        changes.push(`${fieldName}: ${newFormatted}`)
-      } else if (newVal === null || newVal === undefined) {
-        changes.push(`${fieldName}: ${oldFormatted} → —`)
-      } else {
-        changes.push(`${fieldName}: ${oldFormatted} → ${newFormatted}`)
+      // Only show if field was removed (exists in old but not in new)
+      if (oldValues[key] !== undefined && newValues[key] === undefined) {
+        const fieldName = key
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ')
+        
+        const formatValue = (val: any): string => {
+          if (val === null || val === undefined) return 'null'
+          if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+          if (typeof val === 'object') return JSON.stringify(val)
+          return String(val)
+        }
+        
+        const oldFormatted = formatValue(oldValues[key])
+        changes.push(`${fieldName}: "${oldFormatted}" → null`)
       }
-    }
+    })
     
-    if (changes.length === 0) {
-      return ["—"]
-    }
-    
-    return changes
+    return changes.length > 0 ? changes : ["—"]
   }
 
   // Component to render truncated details with tooltip
@@ -335,7 +403,28 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           icon: History,
           label: 'Pending',
           variant: 'outline' as const,
-          className: 'gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100',
+          className: 'gap-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
+        }
+      case 'approved':
+        return {
+          icon: CheckCircle,
+          label: 'Approved',
+          variant: 'outline' as const,
+          className: 'gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100',
+        }
+      case 'rejected':
+        return {
+          icon: XCircle,
+          label: 'Rejected',
+          variant: 'outline' as const,
+          className: 'gap-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100',
+        }
+      case 'updated':
+        return {
+          icon: UserPen,
+          label: 'Updated',
+          variant: 'outline' as const,
+          className: 'gap-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
         }
       default:
         return {

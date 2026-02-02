@@ -1,11 +1,10 @@
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AdminSection } from "@/app/(DashboardLayout)/users/components/AdminSection";
 import { AdminInfoCard } from "@/app/(DashboardLayout)/users/components/AdminInfoCard";
 import { AuditDialogHeader } from "./AuditDialogHeader";
 import { useAuditEntry, AuditEntryData } from "@/hooks/useAuditData";
 import { Tag, Zap, Shield, UserCircle, Calendar, FileText } from "lucide-react";
-import { DialogTitle } from "@radix-ui/react-dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { motion } from "framer-motion";
 import { AuditEntry } from "../types";
