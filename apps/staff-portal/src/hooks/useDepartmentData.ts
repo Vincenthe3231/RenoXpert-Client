@@ -15,6 +15,7 @@ export type ColorScheme = typeof colorSchemeOptions[number]["value"];
 
 interface AddDepartmentParams {
   name: string;
+  shortCode: string;
   colorScheme: ColorScheme;
 }
 
@@ -27,6 +28,7 @@ export function useAddDepartment() {
       // Transform camelCase to snake_case for Laravel backend
       const payload = {
         name: params.name,
+        short_code: params.shortCode,
         color_scheme: params.colorScheme
       };
       const response = await axios.post("/api/departments", payload);
@@ -54,6 +56,7 @@ export function useAddDepartment() {
 export interface Department {
   id: string;
   name: string;
+  shortCode?: string;
   description?: string;
   colorScheme: ColorScheme;
   createdAt?: string;
@@ -96,6 +99,7 @@ interface UpdateDepartmentParams {
   id: string;
   updates: {
     name?: string;
+    shortCode?: string;
     description?: string;
     colorScheme?: ColorScheme;
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +30,7 @@ import { cn } from "@/lib/utils";
 
 const departmentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  description: z.string().optional(),
+  shortCode: z.string().min(1, "Short code is required").max(10, "Short code must be 10 characters or less"),
   colorScheme: z.enum(["cyan", "pink", "emerald", "violet", "amber", "slate"]),
 });
 
@@ -65,22 +64,96 @@ export function EditDepartmentDialog({
     resolver: zodResolver(departmentSchema),
     defaultValues: {
       name: "",
-      description: "",
+      shortCode: "",
       colorScheme: "cyan",
     },
   });
 
   const watchedName = watch("name");
+  const watchedShortCode = watch("shortCode");
   const watchedColorScheme = watch("colorScheme");
+
+  // Track if shortCode was manually edited by the user
+  const isManuallyEditedRef = useRef<boolean>(false);
+  // Track the last name that was used to generate the shortCode
+  const lastGeneratedNameRef = useRef<string>("");
+
+  // Helper function to generate short code from name
+  const generateShortCodeFromName = (name: string): string => {
+    if (!name.trim()) return "";
+    const words = name.trim().split(/\s+/);
+    return words
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("")
+      .substring(0, 10);
+  };
+
+  // Auto-generate short code from department name in real-time (only when name changes)
+  useEffect(() => {
+    if (watchedName) {
+      const generatedShortCode = generateShortCodeFromName(watchedName);
+      
+      // Only auto-update if:
+      // 1. ShortCode is empty, OR
+      // 2. It hasn't been manually edited (isManuallyEditedRef is false)
+      if (!watchedShortCode || !isManuallyEditedRef.current) {
+        setValue("shortCode", generatedShortCode, { shouldValidate: true });
+        lastGeneratedNameRef.current = watchedName;
+        isManuallyEditedRef.current = false;
+      }
+    } else if (!watchedName) {
+      // Clear short code if name is cleared
+      setValue("shortCode", "", { shouldValidate: true });
+      lastGeneratedNameRef.current = "";
+      isManuallyEditedRef.current = false;
+    }
+  }, [watchedName, setValue]);
+
+  // Detect manual edits to shortCode
+  useEffect(() => {
+    if (watchedShortCode && watchedName) {
+      const generatedShortCode = generateShortCodeFromName(watchedName);
+      const lastGeneratedShortCode = generateShortCodeFromName(lastGeneratedNameRef.current);
+      
+      // If shortCode doesn't match what would be generated from current name,
+      // and it also doesn't match what was generated from the last name,
+      // then it was manually edited
+      if (watchedShortCode !== generatedShortCode && watchedShortCode !== lastGeneratedShortCode) {
+        isManuallyEditedRef.current = true;
+      } else if (watchedShortCode === generatedShortCode) {
+        // If it matches what would be generated, treat as auto-generated
+        isManuallyEditedRef.current = false;
+        lastGeneratedNameRef.current = watchedName;
+      }
+    }
+  }, [watchedShortCode, watchedName]);
 
   // Reset form when department changes or dialog opens
   useEffect(() => {
     if (department && open) {
+      const initialShortCode = department.shortCode || generateShortCodeFromName(department.name);
+      const expectedGeneratedShortCode = generateShortCodeFromName(department.name);
+      
       reset({
         name: department.name,
-        description: department.description || "",
+        shortCode: initialShortCode,
         colorScheme: department.colorScheme,
       });
+      
+      // Initialize the refs: if shortCode matches what would be generated, treat as auto-generated
+      // Otherwise, mark as manually edited to preserve it
+      if (initialShortCode === expectedGeneratedShortCode || !department.shortCode) {
+        isManuallyEditedRef.current = false;
+        lastGeneratedNameRef.current = department.name;
+      } else {
+        // ShortCode was manually set and doesn't match generated value - preserve it
+        isManuallyEditedRef.current = true;
+        lastGeneratedNameRef.current = department.name;
+      }
+    } else if (!open) {
+      // Reset refs when dialog closes
+      isManuallyEditedRef.current = false;
+      lastGeneratedNameRef.current = "";
     }
   }, [department, open, reset]);
 
@@ -92,7 +165,7 @@ export function EditDepartmentDialog({
         id: department.id,
         updates: {
           name: data.name,
-          description: data.description || undefined,
+          shortCode: data.shortCode,
           colorScheme: data.colorScheme,
         },
       });
@@ -157,13 +230,19 @@ export function EditDepartmentDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Textarea
-                id="description"
-                placeholder="Brief description of the department..."
-                {...register("description")}
-                className="bg-background/50 min-h-[80px] resize-none"
+              <Label htmlFor="shortCode">
+                Short Code <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="shortCode"
+                placeholder="e.g., RD"
+                {...register("shortCode")}
+                className="bg-background/50"
+                maxLength={10}
               />
+              {errors.shortCode && (
+                <p className="text-xs text-destructive">{errors.shortCode.message}</p>
+              )}
             </div>
 
             <div className="space-y-3">

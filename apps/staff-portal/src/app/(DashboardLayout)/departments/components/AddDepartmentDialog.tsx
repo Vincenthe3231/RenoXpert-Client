@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 const departmentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
+  shortCode: z.string().min(1, "Short code is required").max(10, "Short code must be 10 characters or less"),
   colorScheme: z.enum(["cyan", "pink", "emerald", "violet", "amber", "slate"]),
 });
 
@@ -49,16 +50,75 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     resolver: zodResolver(departmentSchema),
     defaultValues: {
       name: "",
+      shortCode: "",
       colorScheme: "cyan",
     },
   });
 
   const watchedName = watch("name");
+  const watchedShortCode = watch("shortCode");
   const watchedColorScheme = watch("colorScheme");
+
+  // Track if shortCode was manually edited by the user
+  const isManuallyEditedRef = useRef<boolean>(false);
+  // Track the last name that was used to generate the shortCode
+  const lastGeneratedNameRef = useRef<string>("");
+
+  // Helper function to generate short code from name
+  const generateShortCodeFromName = (name: string): string => {
+    if (!name.trim()) return "";
+    const words = name.trim().split(/\s+/);
+    return words
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("")
+      .substring(0, 10);
+  };
+
+  // Auto-generate short code from department name in real-time (only when name changes)
+  useEffect(() => {
+    if (watchedName) {
+      const generatedShortCode = generateShortCodeFromName(watchedName);
+      
+      // Only auto-update if:
+      // 1. ShortCode is empty, OR
+      // 2. It hasn't been manually edited (isManuallyEditedRef is false)
+      if (!watchedShortCode || !isManuallyEditedRef.current) {
+        setValue("shortCode", generatedShortCode, { shouldValidate: true });
+        lastGeneratedNameRef.current = watchedName;
+        isManuallyEditedRef.current = false;
+      }
+    } else if (!watchedName) {
+      // Clear short code if name is cleared
+      setValue("shortCode", "", { shouldValidate: true });
+      lastGeneratedNameRef.current = "";
+      isManuallyEditedRef.current = false;
+    }
+  }, [watchedName, setValue]);
+
+  // Detect manual edits to shortCode
+  useEffect(() => {
+    if (watchedShortCode && watchedName) {
+      const generatedShortCode = generateShortCodeFromName(watchedName);
+      const lastGeneratedShortCode = generateShortCodeFromName(lastGeneratedNameRef.current);
+      
+      // If shortCode doesn't match what would be generated from current name,
+      // and it also doesn't match what was generated from the last name,
+      // then it was manually edited
+      if (watchedShortCode !== generatedShortCode && watchedShortCode !== lastGeneratedShortCode) {
+        isManuallyEditedRef.current = true;
+      } else if (watchedShortCode === generatedShortCode) {
+        // If it matches what would be generated, treat as auto-generated
+        isManuallyEditedRef.current = false;
+        lastGeneratedNameRef.current = watchedName;
+      }
+    }
+  }, [watchedShortCode, watchedName]);
 
   useEffect(() => {
     if (!open) {
       reset();
+      isManuallyEditedRef.current = false;
+      lastGeneratedNameRef.current = "";
     }
   }, [open, reset]);
 
@@ -66,6 +126,7 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     try {
       await addDepartment.mutateAsync({
         name: data.name,
+        shortCode: data.shortCode,
         colorScheme: data.colorScheme,
       });
       toast({
@@ -111,6 +172,22 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
               />
               {errors.name && (
                 <p className="text-xs text-destructive">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="shortCode">
+                Short Code <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="shortCode"
+                placeholder="e.g., RD"
+                {...register("shortCode")}
+                className="bg-background/50"
+                maxLength={10}
+              />
+              {errors.shortCode && (
+                <p className="text-xs text-destructive">{errors.shortCode.message}</p>
               )}
             </div>
 
