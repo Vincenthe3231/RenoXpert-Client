@@ -24,7 +24,12 @@ export function useAddDepartment() {
 
   return useMutation({
     mutationFn: async (params: AddDepartmentParams) => {
-      const response = await axios.post("/api/departments", params);
+      // Transform camelCase to snake_case for Laravel backend
+      const payload = {
+        name: params.name,
+        color_scheme: params.colorScheme
+      };
+      const response = await axios.post("/api/departments", payload);
       return response.data;
     },
     onSuccess: () => {

@@ -119,6 +119,41 @@ function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntry
     const log = entry.data;
     const timestamp = log.createdAt ? new Date(log.createdAt) : new Date();
 
+    // CHECK IF THIS IS A DEPARTMENT LOG
+    if (log.logName === 'department') {
+      // For department logs, the subject is a department, not a user
+      let department: any = null;
+      
+      if (log.subject && typeof log.subject === 'object') {
+        department = log.subject as any;
+      } else if (log.properties?.attributes) {
+        department = log.properties.attributes as any;
+      }
+      
+      const actionLabels: Record<string, string> = {
+        created: "Created",
+        updated: "Updated",
+        deleted: "Deleted",
+      };
+      
+      return {
+        user: {
+          name: department?.name || "Unknown Department",
+          email: null,
+          avatarUrl: null,
+          department: "", // Departments don't belong to departments
+        },
+        type: "Department Management",
+        action: actionLabels[log.event] || log.event,
+        role: null, // Departments don't have roles
+        performedBy: log.causer?.name || "System",
+        date: timestamp,
+        details: department?.name 
+          ? `Department: ${department.name}${department.color_scheme || department.colorScheme ? `, Color: ${department.color_scheme || department.colorScheme}` : ''}`
+          : "—",
+      };
+    }
+
     // Extract user following the same priority logic as AuditTable.getUserFromEntry
     // PRIORITY 1: Get current user from users list (most up-to-date)
     let user: any = null;
@@ -180,6 +215,7 @@ function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntry
 
     // Get action label
     const actionLabels: Record<string, string> = {
+      created: "Created",
       deactivated: "Deactivated",
       activated: "Activated",
       role_changed: "Role Changed",
@@ -191,7 +227,11 @@ function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntry
     const action = actionLabels[log.event] || log.event;
 
     // Get type
-    const type = log.logName === "onboarding" ? "Onboarding" : "User Management";
+    const type = log.logName === "onboarding" 
+      ? "Onboarding" 
+      : log.logName === "department"
+        ? "Department Management"
+        : "User Management";
 
     // Get performed by
     const performedBy = log.causer?.name || "System";

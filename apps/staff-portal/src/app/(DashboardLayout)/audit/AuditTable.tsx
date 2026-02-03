@@ -480,6 +480,40 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     } else {
       const log = entry.data
       
+      // CHECK IF THIS IS A DEPARTMENT LOG
+      if (log.logName === 'department') {
+        // For department logs, the subject is a department, not a user
+        if (log.subject && typeof log.subject === 'object') {
+          const department = log.subject as any
+          return {
+            name: department.name || 'Unknown Department',
+            email: null, // Departments don't have emails
+            id: department.id || log.subjectId || null,
+            uuid: null,
+            status: department.status,
+            userType: 'department', // Custom type to identify this as a department
+            profile: {
+              colorScheme: department.colorScheme || department.color_scheme,
+            },
+          } as any
+        }
+        // If no subject, check properties
+        if (log.properties?.attributes) {
+          const attrs = log.properties.attributes as any
+          return {
+            name: attrs.name || 'Unknown Department',
+            email: null,
+            id: log.subjectId || null,
+            uuid: null,
+            status: attrs.status,
+            userType: 'department',
+            profile: {
+              colorScheme: attrs.colorScheme || attrs.color_scheme,
+            },
+          } as any
+        }
+      }
+      
       // BUSINESS LOGIC: Always use current username - prioritize current users list first
       // The latest username change should overwrite all previous usernames in the audit trail
       
@@ -1327,30 +1361,58 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                           >
                             <TableCell className="py-5 px-6">
                               <div className="flex items-center gap-3.5">
-                                <Avatar className="h-10 w-10 border-2 border-white/50 dark:border-white/20 shadow-md transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/20 group-hover:scale-105">
-                                  <AvatarImage src={getUserAvatarUrl(user)} />
-                                  <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
-                                    {user?.name ? getInitials(user.name) : "U"}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="space-y-1">
-                                  <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
-                                    {user?.name || "Unknown"}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground/70">
-                                    {user?.email || "—"}
-                                  </p>
-                                  {getUserDepartment(user) && (
-                                    <DepartmentBadge department={getUserDepartment(user)!} size="sm" />
-                                  )}
-                                </div>
+                                {user?.userType === 'department' ? (
+                                  // Department display
+                                  <>
+                                    <div className="h-10 w-10 rounded-full border-2 border-white/50 dark:border-white/20 shadow-md transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/20 group-hover:scale-105 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10">
+                                      <span className="text-lg">🏢</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
+                                        {user?.name || "Unknown Department"}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground/70">
+                                        {user?.profile?.colorScheme ? (
+                                          <DepartmentBadge 
+                                            department={user.name || "Unknown"} 
+                                            size="sm" 
+                                            colorScheme={user.profile.colorScheme}
+                                          />
+                                        ) : "—"}
+                                      </p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  // User display (existing code)
+                                  <>
+                                    <Avatar className="h-10 w-10 border-2 border-white/50 dark:border-white/20 shadow-md transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/20 group-hover:scale-105">
+                                      <AvatarImage src={getUserAvatarUrl(user)} />
+                                      <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
+                                        {user?.name ? getInitials(user.name) : "U"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-foreground text-sm transition-colors duration-200 group-hover:text-primary">
+                                        {user?.name || "Unknown"}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground/70">
+                                        {user?.email || "—"}
+                                      </p>
+                                      {getUserDepartment(user) && (
+                                        <DepartmentBadge department={getUserDepartment(user)!} size="sm" />
+                                      )}
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="py-5 px-6">
                               <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-3 py-1 text-xs font-medium text-primary shadow-sm">
                                 {log.logName === 'onboarding' || log.properties?.module === 'onboarding' 
                                   ? 'Onboarding' 
-                                  : 'User Management'}
+                                  : log.logName === 'department' 
+                                    ? 'Department Management'
+                                    : 'User Management'}
                               </span>
                             </TableCell>
                             <TableCell className="py-5 px-6">
@@ -1364,6 +1426,11 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                             </TableCell>
                             <TableCell className="py-5 px-6">
                               {(() => {
+                                // Department logs don't have roles
+                                if (log.logName === 'department') {
+                                  return <span className="text-muted-foreground/50">—</span>
+                                }
+                                
                                 // For activity logs, try to extract historical role from log properties
                                 if (entry.type === 'activity_log') {
                                   const log = entry.data

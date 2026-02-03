@@ -140,9 +140,26 @@ export default function AuditPage() {
     return roleActivityLogsData?.pages.flatMap(page => page.data) || []
   }, [roleActivityLogsData])
 
+  // Get department management activity logs with infinite pagination
+  // Used for: Department creation, updates, deletions
+  const { 
+    data: departmentActivityLogsData, 
+    isLoading: isLoadingDepartmentActivityLogs,
+    fetchNextPage: fetchNextDepartmentLogs,
+    hasNextPage: hasNextDepartmentLogs,
+    isFetchingNextPage: isFetchingNextDepartmentLogs,
+  } = useInfiniteActivityLogs({
+    "filter[log_name]": "department",
+    perPage: 100,
+  })
+  // Flatten all pages into a single array (maintains immutability)
+  const departmentActivityLogs = useMemo(() => {
+    return departmentActivityLogsData?.pages.flatMap(page => page.data) || []
+  }, [departmentActivityLogsData])
+
   // Combine all activity logs to ensure complete audit trail integrity
   // This prevents overwriting issues and ensures immutability of all audit data
-  const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
+  const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs, ...departmentActivityLogs]
 
   // Filter to only show decisions (approved or rejected)
   // Must be declared before useEffect hooks that use it
@@ -160,6 +177,7 @@ export default function AuditPage() {
         userLogs: userActivityLogs.length,
         onboardingLogs: onboardingActivityLogs.length,
         roleLogs: roleActivityLogs.length,
+        departmentLogs: departmentActivityLogs.length,
         logs: activityLogs.map(log => ({
           id: log.id,
           event: log.event,
@@ -173,7 +191,7 @@ export default function AuditPage() {
         }))
       })
     }
-  }, [activityLogs, userActivityLogs, onboardingActivityLogs, roleActivityLogs])
+  }, [activityLogs, userActivityLogs, onboardingActivityLogs, roleActivityLogs, departmentActivityLogs])
 
   // Debug logging for decisions (development only)
   useEffect(() => {
@@ -192,8 +210,8 @@ export default function AuditPage() {
   }, [decisions])
 
   // Check if any log type has more pages to load
-  const hasMoreLogs = hasNextUserLogs || hasNextOnboardingLogs || hasNextRoleLogs
-  const isFetchingMoreLogs = isFetchingNextUserLogs || isFetchingNextOnboardingLogs || isFetchingNextRoleLogs
+  const hasMoreLogs = hasNextUserLogs || hasNextOnboardingLogs || hasNextRoleLogs || hasNextDepartmentLogs
+  const isFetchingMoreLogs = isFetchingNextUserLogs || isFetchingNextOnboardingLogs || isFetchingNextRoleLogs || isFetchingNextDepartmentLogs
 
   // Load more handler - fetches next page for all log types that have more pages
   const handleLoadMore = useCallback(() => {
@@ -206,7 +224,10 @@ export default function AuditPage() {
     if (hasNextRoleLogs) {
       fetchNextRoleLogs()
     }
-  }, [hasNextUserLogs, hasNextOnboardingLogs, hasNextRoleLogs, fetchNextUserLogs, fetchNextOnboardingLogs, fetchNextRoleLogs])
+    if (hasNextDepartmentLogs) {
+      fetchNextDepartmentLogs()
+    }
+  }, [hasNextUserLogs, hasNextOnboardingLogs, hasNextRoleLogs, hasNextDepartmentLogs, fetchNextUserLogs, fetchNextOnboardingLogs, fetchNextRoleLogs, fetchNextDepartmentLogs])
 
   // Get unified users data (automatically handles role-based endpoint selection and merging)
   // Both Admin and Super Admin have backend access to user endpoints
@@ -635,7 +656,13 @@ export default function AuditPage() {
         : entry.data.event || ""
 
       // Type
-      searchableFields.type = entry.type === 'onboarding' ? 'onboarding' : 'user management'
+      if (entry.type === 'onboarding') {
+        searchableFields.type = 'onboarding'
+      } else if (entry.type === 'activity_log' && entry.data.logName === 'department') {
+        searchableFields.type = 'department management'
+      } else {
+        searchableFields.type = 'user management'
+      }
 
       // Performed By
       if (entry.type === 'onboarding') {
@@ -844,7 +871,7 @@ export default function AuditPage() {
   const activityLogCount = activityLogs.length
   const totalEntries = filteredAndSortedEntries.length
 
-  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingUsers
+  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingDepartmentActivityLogs || isLoadingUsers
 
   const handleSearchHistorySelect = (query: string) => {
     setSearchQuery(query)
