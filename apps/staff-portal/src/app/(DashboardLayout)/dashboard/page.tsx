@@ -92,9 +92,18 @@ export default function Dashboard() {
   })
   const roleActivityLogs = roleActivityLogsData?.data || []
 
+  // Get department management activity logs
+  // Used for: Department creation, updates, deletions
+  // NOTE: Always fetch with same params as audit page to share TanStack Query cache
+  const { data: departmentActivityLogsData } = useActivityLogs({
+    "filter[log_name]": "department",
+    perPage: 100,
+  })
+  const departmentActivityLogs = departmentActivityLogsData?.data || []
+
   // Combine all activity logs to ensure complete audit trail integrity
   // This prevents overwriting issues and ensures immutability of all audit data
-  const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs]
+  const activityLogs = [...userActivityLogs, ...onboardingActivityLogs, ...roleActivityLogs, ...departmentActivityLogs]
 
   // Calculate stats (only for super-admin)
   const stats = {

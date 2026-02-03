@@ -61,7 +61,11 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
   /**
    * Helper to get user avatar URL
    */
-  const getUserAvatarUrl = (user: { profile?: { avatarUrl?: string | null }; id?: number | string; uuid?: string } | null | undefined) => {
+  const getUserAvatarUrl = (user: { profile?: { avatarUrl?: string | null }; id?: number | string; uuid?: string; userType?: string } | null | undefined) => {
+    // Skip avatar fetching for departments
+    if (user?.userType === 'department') {
+      return undefined
+    }
     if (user?.profile && 'avatarUrl' in user.profile) {
       const avatarUrl = user.profile.avatarUrl || undefined
       return avatarUrl
@@ -109,6 +113,77 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
       return onboardingUser
     } else {
       const log = entry.data
+      
+      // CHECK IF THIS IS A DEPARTMENT LOG
+      if (log.logName === 'department') {
+        // For department logs, the subject is a department, not a user
+        if (log.subject && typeof log.subject === 'object') {
+          const department = log.subject as any
+          return {
+            name: department.name || 'Unknown Department',
+            email: null, // Departments don't have emails
+            id: department.id || log.subjectId || null,
+            uuid: null,
+            status: department.status,
+            userType: 'department', // Custom type to identify this as a department
+            profile: {
+              colorScheme: department.colorScheme || department.color_scheme,
+            },
+          } as any
+        }
+        // If no subject, check properties.attributes (for created/updated)
+        if (log.properties?.attributes) {
+          const attrs = log.properties.attributes as any
+          return {
+            name: attrs.name || 'Unknown Department',
+            email: null,
+            id: log.subjectId || null,
+            uuid: null,
+            status: attrs.status,
+            userType: 'department',
+            profile: {
+              colorScheme: attrs.colorScheme || attrs.color_scheme,
+            },
+          } as any
+        }
+        // For deleted departments, check properties.old (old values before deletion)
+        if (log.properties?.old) {
+          const oldAttrs = log.properties.old as any
+          return {
+            name: oldAttrs.name || 'Unknown Department',
+            email: null,
+            id: log.subjectId || null,
+            uuid: null,
+            status: oldAttrs.status,
+            userType: 'department',
+            profile: {
+              colorScheme: oldAttrs.colorScheme || oldAttrs.color_scheme,
+            },
+          } as any
+        }
+        // Fallback: Even if we can't find department data, return a department object
+        // This prevents falling through to user lookup which would incorrectly match a user ID
+        // Try to extract name from description if available
+        let departmentName = 'Unknown Department'
+        if (log.description) {
+          // Try to extract department name from description patterns
+          const nameMatch = log.description.match(/(?:department|Department)\s+(?:created|updated|deleted)[\s:]+(.+?)(?:\s|$)/i) ||
+                          log.description.match(/Department:\s*(.+?)(?:\s|$)/i)
+          if (nameMatch && nameMatch[1]) {
+            departmentName = nameMatch[1].trim()
+          }
+        }
+        return {
+          name: departmentName,
+          email: null,
+          id: log.subjectId || null,
+          uuid: null,
+          status: null,
+          userType: 'department',
+          profile: undefined,
+        } as any
+      }
+      
       const subjectIdStr = String(log.subjectId)
 
       const foundUser = users.find((u) => {
@@ -417,6 +492,50 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
       }
     } else {
       const event = entry.data.event
+      const logName = entry.data.logName
+      
+      // Handle department management events
+      if (logName === 'department') {
+        switch (event) {
+          case 'created':
+            return {
+              icon: CheckCircle2,
+              label: 'Created',
+              className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
+              iconClassName: 'text-gray-500',
+              typeLabel: 'Department Management',
+            }
+          case 'updated':
+            return {
+              icon: UserPen,
+              label: 'Updated',
+              className: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
+              iconClassName: 'text-blue-500',
+              typeLabel: 'Department Management',
+            }
+          case 'deleted':
+            return {
+              icon: UserX,
+              label: 'Deleted',
+              className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
+              iconClassName: 'text-gray-500',
+              typeLabel: 'Department Management',
+            }
+          default:
+            const capitalizedLabel = event && typeof event === 'string' 
+              ? event.charAt(0).toUpperCase() + event.slice(1).toLowerCase()
+              : 'Unknown'
+            return {
+              icon: Clock,
+              label: capitalizedLabel,
+              className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
+              iconClassName: 'text-gray-500',
+              typeLabel: 'Department Management',
+            }
+        }
+      }
+      
+      // Handle user management events
       switch (event) {
         case 'deactivated':
           return {
@@ -575,12 +694,20 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
               >
                 {/* Avatar with status */}
                 <div className="relative">
-                  <Avatar className="h-10 w-10 border-2 border-background">
-                    <AvatarImage src={avatarUrl} alt={user?.name || "User"} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  {user?.userType === 'department' ? (
+                    // Department display
+                    <div className="h-10 w-10 rounded-full border-2 border-background shadow-md transition-all duration-300 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10">
+                      <span className="text-lg">🏢</span>
+                    </div>
+                  ) : (
+                    // User display
+                    <Avatar className="h-10 w-10 border-2 border-background">
+                      <AvatarImage src={avatarUrl} alt={user?.name || "User"} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                   <div className={cn(
                     "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background flex items-center justify-center",
                     activityConfig.iconClassName.includes('green') && "bg-green-500",
@@ -598,7 +725,7 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
                     {user?.name || "Unknown User"}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {user?.email || "No email"}
+                    {user?.userType === 'department' ? "—" : (user?.email || "No email")}
                   </p>
                 </div>
 
@@ -624,7 +751,17 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
                     <activityConfig.icon size={12} />
                     {activityConfig.label}
                   </Badge>
-                  <DepartmentBadge department={department} size="sm" />
+                  {(() => {
+                    // Standard departments with predefined colors: Owner Sales, Renovation, Technician, Finance & Account
+                    const standardDepartments = ["Owner Sales", "Renovation", "Technician", "Finance & Account"]
+                    const isStandardDepartment = department && standardDepartments.includes(department)
+                    
+                    // Only pass colorScheme for non-standard departments
+                    if (department && !isStandardDepartment && user?.profile?.colorScheme) {
+                      return <DepartmentBadge department={department} size="sm" colorScheme={user.profile.colorScheme as any} />
+                    }
+                    return <DepartmentBadge department={department} size="sm" />
+                  })()}
                 </div>
 
                 {/* Timestamp */}
