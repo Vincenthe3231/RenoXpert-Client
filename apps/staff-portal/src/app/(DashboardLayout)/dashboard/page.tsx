@@ -2,10 +2,10 @@
 
 import { useMemo } from "react"
 import { useAuth, type User } from "@/lib/api/auth"
-import { useUnifiedUsers } from "@/lib/api/auth/useUnifiedUsers"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { useActivityLogs } from "@/lib/api/activity-logs"
 import { Loader2 } from "lucide-react"
+import { useAllUsers } from "@/app/context/UnifiedUserDataContext"
 import DashboardHeader from "./components/DashboardHeader"
 import DashboardStatsCards from "./components/DashboardStatsCards"
 import QuickActionsCard from "./components/QuickActionsCard"
@@ -48,11 +48,10 @@ export default function Dashboard() {
   // Check if user is super-admin
   const isSuperAdmin = hasRequiredRole('super-admin')
 
-  // Get unified users data (automatically handles role-based endpoint selection and merging)
-  // Only fetch if super-admin
-  const { data: unifiedUsersData } = useUnifiedUsers(isSuperAdmin ? { perPage: 1000 } : undefined)
-  const totalUsers = isSuperAdmin ? (unifiedUsersData?.meta?.total || 0) : 0
-  const users = isSuperAdmin ? (unifiedUsersData?.data || []) : []
+  // Get unified users data from context (shared cache across all pages)
+  const { allUsers, usersQuery } = useAllUsers()
+  const totalUsers = isSuperAdmin ? (usersQuery.data?.meta?.total || 0) : 0
+  const users = isSuperAdmin ? allUsers : []
 
   // Get all onboardings (approved and rejected)
   // Only fetch if super-admin (admins don't have access to onboarding data)

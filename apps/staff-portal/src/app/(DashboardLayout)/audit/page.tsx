@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { useAuth, type User } from "@/lib/api/auth"
-import { useUnifiedUsers } from "@/lib/api/auth/useUnifiedUsers"
 import { useInfiniteActivityLogs } from "@/lib/api/activity-logs"
 import AuditHeader from "./components/AuditHeader"
 import AuditStatsCards from "./components/AuditStatsCards"
@@ -19,7 +18,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { addToSearchHistory } from "@/lib/utils/search-history"
 import SearchHistoryDropdown from "./components/SearchHistoryDropdown"
 import ColumnFilters, { type ColumnFiltersProps } from "./components/ColumnFilters"
-import { UnifiedUserDataProvider } from "@/app/context/UnifiedUserDataContext"
+import { useAllUsers } from "@/app/context/UnifiedUserDataContext"
 
 const ITEMS_PER_PAGE = 10
 
@@ -229,13 +228,9 @@ export default function AuditPage() {
     }
   }, [hasNextUserLogs, hasNextOnboardingLogs, hasNextRoleLogs, hasNextDepartmentLogs, fetchNextUserLogs, fetchNextOnboardingLogs, fetchNextRoleLogs, fetchNextDepartmentLogs])
 
-  // Get unified users data (automatically handles role-based endpoint selection and merging)
-  // Both Admin and Super Admin have backend access to user endpoints
-  // Backend allows: Super Admin + Admin + Staff (per user.module middleware)
-  const { data: unifiedUsersData, isLoading: isLoadingUsers } = useUnifiedUsers(
-    isAdminOrSuperAdmin ? { perPage: 1000 } : undefined
-  )
-  const unifiedUsers = unifiedUsersData?.data || []
+  // Get unified users data from context (shared cache across all pages)
+  // Use context instead of direct fetch to avoid duplicate API calls
+  const { allUsers: unifiedUsers, getUserById, getUserByUuid } = useAllUsers()
   
   // Extract users from onboarding entries (users referenced in activity logs might not be in users list)
   const usersFromOnboardings = useMemo(() => {
@@ -272,16 +267,10 @@ export default function AuditPage() {
   }, [activityLogs])
 
   // Extract subject users from activity logs (users being acted upon)
-  // Only run this if API data is not available (fallback for users without API access)
-  // When API data is available, this is redundant and causes unnecessary CPU work
-  // This maintains same architecture - API data preferred, activity log extraction as fallback
+  // Activity logs already contain user data, so we always extract from them
+  // This is more efficient than fetching 1000 users upfront
+  // Context is used for on-demand lookups when user not found in logs
   const subjectsFromActivityLogs = useMemo(() => {
-    // Skip processing if we have API data available (faster loading)
-    // API data is preferred because it's complete and includes avatars
-    const hasApiData = unifiedUsers.length > 0
-    if (hasApiData) {
-      return []
-    }
     
     const subjectUsers: User[] = []
     const seenIds = new Set<number>()
@@ -382,7 +371,7 @@ export default function AuditPage() {
     })
     
     return subjectUsers
-  }, [activityLogs, unifiedUsers.length])
+  }, [activityLogs])
 
   // Merge unified users (from API), users from onboarding entries, reviewers from activity logs, and subjects from activity logs into a single list for lookup
   // Unified users already includes staff, owners, and vendors merged and deduplicated
@@ -411,12 +400,25 @@ export default function AuditPage() {
   }, [unifiedUsers, usersFromOnboardings, reviewersFromActivityLogs, subjectsFromActivityLogs])
 
   // Create user lookup maps for O(1) access
+  // Use context helpers for on-demand lookups when user not in merged list
   const userMapById = useMemo(() => {
-    return new Map(users.map(u => [u.id, u]))
+    const map = new Map<number, User>()
+    users.forEach(u => {
+      if (u.id != null) {
+        map.set(u.id, u)
+      }
+    })
+    return map
   }, [users])
 
   const userMapByUuid = useMemo(() => {
-    return new Map(users.map(u => [u.uuid, u]))
+    const map = new Map<string, User>()
+    users.forEach(u => {
+      if (u.uuid) {
+        map.set(u.uuid, u)
+      }
+    })
+    return map
   }, [users])
 
   // Helper function to find matching activity log for a decision
@@ -871,7 +873,8 @@ export default function AuditPage() {
   const activityLogCount = activityLogs.length
   const totalEntries = filteredAndSortedEntries.length
 
-  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingDepartmentActivityLogs || isLoadingUsers
+
+  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingDepartmentActivityLogs
 
   const handleSearchHistorySelect = (query: string) => {
     setSearchQuery(query)
@@ -879,8 +882,7 @@ export default function AuditPage() {
   }
 
   return (
-    <UnifiedUserDataProvider strategy="smart">
-      <div className="space-y-6">
+    <div className="space-y-6">
         <AuditHeader />
       {activityLogsError && (() => {
         // Don't show error banner for expected permission errors (401/403)
@@ -997,7 +999,6 @@ export default function AuditPage() {
           />
         </div>
       )}
-      </div>
-    </UnifiedUserDataProvider>
+    </div>
   )
 }

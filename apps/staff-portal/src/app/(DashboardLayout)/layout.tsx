@@ -6,6 +6,7 @@ import { Customizer } from './layout/shared/customizer/Customizer'
 import CommandPalette from './layout/shared/CommandPalette/CommandPalette'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { UnifiedUserDataProvider } from '@/app/context/UnifiedUserDataContext'
 
 export default function Layout({
   children,
@@ -14,7 +15,7 @@ export default function Layout({
 }>) {
   const { activeLayout, isLayout } = useContext(CustomizerContext)
   return (
-    <>
+    <UnifiedUserDataProvider strategy="smart">
       <SidebarProvider>
         <div className='flex w-full min-h-screen'>
           <div className='page-wrapper flex w-full'>
@@ -49,6 +50,6 @@ export default function Layout({
           </div>
         </div>
       </SidebarProvider>
-    </>
+    </UnifiedUserDataProvider>
   )
 }

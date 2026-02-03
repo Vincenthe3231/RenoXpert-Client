@@ -13,14 +13,13 @@ import { useApproveOnboarding, useRejectOnboarding } from "@/lib/api/onboarding/
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AddDepartmentDialog } from "./components/AddDepartmentDialog";
-import { UnifiedUserDataProvider } from "@/app/context/UnifiedUserDataContext";
 
 const OnboardingPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: user, isLoading: isAuthLoading } = useAuth();
     const { data: onboardingListData, isLoading, error, refetch } = useOnboardings({ status: 'pending' });
-    
+
     // Check if user is super-admin
     const isSuperAdmin = (() => {
         if (!user || !user.profile) return false;
@@ -29,12 +28,12 @@ const OnboardingPage = () => {
             if (typeof role !== 'string') return '';
             return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
         }).filter(role => role.length > 0);
-        
-        return normalizedUserRoles.some(role => 
+
+        return normalizedUserRoles.some(role =>
             role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
         );
     })();
-    
+
     // Refetch onboarding list when page becomes visible (e.g., when user switches tabs back)
     // This ensures Super Admins see new pending requests even if they're already on the page
     useEffect(() => {
@@ -44,22 +43,22 @@ const OnboardingPage = () => {
                 refetch()
             }
         }
-        
+
         document.addEventListener('visibilitychange', handleVisibilityChange)
-        
+
         // Also refetch on window focus to catch updates
         const handleFocus = () => {
             refetch()
         }
-        
+
         window.addEventListener('focus', handleFocus)
-        
+
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             window.removeEventListener('focus', handleFocus)
         }
     }, [refetch])
-    
+
     // Periodically refetch to catch new pending requests (every 30 seconds)
     useEffect(() => {
         const interval = setInterval(() => {
@@ -68,7 +67,7 @@ const OnboardingPage = () => {
                 refetch()
             }
         }, 30000) // 30 seconds
-        
+
         return () => clearInterval(interval)
     }, [refetch])
     const onboardingList = onboardingListData?.data ?? [];
@@ -92,16 +91,16 @@ const OnboardingPage = () => {
     }, [searchParams, isSuperAdmin, router]);
 
     const handleRejectClick = (
-        onboardingId: number, 
+        onboardingId: number,
         userName: string,
         userId?: number | null,
         userUuid?: string | null
     ) => {
-        setSelectedOnboarding({ 
-            id: onboardingId, 
-            user: { 
+        setSelectedOnboarding({
+            id: onboardingId,
+            user: {
                 name: userName,
-                uuid: userUuid 
+                uuid: userUuid
             } as StaffUser,
             userId: userId
         } as Onboarding);
@@ -109,16 +108,16 @@ const OnboardingPage = () => {
     };
 
     const handleApproveClick = (
-        onboardingId: number, 
+        onboardingId: number,
         userName: string,
         userId?: number | null,
         userUuid?: string | null
     ) => {
-        setSelectedOnboarding({ 
-            id: onboardingId, 
-            user: { 
+        setSelectedOnboarding({
+            id: onboardingId,
+            user: {
                 name: userName,
-                uuid: userUuid 
+                uuid: userUuid
             } as StaffUser,
             userId: userId
         } as Onboarding);
@@ -137,7 +136,7 @@ const OnboardingPage = () => {
         } catch (err: any) {
             // Handle different error types
             let errorMessage = 'Please try again.'
-            
+
             if (err?.response?.data?.message) {
                 errorMessage = err.response.data.message
             } else if (err?.response?.data?.error) {
@@ -153,7 +152,7 @@ const OnboardingPage = () => {
                     errorMessage = backendError
                 }
             }
-            
+
             toast({
                 variant: 'destructive',
                 title: 'Failed to reject user',
@@ -220,7 +219,7 @@ const OnboardingPage = () => {
     }
 
     return (
-        <UnifiedUserDataProvider strategy="eager">
+        <>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -284,41 +283,40 @@ const OnboardingPage = () => {
                         </p>
                     </div>
                 )}
+                {/* Reject Dialog */}
+                {selectedOnboarding && (
+                    <RejectDialog
+                        open={rejectDialogOpen}
+                        onOpenChange={setRejectDialogOpen}
+                        onReject={handleRejectConfirm}
+                        userName={selectedOnboarding.user?.name || ""}
+                        userId={selectedOnboarding.userId}
+                        userUuid={selectedOnboarding.user?.uuid}
+                        onboardingId={selectedOnboarding.id as number}
+                    />
+                )}
+
+                {/* Approve Dialog */}
+                {selectedOnboarding && (
+                    <ApproveDialog
+                        open={approveDialogOpen}
+                        onOpenChange={setApproveDialogOpen}
+                        onApprove={handleApproveConfirm}
+                        isLoading={approveOnboarding.isPending}
+                        userName={selectedOnboarding.user?.name || ""}
+                        userId={selectedOnboarding.userId}
+                        userUuid={selectedOnboarding.user?.uuid}
+                        onboardingId={selectedOnboarding.id as number}
+                    />
+                )}
+
+                {/* Add Department Dialog */}
+                <AddDepartmentDialog
+                    open={addDepartmentDialogOpen}
+                    onOpenChange={setAddDepartmentDialogOpen}
+                />
             </div>
-
-            {/* Reject Dialog */}
-            {selectedOnboarding && (
-                <RejectDialog
-                    open={rejectDialogOpen}
-                    onOpenChange={setRejectDialogOpen}
-                    onReject={handleRejectConfirm}
-                    userName={selectedOnboarding.user?.name || ""}
-                    userId={selectedOnboarding.userId}
-                    userUuid={selectedOnboarding.user?.uuid}
-                    onboardingId={selectedOnboarding.id as number}
-                />
-            )}
-
-            {/* Approve Dialog */}
-            {selectedOnboarding && (
-                <ApproveDialog
-                    open={approveDialogOpen}
-                    onOpenChange={setApproveDialogOpen}
-                    onApprove={handleApproveConfirm}
-                    isLoading={approveOnboarding.isPending}
-                    userName={selectedOnboarding.user?.name || ""}
-                    userId={selectedOnboarding.userId}
-                    userUuid={selectedOnboarding.user?.uuid}
-                    onboardingId={selectedOnboarding.id as number}
-                />
-            )}
-
-            {/* Add Department Dialog */}
-            <AddDepartmentDialog
-                open={addDepartmentDialogOpen}
-                onOpenChange={setAddDepartmentDialogOpen}
-            />
-        </UnifiedUserDataProvider>
+        </>
     )
 }
 

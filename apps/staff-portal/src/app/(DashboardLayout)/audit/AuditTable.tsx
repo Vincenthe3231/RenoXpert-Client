@@ -14,6 +14,7 @@ import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatus
 import { DepartmentBadge } from "./components/DepartmentBadge"
 import { AuditDetailDialog } from "./components/AuditDetailDialog"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAllUsers } from "@/app/context/UnifiedUserDataContext"
 
 interface AuditTableProps {
   auditEntries: AuditEntry[]
@@ -463,13 +464,15 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
         return onboardingUser
       }
       
-      // PRIORITY 2: If name missing in entry.data.user, try to get from current users list
+      // PRIORITY 2: If name missing in entry.data.user, try to get from current users list or context
       if (userId) {
-        const foundUser = userMapById?.get(userId) || users.find((u) => {
-          if (u.id != null && Number(u.id) === Number(userId)) return true
-          if (u.uuid && onboardingUser?.uuid && String(u.uuid) === String(onboardingUser.uuid)) return true
-          return false
-        })
+        const foundUser = userMapById?.get(userId) || 
+                         users.find((u) => {
+                           if (u.id != null && Number(u.id) === Number(userId)) return true
+                           if (u.uuid && onboardingUser?.uuid && String(u.uuid) === String(onboardingUser.uuid)) return true
+                           return false
+                         }) ||
+                         getUserById(userId) // Fallback to context lookup
         if (foundUser?.name) {
           return foundUser
         }
@@ -517,18 +520,20 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       // BUSINESS LOGIC: Always use current username - prioritize current users list first
       // The latest username change should overwrite all previous usernames in the audit trail
       
-      // PRIORITY 1: Get current user from users list (most up-to-date)
+      // PRIORITY 1: Get current user from users list (most up-to-date) or context
       if (log.subjectId) {
         const subjectId = log.subjectId as any
         const subjectIdStr = String(subjectId)
-        const foundUser = userMapById?.get(subjectId) || users.find((u) => {
-          if (u.id != null && Number(u.id) === Number(subjectId)) return true
-          if (u.id != null && String(u.id) === subjectIdStr) return true
-          if (u.uuid && String(u.uuid) === subjectIdStr) return true
-          // eslint-disable-next-line eqeqeq
-          if (u.id != null && (u.id as any) == subjectId) return true
-          return false
-        })
+        const foundUser = userMapById?.get(subjectId) || 
+                         users.find((u) => {
+                           if (u.id != null && Number(u.id) === Number(subjectId)) return true
+                           if (u.id != null && String(u.id) === subjectIdStr) return true
+                           if (u.uuid && String(u.uuid) === subjectIdStr) return true
+                           // eslint-disable-next-line eqeqeq
+                           if (u.id != null && (u.id as any) == subjectId) return true
+                           return false
+                         }) ||
+                         getUserById(subjectId) // Fallback to context lookup
         if (foundUser?.name) {
           return foundUser
         }
@@ -538,7 +543,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
       if (log.subject && typeof log.subject === 'object' && log.subject !== null) {
         const subject = log.subject as any
         if (subject.name || subject.email) {
-          // Try to get avatar from users list if missing
+          // Try to get avatar from users list or context if missing
           let profile = subject.profile
           if (!profile?.avatarUrl && log.subjectId) {
             const subjectId = log.subjectId as any
@@ -550,7 +555,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
               // eslint-disable-next-line eqeqeq
               if (u.id != null && (u.id as any) == subjectId) return true
               return false
-            })
+            }) || getUserById(subjectId) // Fallback to context
             if (foundUser?.profile && 'avatarUrl' in foundUser.profile) {
               profile = { avatarUrl: foundUser.profile.avatarUrl || null }
             }

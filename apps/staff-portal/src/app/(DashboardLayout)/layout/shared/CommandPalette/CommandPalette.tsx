@@ -24,6 +24,7 @@ import {
   PanelLeftClose,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from 'lucide-react'
 import { useAuth } from '@/lib/api/auth'
 import { CustomizerContext } from '@/app/context/CustomizerContext'
@@ -201,6 +202,17 @@ const CommandPalette = () => {
             requiredRole: 'super-admin' as const,
             action: () => {
               router.push('/users')
+              setOpen(false)
+            },
+          },
+          {
+            id: 'departments',
+            label: 'Manage Departments',
+            icon: Building2,
+            shortcut: 'Ctrl + Alt + P',
+            requiredRole: 'super-admin' as const,
+            action: () => {
+              router.push('/departments')
               setOpen(false)
             },
           },

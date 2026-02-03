@@ -52,6 +52,13 @@ const SidebarContent: MenuItem[] = [
       },
       {
         id: uniqueId(),
+        name: "Departments",
+        icon: "solar:buildings-2-linear",
+        url: "/departments",
+        requiredRole: 'super-admin',
+      },
+      {
+        id: uniqueId(),
         name: "Onboarding",
         icon: "solar:users-group-two-rounded-linear",
         url: "/onboarding",
