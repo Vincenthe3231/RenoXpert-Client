@@ -92,6 +92,13 @@ export function EditDepartmentDialog({
   useEffect(() => {
     if (watchedName) {
       const generatedShortCode = generateShortCodeFromName(watchedName);
+      const lastGeneratedShortCode = generateShortCodeFromName(lastGeneratedNameRef.current);
+
+      // If the short code still matches the last auto-generated value,
+      // allow it to update when the name changes.
+      if (watchedShortCode === lastGeneratedShortCode) {
+        isManuallyEditedRef.current = false;
+      }
       
       // Only auto-update if:
       // 1. ShortCode is empty, OR

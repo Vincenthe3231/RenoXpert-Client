@@ -18,6 +18,7 @@ export async function PATCH(
     // Transform camelCase to snake_case for Laravel backend
     const payload: any = {}
     if (body.name !== undefined) payload.name = body.name
+    if (body.shortCode !== undefined) payload.short_code = body.shortCode
     if (body.description !== undefined) payload.description = body.description
     if (body.colorScheme !== undefined) payload.color_scheme = body.colorScheme
     if (body.status !== undefined) payload.status = body.status

@@ -82,6 +82,12 @@ export function DepartmentCard({
               </p>
             )}
           </div>
+
+          {department.shortCode && (
+            <span className="ml-3 inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary shadow-sm">
+              {department.shortCode.toUpperCase()}
+            </span>
+          )}
         </div>
 
         {/* Meta Info */}
