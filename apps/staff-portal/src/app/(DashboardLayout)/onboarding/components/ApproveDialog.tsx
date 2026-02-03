@@ -23,6 +23,7 @@ import { DepartmentBadge } from "@/app/(DashboardLayout)/audit/components/Depart
 import { useDepartments } from "@/hooks/useDepartmentData";
 import { StaffType } from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
+import { useAllUsers } from "@/app/context/UnifiedUserDataContext";
 
 interface ApproveDialogProps {
   open: boolean;
@@ -30,6 +31,8 @@ interface ApproveDialogProps {
   onApprove: (onboardingId: number, staffType: StaffType, department?: string) => void;
   userName: string;
   onboardingId: number;
+  userId?: number | null;
+  userUuid?: string | null;
   isLoading?: boolean;
 }
 
@@ -85,12 +88,22 @@ const ApproveDialog = ({
   onOpenChange, 
   onApprove, 
   userName, 
+  userId,
+  userUuid,
   onboardingId, 
   isLoading = false 
 }: ApproveDialogProps) => {
   const [staffType, setStaffType] = useState<StaffType>("staff");
   const [departmentId, setDepartmentId] = useState<string>("");
   const { data: departments, isLoading: departmentsLoading } = useDepartments();
+  const { getUserById, getUserByUuid, getUserByName, getUserAvatarUrl } = useAllUsers();
+  
+  // Try multiple lookup strategies (priority: UUID > ID > Name)
+  const user = userUuid ? getUserByUuid(userUuid) : 
+               userId ? getUserById(userId) : 
+               getUserByName(userName);
+  
+  const avatarUrl = getUserAvatarUrl(user);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -122,7 +135,7 @@ const ApproveDialog = ({
         </VisuallyHidden>
         {/* Gradient Header */}
         <AdminDialogHeader
-          avatarUrl={undefined}
+          avatarUrl={avatarUrl || undefined}
           name={userName}
           email=""
           rightContent={

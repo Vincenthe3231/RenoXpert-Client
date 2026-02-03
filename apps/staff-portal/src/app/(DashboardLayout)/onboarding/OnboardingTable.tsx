@@ -9,8 +9,8 @@ import { StaffUser } from "@/lib/api/auth"
 
 interface OnboardingTableProps {
     onboardingList: Onboarding[]
-    handleRejectClick: (onboardingId: number, userName: string) => void
-    handleApproveClick: (onboardingId: number, userName: string) => void
+    handleRejectClick: (onboardingId: number, userName: string, userId?: number | null, userUuid?: string | null) => void
+    handleApproveClick: (onboardingId: number, userName: string, userId?: number | null, userUuid?: string | null) => void
 }
 
 const OnboardingTable = ({ onboardingList, handleRejectClick, handleApproveClick }: OnboardingTableProps) => {
@@ -52,7 +52,12 @@ const OnboardingTable = ({ onboardingList, handleRejectClick, handleApproveClick
                                         size="sm"
                                         variant="outlinesuccess"
                                         className="text-success hover:bg-lightsuccess hover:text-success"
-                                        onClick={() => handleApproveClick(onboarding.id as number, onboarding.user?.name || "")}
+                                        onClick={() => handleApproveClick(
+                                            onboarding.id as number, 
+                                            onboarding.user?.name || "",
+                                            onboarding.userId,
+                                            onboarding.user?.uuid
+                                        )}
                                     // disabled={approveUser.isPending}
                                     >
                                         <CheckCircle2 size={16} className="mr-1" />
@@ -62,7 +67,12 @@ const OnboardingTable = ({ onboardingList, handleRejectClick, handleApproveClick
                                         size="sm"
                                         variant="outlineerror"
                                         className="text-error hover:bg-lighterror hover:text-error"
-                                        onClick={() => handleRejectClick(onboarding.id as number, onboarding.user?.name || "")}
+                                        onClick={() => handleRejectClick(
+                                            onboarding.id as number, 
+                                            onboarding.user?.name || "",
+                                            onboarding.userId,
+                                            onboarding.user?.uuid
+                                        )}
                                     // disabled={rejectOnboarding.isPending}
                                     >
                                         <XCircle size={16} className="mr-1" />

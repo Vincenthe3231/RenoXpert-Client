@@ -70,6 +70,7 @@ export function usersQueryOptions(params?: GetUsersParams) {
         enabled: params !== undefined,
         placeholderData: keepPreviousData,
         staleTime: USER_QUERY_CONFIG.STALE_TIME,
+        gcTime: USER_QUERY_CONFIG.GC_TIME,
     })
 }
 
@@ -82,11 +83,12 @@ export function useUsers(params?: GetUsersParams) {
  */
 export function ownersQueryOptions(params?: GetUsersParams) {
     return queryOptions({
-        queryKey: ['owners', params],
+        queryKey: [...AUTH_QUERY_KEYS.OWNERS, params],
         queryFn: () => getOwners(params),
         enabled: params !== undefined,
         placeholderData: keepPreviousData,
         staleTime: USER_QUERY_CONFIG.STALE_TIME,
+        gcTime: USER_QUERY_CONFIG.GC_TIME,
     })
 }
 
@@ -103,11 +105,12 @@ export function useOwners(params?: GetUsersParams) {
  */
 export function vendorsQueryOptions(params?: GetUsersParams) {
     return queryOptions({
-        queryKey: ['vendors', params],
+        queryKey: [...AUTH_QUERY_KEYS.VENDORS, params],
         queryFn: () => getVendors(params),
         enabled: params !== undefined,
         placeholderData: keepPreviousData,
         staleTime: USER_QUERY_CONFIG.STALE_TIME,
+        gcTime: USER_QUERY_CONFIG.GC_TIME,
     })
 }
 
@@ -163,10 +166,8 @@ export function useDeactivateUser() {
     return useMutation<User, Error, string>({
         mutationFn: deactivateUser,
         onSuccess: (updatedUser, userId) => {
-            // Invalidate users list to refresh the table
-            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
-            // Invalidate owners list as well (for staff users)
-            queryClient.invalidateQueries({ queryKey: ['owners'] })
+            // Invalidate all user-related queries (unified invalidation)
+            queryClient.invalidateQueries({ queryKey: ['users'], exact: false })
             // Update the specific user in cache if it exists
             queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedUser.uuid), updatedUser)
             // Update owner cache as well
@@ -187,10 +188,8 @@ export function useActivateUser() {
     return useMutation<User, Error, string>({
         mutationFn: activateUser,
         onSuccess: (updatedUser, userId) => {
-            // Invalidate users list to refresh the table
-            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
-            // Invalidate owners list as well (for staff users)
-            queryClient.invalidateQueries({ queryKey: ['owners'] })
+            // Invalidate all user-related queries (unified invalidation)
+            queryClient.invalidateQueries({ queryKey: ['users'], exact: false })
             // Update the specific user in cache if it exists
             queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedUser.uuid), updatedUser)
             // Update owner cache as well
@@ -219,12 +218,10 @@ export function useUpdateOwner() {
     >({
         mutationFn: ({ id, data }) => updateOwner(id, data),
         onSuccess: (updatedOwner) => {
-            // Invalidate owners list to refresh the table
-            queryClient.invalidateQueries({ queryKey: ['owners'] })
+            // Invalidate all user-related queries (unified invalidation)
+            queryClient.invalidateQueries({ queryKey: ['users'], exact: false })
             // Update the specific owner in cache
             queryClient.setQueryData(['owner', updatedOwner.uuid], updatedOwner)
-            // Also invalidate users list in case owner appears there
-            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
             // Update user cache if it exists
             queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedOwner.uuid), updatedOwner)
         },
@@ -241,12 +238,10 @@ export function useDeleteOwner() {
     return useMutation<void, Error, string>({
         mutationFn: deleteOwner,
         onSuccess: (_, deletedId) => {
-            // Invalidate owners list to refresh the table
-            queryClient.invalidateQueries({ queryKey: ['owners'] })
+            // Invalidate all user-related queries (unified invalidation)
+            queryClient.invalidateQueries({ queryKey: ['users'], exact: false })
             // Remove the specific owner from cache
             queryClient.removeQueries({ queryKey: ['owner', deletedId] })
-            // Also invalidate users list
-            queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
             // Remove from user cache if it exists
             queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.USER(deletedId) })
         },

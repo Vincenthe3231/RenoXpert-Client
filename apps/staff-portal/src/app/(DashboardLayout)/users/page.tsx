@@ -9,7 +9,8 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import UserFilters from "./components/UserFilters";
-import { useUsers, useAuth, useOwners, useVendors } from "@/lib/api/auth/auth.hooks";
+import { useAuth } from "@/lib/api/auth/auth.hooks";
+import { useUnifiedUsers } from "@/lib/api/auth/useUnifiedUsers";
 import type { UserStatus, UserType, GetUsersParams } from "@/lib/api/auth/auth.schemas";
 import UserTable from "./components/UserTable";
 
@@ -34,11 +35,11 @@ const UsersPage = () => {
         if (!requiredRole) return true;
         if (!currentUser || !currentUser.profile) return false;
 
-        const userRoles = currentUser.profile.roles || [];
-        const normalizedUserRoles = userRoles.map(role => {
+        const userRoles = (currentUser.profile as any).roles || [];
+        const normalizedUserRoles = userRoles.map((role: string) => {
             if (typeof role !== 'string') return '';
             return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
-        }).filter(role => role.length > 0);
+        }).filter((role: string) => role.length > 0);
         
         const normalizedRequired = requiredRole.toLowerCase();
 
@@ -46,7 +47,7 @@ const UsersPage = () => {
             return true;
         }
 
-        const isSuperAdmin = normalizedUserRoles.some(role => 
+        const isSuperAdmin = normalizedUserRoles.some((role: string) => 
             role === 'super-admin' || role === 'superadmin'
         );
         
@@ -72,13 +73,13 @@ const UsersPage = () => {
     // Check if current user is staff (not admin or super-admin)
     const isStaff = useMemo(() => {
         if (!currentUser || !currentUser.profile) return false;
-        const userRoles = currentUser.profile.roles || [];
-        const normalizedUserRoles = userRoles.map(role => {
+        const userRoles = (currentUser.profile as any).roles || [];
+        const normalizedUserRoles = userRoles.map((role: string) => {
             if (typeof role !== 'string') return '';
             return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
-        }).filter(role => role.length > 0);
+        }).filter((role: string) => role.length > 0);
         
-        const isSuperAdmin = normalizedUserRoles.some(role => 
+        const isSuperAdmin = normalizedUserRoles.some((role: string) => 
             role === 'super-admin' || role === 'superadmin'
         );
         const isAdmin = normalizedUserRoles.includes('admin');
@@ -215,33 +216,15 @@ const UsersPage = () => {
         return params;
     }, [statusFilter, typeFilter, debouncedSearchQuery, isStaff]);
 
-    // Staff users must use /api/owners or /api/vendors endpoint (they don't have permission for /api/auth/users)
-    // Admin and super-admin continue using /api/auth/users endpoint (unchanged)
+    // Determine if staff is filtering for owners/vendors (for phone number enrichment)
     const isStaffFilteringOwners = isStaff && filterParams.type === 'owner';
     const isStaffFilteringVendors = isStaff && filterParams.type === 'vendor';
     const isStaffFiltering = isStaffFilteringOwners || isStaffFilteringVendors;
-    
-    // Only call useOwners when staff is filtering for owners
-    const { data: ownersData, isLoading: isOwnersLoading, error: ownersError } = useOwners(
-        isStaffFilteringOwners ? filterParams : undefined
-    );
-    
-    // Only call useVendors when staff is filtering for vendors
-    const { data: vendorsData, isLoading: isVendorsLoading, error: vendorsError } = useVendors(
-        isStaffFilteringVendors ? filterParams : undefined
-    );
-    
-    // Admin and super-admin always use useUsers (unchanged)
-    // Staff users also use useUsers when NOT filtering for owners/vendors (though this shouldn't happen due to UI lock)
-    const { data: usersData, isLoading: isUsersLoading, error: usersError } = useUsers(
-        !isStaffFiltering ? filterParams : undefined
-    );
-    
-    // Use owners data for staff filtering owners, vendors data for staff filtering vendors, users data otherwise
-    const usersDataFinal = isStaffFilteringOwners ? ownersData : isStaffFilteringVendors ? vendorsData : usersData;
-    const isLoading = isStaffFilteringOwners ? isOwnersLoading : isStaffFilteringVendors ? isVendorsLoading : isUsersLoading;
-    const error = isStaffFilteringOwners ? ownersError : isStaffFilteringVendors ? vendorsError : usersError;
-    const users = usersDataFinal?.data ?? [];
+
+    // Use unified hook that automatically handles role-based endpoint selection
+    // The hook internally selects the correct endpoint (users/owners/vendors) based on user role
+    const { data: unifiedUsersData, isLoading, error } = useUnifiedUsers(filterParams);
+    const users = unifiedUsersData?.data ?? [];
     
     // For owners/vendors missing phone numbers, fetch individual details to get complete data
     // This is needed because the owners/vendors list endpoint may not include phone_no/country_code
@@ -314,13 +297,52 @@ const UsersPage = () => {
     // Use enriched users for owners/vendors, regular users for staff
     const finalUsers = isStaffFiltering ? enrichedUsers : users;
 
+    // Determine effective type for dynamic header
+    const effectiveType = useMemo(() => {
+        return (filterParams.type || 'staff') as UserType
+    }, [filterParams.type])
+
+    // Dynamic header text based on type
+    const headingLabel = useMemo(() => {
+        switch (effectiveType) {
+            case 'owner':
+                return 'All Owners'
+            case 'vendor':
+                return 'All Vendors'
+            default:
+                return 'All Staffs'
+        }
+    }, [effectiveType])
+
+    const headingDescription = useMemo(() => {
+        switch (effectiveType) {
+            case 'owner':
+                return 'Manage and monitor all owner accounts'
+            case 'vendor':
+                return 'Manage and monitor all vendor accounts'
+            default:
+                return 'Manage and monitor all user accounts'
+        }
+    }, [effectiveType])
+
+    const userCountLabel = useMemo(() => {
+        switch (effectiveType) {
+            case 'owner':
+                return 'owners'
+            case 'vendor':
+                return 'vendors'
+            default:
+                return 'users'
+        }
+    }, [effectiveType])
+
     return (
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h2 className="text-2xl font-bold text-foreground">All Users</h2>
+                <h2 className="text-2xl font-bold text-foreground">{headingLabel}</h2>
                 <p className="text-muted-foreground mt-1">
-                    Manage and monitor all user accounts
+                    {headingDescription}
                 </p>
             </div>
 
@@ -409,10 +431,10 @@ const UsersPage = () => {
             )}
 
             {/* Pagination Info */}
-            {users.length > 0 && (
+            {finalUsers.length > 0 && (
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>
-                        Showing {users.length} of {usersDataFinal?.meta?.total || users.length} users
+                        Showing {finalUsers.length} of {unifiedUsersData?.meta?.total || finalUsers.length} {userCountLabel}
                     </span>
                 </div>
             )}

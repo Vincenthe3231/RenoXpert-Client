@@ -30,6 +30,7 @@ import { RejectOnboardingInput, rejectOnboardingSchema } from "@/lib/api/onboard
 import { useForm } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from "@/lib/utils";
+import { useAllUsers } from "@/app/context/UnifiedUserDataContext";
 
 interface RejectDialogProps {
     open: boolean;
@@ -37,6 +38,8 @@ interface RejectDialogProps {
     onReject: (onboardingId: number, reason: string) => Promise<void> | void;
     userName: string;
     onboardingId: number;
+    userId?: number | null;
+    userUuid?: string | null;
 }
 
 const QUICK_REASONS = [
@@ -94,6 +97,8 @@ const RejectDialog = ({
     onOpenChange,
     onReject,
     userName,
+    userId,
+    userUuid,
     onboardingId,
 }: RejectDialogProps) => {
     const {
@@ -106,6 +111,15 @@ const RejectDialog = ({
     } = useForm<RejectOnboardingInput>({
         resolver: zodResolver(rejectOnboardingSchema as any),
     });
+    
+    const { getUserById, getUserByUuid, getUserByName, getUserAvatarUrl } = useAllUsers();
+    
+    // Try multiple lookup strategies (priority: UUID > ID > Name)
+    const user = userUuid ? getUserByUuid(userUuid) : 
+                 userId ? getUserById(userId) : 
+                 getUserByName(userName);
+    
+    const avatarUrl = getUserAvatarUrl(user);
 
     const rejectionReason = watch("rejectionReason") || "";
     const characterCount = rejectionReason.length;
@@ -235,7 +249,7 @@ const RejectDialog = ({
                         >
                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                                 <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-border/50 shrink-0">
-                                    <AvatarImage src={undefined} alt={userName} />
+                                    <AvatarImage src={avatarUrl || undefined} alt={userName} />
                                     <AvatarFallback className="bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 text-xs sm:text-sm">
                                         {initials}
                                     </AvatarFallback>

@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOnboardings } from "@/lib/api/onboarding"
-import { useUsers, useOwners, useAuth, type User } from "@/lib/api/auth"
+import { useAuth, type User } from "@/lib/api/auth"
+import { useUnifiedUsers } from "@/lib/api/auth/useUnifiedUsers"
 import { useInfiniteActivityLogs } from "@/lib/api/activity-logs"
 import AuditHeader from "./components/AuditHeader"
 import AuditStatsCards from "./components/AuditStatsCards"
@@ -18,6 +19,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 import { addToSearchHistory } from "@/lib/utils/search-history"
 import SearchHistoryDropdown from "./components/SearchHistoryDropdown"
 import ColumnFilters, { type ColumnFiltersProps } from "./components/ColumnFilters"
+import { UnifiedUserDataProvider } from "@/app/context/UnifiedUserDataContext"
 
 const ITEMS_PER_PAGE = 10
 
@@ -206,21 +208,13 @@ export default function AuditPage() {
     }
   }, [hasNextUserLogs, hasNextOnboardingLogs, hasNextRoleLogs, fetchNextUserLogs, fetchNextOnboardingLogs, fetchNextRoleLogs])
 
-  // Get all users (staff) for additional context
-  // Both Admin and Super Admin have backend access to /api/v1/users endpoint
+  // Get unified users data (automatically handles role-based endpoint selection and merging)
+  // Both Admin and Super Admin have backend access to user endpoints
   // Backend allows: Super Admin + Admin + Staff (per user.module middleware)
-  const { data: usersData, isLoading: isLoadingUsers } = useUsers(
+  const { data: unifiedUsersData, isLoading: isLoadingUsers } = useUnifiedUsers(
     isAdminOrSuperAdmin ? { perPage: 1000 } : undefined
   )
-  const staffUsers = usersData?.data || []
-  
-  // Get all owners for additional context (owners might not be in users list)
-  // Both Admin and Super Admin have backend access to /api/v1/staff endpoint
-  // Backend allows: Super Admin + Admin + Staff (per user.module middleware)
-  const { data: ownersData, isLoading: isLoadingOwners } = useOwners(
-    isAdminOrSuperAdmin ? { perPage: 1000 } : undefined
-  )
-  const owners = ownersData?.data || []
+  const unifiedUsers = unifiedUsersData?.data || []
   
   // Extract users from onboarding entries (users referenced in activity logs might not be in users list)
   const usersFromOnboardings = useMemo(() => {
@@ -263,7 +257,7 @@ export default function AuditPage() {
   const subjectsFromActivityLogs = useMemo(() => {
     // Skip processing if we have API data available (faster loading)
     // API data is preferred because it's complete and includes avatars
-    const hasApiData = staffUsers.length > 0 || owners.length > 0
+    const hasApiData = unifiedUsers.length > 0
     if (hasApiData) {
       return []
     }
@@ -367,12 +361,13 @@ export default function AuditPage() {
     })
     
     return subjectUsers
-  }, [activityLogs, staffUsers.length, owners.length])
+  }, [activityLogs, unifiedUsers.length])
 
-  // Merge staff users, owners, users from onboarding entries, reviewers from activity logs, and subjects from activity logs into a single list for lookup
+  // Merge unified users (from API), users from onboarding entries, reviewers from activity logs, and subjects from activity logs into a single list for lookup
+  // Unified users already includes staff, owners, and vendors merged and deduplicated
   // This ensures admins have access to user data from activity logs, maintaining the same architecture as super admin
   const users = useMemo(() => {
-    const allUsers = [...staffUsers, ...owners, ...usersFromOnboardings, ...reviewersFromActivityLogs, ...subjectsFromActivityLogs]
+    const allUsers = [...unifiedUsers, ...usersFromOnboardings, ...reviewersFromActivityLogs, ...subjectsFromActivityLogs]
     // Deduplicate by UUID (in case a user appears in multiple lists)
     const uniqueUsers = new Map<string, User>()
     // Also deduplicate by ID to handle cases where we have the same user with different identifiers
@@ -392,7 +387,7 @@ export default function AuditPage() {
       }
     })
     return Array.from(uniqueUsers.values())
-  }, [staffUsers, owners, usersFromOnboardings, reviewersFromActivityLogs, subjectsFromActivityLogs])
+  }, [unifiedUsers, usersFromOnboardings, reviewersFromActivityLogs, subjectsFromActivityLogs])
 
   // Create user lookup maps for O(1) access
   const userMapById = useMemo(() => {
@@ -849,7 +844,7 @@ export default function AuditPage() {
   const activityLogCount = activityLogs.length
   const totalEntries = filteredAndSortedEntries.length
 
-  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingUsers || isLoadingOwners
+  const isLoading = isLoadingOnboardings || isLoadingUserActivityLogs || isLoadingOnboardingActivityLogs || isLoadingRoleActivityLogs || isLoadingUsers
 
   const handleSearchHistorySelect = (query: string) => {
     setSearchQuery(query)
@@ -857,8 +852,9 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <AuditHeader />
+    <UnifiedUserDataProvider strategy="smart">
+      <div className="space-y-6">
+        <AuditHeader />
       {activityLogsError && (() => {
         // Don't show error banner for expected permission errors (401/403)
         const status = (activityLogsError as any)?.response?.status
@@ -974,6 +970,7 @@ export default function AuditPage() {
           />
         </div>
       )}
-    </div>
+      </div>
+    </UnifiedUserDataProvider>
   )
 }

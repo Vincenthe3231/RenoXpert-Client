@@ -13,6 +13,7 @@ import { useApproveOnboarding, useRejectOnboarding } from "@/lib/api/onboarding/
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AddDepartmentDialog } from "./components/AddDepartmentDialog";
+import { UnifiedUserDataProvider } from "@/app/context/UnifiedUserDataContext";
 
 const OnboardingPage = () => {
     const router = useRouter();
@@ -90,13 +91,37 @@ const OnboardingPage = () => {
         }
     }, [searchParams, isSuperAdmin, router]);
 
-    const handleRejectClick = (onboardingId: number, userName: string) => {
-        setSelectedOnboarding({ id: onboardingId, user: { name: userName } as StaffUser } as Onboarding);
+    const handleRejectClick = (
+        onboardingId: number, 
+        userName: string,
+        userId?: number | null,
+        userUuid?: string | null
+    ) => {
+        setSelectedOnboarding({ 
+            id: onboardingId, 
+            user: { 
+                name: userName,
+                uuid: userUuid 
+            } as StaffUser,
+            userId: userId
+        } as Onboarding);
         setRejectDialogOpen(true);
     };
 
-    const handleApproveClick = (onboardingId: number, userName: string) => {
-        setSelectedOnboarding({ id: onboardingId, user: { name: userName } as StaffUser } as Onboarding);
+    const handleApproveClick = (
+        onboardingId: number, 
+        userName: string,
+        userId?: number | null,
+        userUuid?: string | null
+    ) => {
+        setSelectedOnboarding({ 
+            id: onboardingId, 
+            user: { 
+                name: userName,
+                uuid: userUuid 
+            } as StaffUser,
+            userId: userId
+        } as Onboarding);
         setApproveDialogOpen(true);
     };
 
@@ -195,7 +220,7 @@ const OnboardingPage = () => {
     }
 
     return (
-        <>
+        <UnifiedUserDataProvider strategy="eager">
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -268,6 +293,8 @@ const OnboardingPage = () => {
                     onOpenChange={setRejectDialogOpen}
                     onReject={handleRejectConfirm}
                     userName={selectedOnboarding.user?.name || ""}
+                    userId={selectedOnboarding.userId}
+                    userUuid={selectedOnboarding.user?.uuid}
                     onboardingId={selectedOnboarding.id as number}
                 />
             )}
@@ -280,6 +307,8 @@ const OnboardingPage = () => {
                     onApprove={handleApproveConfirm}
                     isLoading={approveOnboarding.isPending}
                     userName={selectedOnboarding.user?.name || ""}
+                    userId={selectedOnboarding.userId}
+                    userUuid={selectedOnboarding.user?.uuid}
                     onboardingId={selectedOnboarding.id as number}
                 />
             )}
@@ -289,7 +318,7 @@ const OnboardingPage = () => {
                 open={addDepartmentDialogOpen}
                 onOpenChange={setAddDepartmentDialogOpen}
             />
-        </>
+        </UnifiedUserDataProvider>
     )
 }
 

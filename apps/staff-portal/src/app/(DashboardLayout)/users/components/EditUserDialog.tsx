@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Building2, Loader2, Save, X, User as UserIcon, Phone, Mail, MapPin, Shield, Globe } from "lucide-react"
-import { StaffUser, OwnerUser, VendorUser, User, StaffType } from "@/lib/api/auth/auth.schemas"
+import { StaffUser, OwnerUser, VendorUser, User, StaffType, UserDepartments } from "@/lib/api/auth/auth.schemas"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/api/auth/auth.hooks"
@@ -830,9 +830,9 @@ const EditUserDialog = ({ open, onOpenChange, user: initialUser }: EditUserDialo
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
                         <SelectContent className="bg-popover">
-                          {DEPARTMENTS.map((dept) => (
-                            <SelectItem key={dept.value} value={dept.value}>
-                              {dept.label}
+                          {departments?.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.name}>
+                              {dept.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
