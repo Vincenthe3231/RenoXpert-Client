@@ -102,6 +102,9 @@ const SortableHeader = ({ label, column, sortConfig, onSort }: SortableHeaderPro
 }
 
 const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, getInitials, users, activityLogs, userMapById, userMapByUuid }: AuditTableProps) => {
+  // Get user lookup helper from context for fallback user resolution
+  const { getUserById } = useAllUsers()
+  
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     column: null,
     direction: null,
@@ -189,6 +192,12 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
 
     // For pending entries, always return empty
     if (log.event === 'pending') {
+      return ["—"]
+    }
+
+    // Hide details for delete/deactivate operations
+    // These events don't need to show "field → null" changes
+    if (log.event === 'deleted' || log.event === 'deactivated') {
       return ["—"]
     }
 
