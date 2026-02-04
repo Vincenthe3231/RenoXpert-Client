@@ -509,7 +509,7 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
             },
           } as any
         }
-        // If no subject, check properties
+        // If no subject, check properties.attributes (for created/updated)
         if (log.properties?.attributes) {
           const attrs = log.properties.attributes as any
           return {
@@ -524,6 +524,42 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
             },
           } as any
         }
+        // For deleted departments, check properties.old (old values before deletion)
+        if (log.properties?.old) {
+          const oldAttrs = log.properties.old as any
+          return {
+            name: oldAttrs.name || 'Unknown Department',
+            email: null,
+            id: log.subjectId || null,
+            uuid: null,
+            status: oldAttrs.status,
+            userType: 'department',
+            profile: {
+              colorScheme: oldAttrs.colorScheme || oldAttrs.color_scheme,
+            },
+          } as any
+        }
+        // Fallback: Even if we can't find department data, return a department object
+        // This prevents falling through to user lookup which would incorrectly match a user ID
+        // Try to extract name from description if available
+        let departmentName = 'Unknown Department'
+        if (log.description) {
+          // Try to extract department name from description patterns
+          const nameMatch = log.description.match(/(?:department|Department)\s+(?:created|updated|deleted)[\s:]+(.+?)(?:\s|$)/i) ||
+                          log.description.match(/Department:\s*(.+?)(?:\s|$)/i)
+          if (nameMatch && nameMatch[1]) {
+            departmentName = nameMatch[1].trim()
+          }
+        }
+        return {
+          name: departmentName,
+          email: null,
+          id: log.subjectId || null,
+          uuid: null,
+          status: null,
+          userType: 'department',
+          profile: undefined,
+        } as any
       }
       
       // BUSINESS LOGIC: Always use current username - prioritize current users list first
