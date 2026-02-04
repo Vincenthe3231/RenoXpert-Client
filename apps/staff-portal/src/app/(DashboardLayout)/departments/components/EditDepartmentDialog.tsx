@@ -110,7 +110,7 @@ export function EditDepartmentDialog({
       }
     } else if (!watchedName) {
       // Clear short code if name is cleared
-      setValue("shortCode", "", { shouldValidate: true });
+      setValue("shortCode", "", { shouldValidate: false });
       lastGeneratedNameRef.current = "";
       isManuallyEditedRef.current = false;
     }

@@ -7,7 +7,9 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +68,9 @@ export function DeleteDepartmentDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden bg-card/95 backdrop-blur-xl border-border/50">
+        <VisuallyHidden>
+          <DialogTitle>Delete Department</DialogTitle>
+        </VisuallyHidden>
         {/* Destructive Header */}
         <div
           className={cn(
