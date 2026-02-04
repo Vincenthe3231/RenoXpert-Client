@@ -112,7 +112,11 @@ export function DepartmentCard({
         {/* Badge Preview */}
         {isGrid && (
           <div className="mt-3">
-            <DepartmentBadge department={department.name} size="md" />
+            <DepartmentBadge 
+              department={department.name} 
+              size="md" 
+              colorScheme={department.colorScheme}
+            />
           </div>
         )}
       </div>
@@ -120,7 +124,11 @@ export function DepartmentCard({
       {/* List view badge */}
       {!isGrid && (
         <div className="pr-4">
-          <DepartmentBadge department={department.name} size="md" />
+          <DepartmentBadge 
+            department={department.name} 
+            size="md" 
+            colorScheme={department.colorScheme}
+          />
         </div>
       )}
     </motion.div>

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { UserPlus, History, ArrowRight, Users, Building2 } from "lucide-react"
+import { UserPlus, History, ArrowRight, Users, Building2, Building } from "lucide-react"
 import Link from "next/link"
 
 interface QuickActionsCardProps {
@@ -46,6 +46,15 @@ const QuickActionsCard = ({ pendingCount }: QuickActionsCardProps) => {
             <span className="flex items-center gap-2">
               <Users className="w-4 h-4 text-primary transition-transform duration-200 group-hover:scale-110" />
               Manage Users
+            </span>
+            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+          </Button>
+        </Link>
+        <Link href="/departments" className="block">
+          <Button variant="outline" className="w-full justify-between group transition-all duration-200 hover:shadow-md">
+            <span className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-primary transition-transform duration-200 group-hover:scale-110" />
+              Manage Departments
             </span>
             <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
           </Button>

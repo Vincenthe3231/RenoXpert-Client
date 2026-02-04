@@ -306,8 +306,9 @@ export function EditDepartmentDialog({
                 Your department will appear as:
               </span>
               <DepartmentBadge
-                department={colorToDepartmentMap[watchedColorScheme] || "Engineering"}
+                department={watchedName || department?.name || "Department Name"}
                 size="md"
+                colorScheme={watchedColorScheme}
               />
             </div>
             {watchedName && (

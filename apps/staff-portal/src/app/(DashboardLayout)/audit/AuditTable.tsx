@@ -4,17 +4,19 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { CheckCircle, XCircle, History, Loader2, UserX, UserCheck, UserCog, UserPen, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, History } from "lucide-react"
 import { format } from "date-fns"
 import { AuditEntry, getAuditEntryTimestamp } from "./types"
 import { User } from "@/lib/api/auth"
 import AuditEmptyState from "./components/AuditEmptyState"
 import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
-import UserStatusBadge from "@/app/(DashboardLayout)/users/components/UserStatusBadge"
 import { DepartmentBadge } from "./components/DepartmentBadge"
 import { AuditDetailDialog } from "./components/AuditDetailDialog"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAllUsers } from "@/app/context/UnifiedUserDataContext"
+import { TypeBadge } from "./badges/TypeBadge"
+import { ActionBadge } from "./badges/ActionBadge"
+import { getAuditTypeLabel, getAuditActionDisplay } from "./badges/auditBadgeConfig"
 
 interface AuditTableProps {
   auditEntries: AuditEntry[]
@@ -353,98 +355,6 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
     )
   }
 
-  // Helper to get event icon and badge - using same styling as UserStatusBadge
-  const getEventDisplay = (event: string, log?: any) => {
-    // Special case: 'pending' event that represents an approval
-    // Backend sends event: 'pending' when status changes from pending → approved
-    if (
-      event === 'pending' &&
-      log?.logName === 'onboarding' &&
-      log?.properties?.old?.status === 'pending' &&
-      log?.properties?.attributes?.status === 'approved'
-    ) {
-      return {
-        icon: CheckCircle,
-        label: 'Pending', // Shows previous status before approval
-        variant: 'outline' as const,
-        className: 'gap-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
-      }
-    }
-
-    switch (event) {
-      case 'deactivated':
-        return {
-          icon: UserX,
-          label: 'Deactivated',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-pink-50 text-pink-500/90 border-pink-500/30 hover:bg-pink-500/20',
-        }
-      case 'activated':
-        return {
-          icon: UserCheck,
-          label: 'Activated',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100',
-        }
-      case 'role_changed':
-        return {
-          icon: UserCog,
-          label: 'Role Changed',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
-        }
-      case 'profile_updated':
-        return {
-          icon: UserPen,
-          label: 'Profile Updated',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
-        }
-      case 'verifying':
-        return {
-          icon: Loader2,
-          label: 'Verifying',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
-        }
-      case 'pending':
-        // Regular pending status (not an approval)
-        return {
-          icon: History,
-          label: 'Pending',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
-        }
-      case 'approved':
-        return {
-          icon: CheckCircle,
-          label: 'Approved',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100',
-        }
-      case 'rejected':
-        return {
-          icon: XCircle,
-          label: 'Rejected',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-100',
-        }
-      case 'updated':
-        return {
-          icon: UserPen,
-          label: 'Updated',
-          variant: 'outline' as const,
-          className: 'gap-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
-        }
-      default:
-        return {
-          icon: History,
-          label: event.charAt(0).toUpperCase() + event.slice(1), // Capitalize first letter
-          variant: 'outline' as const,
-          className: 'gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100',
-        }
-    }
-  }
 
   /**
    * Helper to get user from audit entry
@@ -1102,14 +1012,14 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
           if (a.type === 'onboarding') {
             actionA = a.data.status || "Unknown"
           } else {
-            const eventDisplay = getEventDisplay(a.data.event, a.data)
-            actionA = eventDisplay.label
+            const display = getAuditActionDisplay(a.data.event, a.data.logName, a.data)
+            actionA = display.label
           }
           if (b.type === 'onboarding') {
             actionB = b.data.status || "Unknown"
           } else {
-            const eventDisplay = getEventDisplay(b.data.event, b.data)
-            actionB = eventDisplay.label
+            const display = getAuditActionDisplay(b.data.event, b.data.logName, b.data)
+            actionB = display.label
           }
           comparison = actionA.localeCompare(actionB, undefined, { sensitivity: 'base' })
           break
@@ -1338,30 +1248,15 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                               </div>
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-3 py-1 text-xs font-medium text-primary shadow-sm">
-                                Onboarding
-                              </span>
+                              <TypeBadge typeLabel="Onboarding" size="md" />
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              {decision.status === "approved" ? (
-                                <Badge 
-                                  variant="outline"
-                                  className="gap-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                                >
-                                  <CheckCircle size={12} />
-                                  Approved
-                                </Badge>
-                              ) : decision.status === "rejected" ? (
-                                <UserStatusBadge status="rejected" />
-                              ) : (
-                                <Badge 
-                                  variant="outline"
-                                  className="gap-1 bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                                >
-                                  <XCircle size={12} />
-                                  {decision.status || "Unknown"}
-                                </Badge>
-                              )}
+                              <ActionBadge 
+                                event={decision.status || "pending"} 
+                                logName="onboarding"
+                                log={entry.data}
+                                size="md"
+                              />
                             </TableCell>
                             <TableCell className="py-5 px-6">
                               {decision.assignedUserType ? (
@@ -1396,8 +1291,6 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                         )
                       } else {
                         const log = entry.data
-                        const eventDisplay = getEventDisplay(log.event, log)
-                        const EventIcon = eventDisplay.icon
                         
                         return (
                           <TableRow
@@ -1457,22 +1350,18 @@ const AuditTable = ({ auditEntries, isLoading, getReviewerName, getCauserName, g
                               </div>
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <span className="inline-flex items-center rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm px-3 py-1 text-xs font-medium text-primary shadow-sm">
-                                {log.logName === 'onboarding' || log.properties?.module === 'onboarding' 
-                                  ? 'Onboarding' 
-                                  : log.logName === 'department' 
-                                    ? 'Department Management'
-                                    : 'User Management'}
-                              </span>
+                              <TypeBadge 
+                                typeLabel={getAuditTypeLabel(log.logName, entry.type, log.properties)} 
+                                size="md" 
+                              />
                             </TableCell>
                             <TableCell className="py-5 px-6">
-                              <Badge 
-                                variant={eventDisplay.variant}
-                                className={eventDisplay.className}
-                              >
-                                <EventIcon size={12} />
-                                {eventDisplay.label}
-                              </Badge>
+                              <ActionBadge 
+                                event={log.event} 
+                                logName={log.logName}
+                                log={log}
+                                size="md"
+                              />
                             </TableCell>
                             <TableCell className="py-5 px-6">
                               {(() => {

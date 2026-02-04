@@ -39,8 +39,8 @@ export function DeleteDepartmentDialog({
   }, [open]);
 
   const hasMembers = (department?.memberCount ?? 0) > 0;
-  const requiresConfirmation = hasMembers;
-  const isConfirmed = !requiresConfirmation || confirmText === department?.name;
+  const requiresConfirmation = true; // Always require confirmation for super admin safety
+  const isConfirmed = confirmText === department?.name;
 
   const handleDelete = async () => {
     if (!department || !isConfirmed) return;
@@ -132,7 +132,11 @@ export function DeleteDepartmentDialog({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
-                  <DepartmentBadge department={department.name} size="md" />
+                  <DepartmentBadge 
+                    department={department.name} 
+                    size="md" 
+                    colorScheme={department.colorScheme}
+                  />
                 </div>
                 {department.description && (
                   <p className="text-sm text-muted-foreground line-clamp-2">
@@ -171,29 +175,24 @@ export function DeleteDepartmentDialog({
             )}
           </AnimatePresence>
 
-          {/* Confirmation Input */}
-          <AnimatePresence>
-            {requiresConfirmation && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="confirm" className="text-sm">
-                  Type <span className="font-semibold text-foreground">"{department.name}"</span> to confirm deletion:
-                </Label>
-                <Input
-                  id="confirm"
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder={department.name}
-                  className="bg-background/50"
-                  autoComplete="off"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Confirmation Input - Always shown for super admin safety */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-2"
+          >
+            <Label htmlFor="confirm" className="text-sm">
+              Type <span className="font-semibold text-foreground">"{department.name}"</span> to confirm deletion:
+            </Label>
+            <Input
+              id="confirm"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={department.name}
+              className="bg-background/50"
+              autoComplete="off"
+            />
+          </motion.div>
         </div>
 
         {/* Footer */}

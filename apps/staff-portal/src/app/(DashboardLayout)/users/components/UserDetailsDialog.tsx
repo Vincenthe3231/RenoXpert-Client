@@ -27,6 +27,7 @@ import { format } from "date-fns"
 import Image from "next/image"
 import { getFlagPath } from "@/lib/country"
 import { useToast } from "@/hooks/use-toast"
+import { useDepartments } from "@/hooks/useDepartmentData"
 import React, { useMemo, useState, useEffect } from "react"
 import { AdminDialogHeader } from "./AdminDialogHeader"
 import { AdminSection } from "./AdminSection"
@@ -43,7 +44,15 @@ interface UserDetailsDialogProps {
 
 const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit }: UserDetailsDialogProps) => {
   const { data: currentUser } = useAuth()
+  const { data: departments } = useDepartments()
   const [deactivateOpen, setDeactivateOpen] = useState(false)
+  
+  // Helper to get colorScheme for a department name
+  const getDepartmentColorScheme = (departmentName: string | null | undefined) => {
+    if (!departmentName) return undefined
+    const department = departments.find(d => d.name === departmentName)
+    return department?.colorScheme
+  }
   
   // Check if current user is staff (not admin or super-admin)
   const isStaff = useMemo(() => {
@@ -300,20 +309,32 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
                     }
                     index={5}
                   />
-                  {user.userType === "staff" && (
-                    <AdminInfoCard
-                      icon={Building}
-                      label="Department"
-                      value={
-                        (user as StaffUser).profile?.department ? (
-                          <DepartmentBadge department={(user as StaffUser).profile.department} />
-                        ) : (
-                          "Not assigned"
-                        )
-                      }
-                      index={6}
-                    />
-                  )}
+                  {user.userType === "staff" && (() => {
+                    const departmentName = (user as StaffUser).profile?.department
+                    const colorScheme = getDepartmentColorScheme(departmentName)
+                    
+                    return (
+                      <AdminInfoCard
+                        icon={Building}
+                        label="Department"
+                        value={
+                          departmentName ? (
+                            colorScheme ? (
+                              <DepartmentBadge 
+                                department={departmentName} 
+                                colorScheme={colorScheme}
+                              />
+                            ) : (
+                              <DepartmentBadge department={departmentName} />
+                            )
+                          ) : (
+                            "Not assigned"
+                          )
+                        }
+                        index={6}
+                      />
+                    )
+                  })()}
                   <AdminInfoCard
                     icon={Activity}
                     label="Status"

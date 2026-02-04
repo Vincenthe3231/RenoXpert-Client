@@ -2,19 +2,20 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Clock, CheckCircle2, XCircle, ArrowRight, UserX, UserCheck, UserCog, UserPen, Loader2 } from "lucide-react"
-import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
+import { ArrowRight, Clock } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { AuditEntry } from "@/app/(DashboardLayout)/audit/types"
 import type { ActivityLog } from "@/lib/api/activity-logs"
 import { User } from "@/lib/api/auth"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
-import RoleBadge from "@/app/(DashboardLayout)/users/components/RoleBadge"
 import { DepartmentBadge } from "@/app/(DashboardLayout)/audit/components/DepartmentBadge"
+import { TypeBadge } from "@/app/(DashboardLayout)/audit/badges/TypeBadge"
+import { ActionBadge } from "@/app/(DashboardLayout)/audit/badges/ActionBadge"
+import { getAuditTypeLabel } from "@/app/(DashboardLayout)/audit/badges/auditBadgeConfig"
 
 interface RecentActivityCardProps {
   recentActivities: AuditEntry[]
@@ -24,24 +25,6 @@ interface RecentActivityCardProps {
 }
 
 const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs }: RecentActivityCardProps) => {
-  const router = useRouter()
-
-  const formatReviewDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "—"
-
-    const date = new Date(dateString)
-
-    // Show relative time for recent dates
-    if (isToday(date)) {
-      return `Today, ${format(date, "h:mm a")}`
-    } else if (isYesterday(date)) {
-      return `Yesterday, ${format(date, "h:mm a")}`
-    } else {
-      // Show absolute date with relative indicator
-      const daysAgo = formatDistanceToNow(date, { addSuffix: true })
-      return format(date, "MMM d")
-    }
-  }
 
   // Helper to extract department from user
   const getUserDepartment = (user: { profile?: { department?: string | null; roles?: string[] }; roles?: string[] } | null | undefined): string | null => {
@@ -462,167 +445,39 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
     }
   }
 
-  // Helper to get activity config
-  const getActivityConfig = (entry: AuditEntry) => {
+  // Helper to get icon class name for status indicator (used for avatar status dot)
+  const getIconClassName = (entry: AuditEntry): string => {
     if (entry.type === 'onboarding') {
       const status = entry.data.status
-      if (status === "approved") {
-        return {
-          icon: CheckCircle2,
-          label: "Approved",
-          className: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
-          iconClassName: "text-green-500",
-          typeLabel: "Onboarding",
-        }
-      } else if (status === "rejected") {
-        return {
-          icon: XCircle,
-          label: "Rejected",
-          className: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
-          iconClassName: "text-red-500",
-          typeLabel: "Onboarding",
-        }
-      } else if (status === "pending") {
-        return {
-          icon: Clock,
-          label: "Pending",
-          className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
-          iconClassName: "text-amber-500",
-          typeLabel: "Onboarding",
-        }
-      }
+      if (status === "approved") return "text-green-500"
+      if (status === "rejected") return "text-red-500"
+      return "text-amber-500"
     } else {
       const event = entry.data.event
       const logName = entry.data.logName
       
-      // Handle department management events
       if (logName === 'department') {
-        switch (event) {
-          case 'created':
-            return {
-              icon: CheckCircle2,
-              label: 'Created',
-              className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
-              iconClassName: 'text-gray-500',
-              typeLabel: 'Department Management',
-            }
-          case 'updated':
-            return {
-              icon: UserPen,
-              label: 'Updated',
-              className: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-              iconClassName: 'text-blue-500',
-              typeLabel: 'Department Management',
-            }
-          case 'deleted':
-            return {
-              icon: UserX,
-              label: 'Deleted',
-              className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
-              iconClassName: 'text-gray-500',
-              typeLabel: 'Department Management',
-            }
-          default:
-            const capitalizedLabel = event && typeof event === 'string' 
-              ? event.charAt(0).toUpperCase() + event.slice(1).toLowerCase()
-              : 'Unknown'
-            return {
-              icon: Clock,
-              label: capitalizedLabel,
-              className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
-              iconClassName: 'text-gray-500',
-              typeLabel: 'Department Management',
-            }
-        }
+        if (event === 'updated') return "text-blue-500"
+        return "text-gray-500"
       }
       
-      // Handle user management events
       switch (event) {
         case 'deactivated':
-          return {
-            icon: UserX,
-            label: 'Deactivated',
-            className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
-            iconClassName: 'text-red-500',
-            typeLabel: 'User Management',
-          }
-        case 'activated':
-          return {
-            icon: UserCheck,
-            label: 'Activated',
-            className: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
-            iconClassName: 'text-green-500',
-            typeLabel: 'User Management',
-          }
-        case 'role_changed':
-          return {
-            icon: UserCog,
-            label: 'Role Changed',
-            className: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-            iconClassName: 'text-blue-500',
-            typeLabel: 'User Management',
-          }
-        case 'profile_updated':
-          return {
-            icon: UserPen,
-            label: 'Profile Updated',
-            className: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800',
-            iconClassName: 'text-purple-500',
-            typeLabel: 'User Management',
-          }
-        case 'approved':
-          return {
-            icon: CheckCircle2,
-            label: 'Approved',
-            className: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
-            iconClassName: 'text-green-500',
-            typeLabel: 'User Management',
-          }
         case 'rejected':
-          return {
-            icon: XCircle,
-            label: 'Rejected',
-            className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
-            iconClassName: 'text-red-500',
-            typeLabel: 'User Management',
-          }
+          return "text-red-500"
+        case 'activated':
+        case 'approved':
+          return "text-green-500"
+        case 'role_changed':
+          return "text-blue-500"
+        case 'profile_updated':
+          return "text-purple-500"
         case 'pending':
-          return {
-            icon: Clock,
-            label: 'Pending',
-            className: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-            iconClassName: 'text-amber-500',
-            typeLabel: 'User Management',
-          }
         case 'verifying':
-          return {
-            icon: Loader2,
-            label: 'Verifying',
-            className: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-            iconClassName: 'text-amber-500',
-            typeLabel: 'User Management',
-          }
+          return "text-amber-500"
         default:
-          // Capitalize first letter of event name for better display
-          const capitalizedLabel = event && typeof event === 'string' 
-            ? event.charAt(0).toUpperCase() + event.slice(1).toLowerCase()
-            : 'Unknown'
-          return {
-            icon: Clock,
-            label: capitalizedLabel,
-            className: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800',
-            iconClassName: 'text-gray-500',
-            typeLabel: 'User Management',
-          }
+          return "text-gray-500"
       }
-    }
-    // Fallback for onboarding entries without a recognized status
-    return {
-      icon: Clock,
-      label: "Pending",
-      className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
-      iconClassName: "text-amber-500",
-      typeLabel: "Onboarding",
     }
   }
 
@@ -631,149 +486,150 @@ const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.4 }}
-      className={cn(
-        "rounded-xl",
-        "bg-card/60 backdrop-blur-md",
-        "border border-border/50",
-        "p-6",
-        "shadow-sm",
-        "col-span-4 lg:col-span-3"
-      )}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
-          <p className="text-sm text-muted-foreground">Latest updates from your team</p>
-        </div>
-        <Link href="/audit">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary hover:text-primary hover:bg-primary/10 h-8 px-2.5"
-          >
-            <span className="text-xs font-medium">View All</span>
-            <ArrowRight className="ml-1 h-3 w-3" />
-          </Button>
-        </Link>
-      </div>
-
-      <div className="space-y-3">
-        {recentActivities.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-8 text-muted-foreground"
-          >
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
-              <Clock className="w-6 h-6 opacity-50" />
+      <Card className="shadow-card transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Recent Activity</CardTitle>
+              <CardDescription>Latest updates from your team</CardDescription>
             </div>
-            <p className="text-xs font-medium">No recent activity</p>
-            <p className="text-[10px] mt-1 text-muted-foreground/80">
-              Onboarding decisions and user management activities will appear here
-            </p>
-          </motion.div>
-        ) : (
-          recentActivities.map((entry, index) => {
-            const activityConfig = getActivityConfig(entry)
-            const user = getUserFromEntry(entry)
-            const department = getUserDepartment(user)
-            const timestamp = getTimestamp(entry)
-            const avatarUrl = getUserAvatarUrl(user)
-            const initials = user?.name ? getInitials(user.name) : "??"
-
-            return (
-              <motion.div
-                key={entry.type === 'onboarding' ? `onboarding-${entry.data.id}` : `activity-log-${entry.data.id}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.5 + index * 0.1 }}
-                className={cn(
-                  "flex items-center gap-4 p-3 rounded-lg",
-                  "hover:bg-muted/30",
-                  "transition-colors duration-200"
-                )}
+            <Link href="/audit">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary hover:bg-primary/10 h-8 px-2.5"
               >
-                {/* Avatar with status */}
-                <div className="relative">
-                  {user?.userType === 'department' ? (
-                    // Department display
-                    <div className="h-10 w-10 rounded-full border-2 border-background shadow-md transition-all duration-300 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10">
-                      <span className="text-lg">🏢</span>
-                    </div>
-                  ) : (
-                    // User display
-                    <Avatar className="h-10 w-10 border-2 border-background">
-                      <AvatarImage src={avatarUrl} alt={user?.name || "User"} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className={cn(
-                    "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background flex items-center justify-center",
-                    activityConfig.iconClassName.includes('green') && "bg-green-500",
-                    activityConfig.iconClassName.includes('red') && "bg-red-500",
-                    activityConfig.iconClassName.includes('blue') && "bg-blue-500",
-                    activityConfig.iconClassName.includes('purple') && "bg-purple-500",
-                    activityConfig.iconClassName.includes('amber') && "bg-amber-500",
-                    (activityConfig.iconClassName.includes('gray') || activityConfig.iconClassName.includes('muted')) && "bg-gray-400"
-                  )} />
-                </div>
+                <span className="text-xs font-medium">View All</span>
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {recentActivities.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12 px-6 text-muted-foreground"
+            >
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+                <Clock className="w-6 h-6 opacity-50" />
+              </div>
+              <p className="text-xs font-medium">No recent activity</p>
+              <p className="text-[10px] mt-1 text-muted-foreground/80">
+                Onboarding decisions and user management activities will appear here
+              </p>
+            </motion.div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableBody>
+                  {recentActivities.map((entry, index) => {
+                    const user = getUserFromEntry(entry)
+                    const department = getUserDepartment(user)
+                    const timestamp = getTimestamp(entry)
+                    const avatarUrl = getUserAvatarUrl(user)
+                    const initials = user?.name ? getInitials(user.name) : "??"
+                    const iconClassName = getIconClassName(entry)
+                    const typeLabel = entry.type === 'onboarding' 
+                      ? "Onboarding"
+                      : getAuditTypeLabel(entry.data.logName, entry.type, entry.data.properties)
+                    const event = entry.type === 'onboarding' 
+                      ? entry.data.status || "pending"
+                      : entry.data.event
+                    const logName = entry.type === 'onboarding' 
+                      ? "onboarding"
+                      : entry.data.logName
 
-                {/* User info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm truncate">
-                    {user?.name || "Unknown User"}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user?.userType === 'department' ? "—" : (user?.email || "No email")}
-                  </p>
-                </div>
+                    return (
+                      <motion.tr
+                        key={entry.type === 'onboarding' ? `onboarding-${entry.data.id}` : `activity-log-${entry.data.id}`}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: 0.5 + index * 0.1 }}
+                        className="group border-b border-border/30 hover:bg-muted/30 transition-colors duration-200"
+                      >
+                        {/* Avatar with Status */}
+                        <TableCell className="py-4 px-4 w-[60px]">
+                          <div className="relative flex items-center justify-center">
+                            {user?.userType === 'department' ? (
+                              <div className="h-10 w-10 rounded-full border-2 border-background shadow-md transition-all duration-300 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10 group-hover:scale-105">
+                                <span className="text-lg">🏢</span>
+                              </div>
+                            ) : (
+                              <Avatar className="h-10 w-10 border-2 border-background transition-all duration-300 group-hover:scale-105">
+                                <AvatarImage src={avatarUrl} alt={user?.name || "User"} />
+                                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                  {initials}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div className={cn(
+                              "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background",
+                              iconClassName.includes('green') && "bg-green-500",
+                              iconClassName.includes('red') && "bg-red-500",
+                              iconClassName.includes('blue') && "bg-blue-500",
+                              iconClassName.includes('purple') && "bg-purple-500",
+                              iconClassName.includes('amber') && "bg-amber-500",
+                              (iconClassName.includes('gray') || iconClassName.includes('muted')) && "bg-gray-400"
+                            )} />
+                          </div>
+                        </TableCell>
 
-                {/* Action Category */}
-                <div className="hidden lg:flex flex-1 items-center">
-                  <Badge
-                    variant="outline"
-                    className="bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800 gap-1 font-normal py-0.5 px-2.5 text-[10px]"
-                  >
-                    {activityConfig.typeLabel}
-                  </Badge>
-                </div>
+                        {/* User Info */}
+                        <TableCell className="py-4 px-4 min-w-[180px]">
+                          <div className="space-y-0.5">
+                            <p className="font-medium text-foreground text-sm truncate">
+                              {user?.name || "Unknown User"}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {user?.userType === 'department' ? "—" : (user?.email || "No email")}
+                            </p>
+                          </div>
+                        </TableCell>
 
-                {/* Status & Department - Stacked as requested */}
-                <div className="hidden sm:flex flex-col items-end gap-1.5 min-w-[100px]">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-[10px] px-2 py-0.5 font-medium gap-1",
-                      activityConfig.className
-                    )}
-                  >
-                    <activityConfig.icon size={12} />
-                    {activityConfig.label}
-                  </Badge>
-                  {(() => {
-                    // Standard departments with predefined colors: Owner Sales, Renovation, Technician, Finance & Account
-                    const standardDepartments = ["Owner Sales", "Renovation", "Technician", "Finance & Account"]
-                    const isStandardDepartment = department && standardDepartments.includes(department)
-                    
-                    // Only pass colorScheme for non-standard departments
-                    if (department && !isStandardDepartment && user?.profile?.colorScheme) {
-                      return <DepartmentBadge department={department} size="sm" colorScheme={user.profile.colorScheme as any} />
-                    }
-                    return <DepartmentBadge department={department} size="sm" />
-                  })()}
-                </div>
+                        {/* Type Badge */}
+                        <TableCell className="py-4 px-4 hidden lg:table-cell">
+                          <TypeBadge typeLabel={typeLabel} size="sm" />
+                        </TableCell>
 
-                {/* Timestamp */}
-                <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[60px] text-right">
-                  {timestamp ? formatDistanceToNow(new Date(timestamp as string), { addSuffix: true }) : "Unknown time"}
-                </span>
-              </motion.div>
-            )
-          })
-        )}
-      </div>
+                        {/* Action Badge */}
+                        <TableCell className="py-4 px-4 hidden sm:table-cell">
+                          <div className="flex flex-col items-end gap-1.5">
+                            <ActionBadge
+                              event={event}
+                              logName={logName}
+                              log={entry.data}
+                              size="sm"
+                            />
+                            {(() => {
+                              const standardDepartments = ["Owner Sales", "Renovation", "Technician", "Finance & Account"]
+                              const isStandardDepartment = department && standardDepartments.includes(department)
+                              
+                              if (department && !isStandardDepartment && user?.profile?.colorScheme) {
+                                return <DepartmentBadge department={department} size="sm" colorScheme={user.profile.colorScheme as any} />
+                              }
+                              return department ? <DepartmentBadge department={department} size="sm" /> : null
+                            })()}
+                          </div>
+                        </TableCell>
+
+                        {/* Timestamp */}
+                        <TableCell className="py-4 px-4 text-right whitespace-nowrap min-w-[100px]">
+                          <span className="text-xs text-muted-foreground">
+                            {timestamp ? formatDistanceToNow(new Date(timestamp as string), { addSuffix: true }) : "Unknown"}
+                          </span>
+                        </TableCell>
+                      </motion.tr>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   )
 }
