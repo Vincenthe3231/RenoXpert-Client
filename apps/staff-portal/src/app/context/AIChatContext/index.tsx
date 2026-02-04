@@ -8,12 +8,41 @@ import React, {
     Dispatch,
 } from "react";
 import useSWR from "swr";
-import { getFetcher, postFetcher } from "@/app/api/globalFetcher";
+const getFetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch ${url}`);
+    }
+    return res.json();
+};
+
+const postFetcher = async (url: string, payload?: any) => {
+    const body = payload && typeof payload === "object" && "arg" in payload
+        ? (payload as { arg: any }).arg
+        : payload;
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to post ${url}`);
+    }
+    return res.json();
+};
+
+const sendMessageToGemini = async (text: string) => {
+    const response = await postFetcher("/api/chat-ai", { text });
+    const aiReply = response?.data?.[1]?.text || response?.data?.text || "";
+    if (!aiReply) {
+        throw new Error("No AI response");
+    }
+    return aiReply;
+};
 import {
     ChatAIMessage,
     ChatSession,
 } from "@/app/(DashboardLayout)/types/apps/ai-chat";
-import { sendMessageToGemini } from "@/app/api/chat-ai/gemini";
 
 type ChatAIContextType = {
     chatList: ChatAIMessage[];

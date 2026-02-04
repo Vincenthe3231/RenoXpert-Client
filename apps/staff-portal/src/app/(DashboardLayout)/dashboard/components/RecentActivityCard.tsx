@@ -9,6 +9,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AuditEntry } from "@/app/(DashboardLayout)/audit/types"
+import type { ActivityLog } from "@/lib/api/activity-logs"
 import { User } from "@/lib/api/auth"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -19,7 +20,7 @@ interface RecentActivityCardProps {
   recentActivities: AuditEntry[]
   getInitials: (name: string) => string
   users: User[]
-  activityLogs: AuditEntry[] // Activity logs to find historical user data for onboarding entries
+  activityLogs: ActivityLog[] // Activity logs to find historical user data for onboarding entries
 }
 
 const RecentActivityCard = ({ recentActivities, getInitials, users, activityLogs }: RecentActivityCardProps) => {

@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Clock, CheckCircle2, Loader2, Lock, ChevronLeft, Building2 } from "lucide-react";
 import { Onboarding, useOnboardings } from "@/lib/api/onboarding";
 import OnboardingTable from "./OnboardingTable";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import RejectDialog from "./components/RejectDialog";
 import { StaffType, StaffUser, useAuth } from "@/lib/api/auth";
 import ApproveDialog from "./components/ApproveDialog";
@@ -14,7 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AddDepartmentDialog } from "./components/AddDepartmentDialog";
 
-const OnboardingPage = () => {
+const OnboardingPageContent = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: user, isLoading: isAuthLoading } = useAuth();
@@ -23,13 +23,14 @@ const OnboardingPage = () => {
     // Check if user is super-admin
     const isSuperAdmin = (() => {
         if (!user || !user.profile) return false;
-        const userRoles = user.profile.roles || [];
-        const normalizedUserRoles = userRoles.map(role => {
+        const profile = user.profile as any;
+        const userRoles = Array.isArray(profile?.roles) ? profile.roles : [];
+        const normalizedUserRoles = userRoles.map((role: unknown) => {
             if (typeof role !== 'string') return '';
             return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-');
-        }).filter(role => role.length > 0);
+        }).filter((role: string) => role.length > 0);
 
-        return normalizedUserRoles.some(role =>
+        return normalizedUserRoles.some((role: string) =>
             role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
         );
     })();
@@ -120,7 +121,7 @@ const OnboardingPage = () => {
                 uuid: userUuid
             } as StaffUser,
             userId: userId
-        } as Onboarding);
+            } as Onboarding);
         setApproveDialogOpen(true);
     };
 
@@ -320,4 +321,14 @@ const OnboardingPage = () => {
     )
 }
 
-export default OnboardingPage;
+export default function OnboardingPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <OnboardingPageContent />
+        </Suspense>
+    )
+}

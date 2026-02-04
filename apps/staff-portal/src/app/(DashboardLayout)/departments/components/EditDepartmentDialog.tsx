@@ -61,7 +61,7 @@ export function EditDepartmentDialog({
     reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<DepartmentFormData>({
-    resolver: zodResolver(departmentSchema),
+    resolver: (zodResolver as any)(departmentSchema),
     defaultValues: {
       name: "",
       shortCode: "",

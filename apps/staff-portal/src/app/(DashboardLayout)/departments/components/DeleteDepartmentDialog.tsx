@@ -38,7 +38,7 @@ export function DeleteDepartmentDialog({
     }
   }, [open]);
 
-  const hasMembers = department && department.memberCount > 0;
+  const hasMembers = (department?.memberCount ?? 0) > 0;
   const requiresConfirmation = hasMembers;
   const isConfirmed = !requiresConfirmation || confirmText === department?.name;
 

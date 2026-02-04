@@ -19,7 +19,7 @@ export const activityLogNameSchema = z.enum(["user"]);
 /**
  * Activity Log Properties (dynamic, can contain various fields)
  */
-export const activityLogPropertiesSchema = z.record(z.any());
+export const activityLogPropertiesSchema = z.record(z.string(), z.any());
 
 /**
  * Activity Log Causer (who performed the action)

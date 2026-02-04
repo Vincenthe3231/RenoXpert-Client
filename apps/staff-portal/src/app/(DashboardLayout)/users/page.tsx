@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Download } from "lucide-react";
 import { Card } from '@/components/ui/card'
 import { Input } from "@/components/ui/input";
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, Suspense } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import UserFilters from "./components/UserFilters";
@@ -17,7 +17,7 @@ import UserTable from "./components/UserTable";
 // Status filter options (in order for keyboard navigation)
 const STATUS_FILTER_OPTIONS: (UserStatus | "all")[] = ["all", "active", "verifying", "deactivated", "rejected"];
 
-const UsersPage = () => {
+const UsersPageContent = () => {
     const { data: currentUser } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -442,4 +442,16 @@ const UsersPage = () => {
     )
 }
 
-export default UsersPage
+export default function UsersPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                </div>
+            }
+        >
+            <UsersPageContent />
+        </Suspense>
+    )
+}

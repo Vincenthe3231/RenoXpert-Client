@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import CodeDialog from '@/app/components/shared/CodeDialog'
-import AnimatedCodeWrapper from '../animatedComponentDemo/animated-code-wrapper/AnimatedCodeWrapper'
 
 type Props = {
   component: React.ReactNode // Accept rendered element instead of function
@@ -49,16 +48,7 @@ export default function CodePreview({
             {component} {/* Already rendered element */}
           </div>
         </div>
-        {isAnimated ? (
-          <AnimatedCodeWrapper
-            css={cssCode}
-            showReplayButton={showReplayButton}
-            onReplay={onReplay}>
-            {code}
-          </AnimatedCodeWrapper>
-        ) : (
-          <CodeDialog>{code}</CodeDialog>
-        )}
+        <CodeDialog>{code}</CodeDialog>
       </div>
     </Card>
   )

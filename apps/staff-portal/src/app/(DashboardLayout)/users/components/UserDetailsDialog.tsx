@@ -48,13 +48,14 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
   // Check if current user is staff (not admin or super-admin)
   const isStaff = useMemo(() => {
     if (!currentUser || !currentUser.profile) return false
-    const userRoles = currentUser.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = currentUser.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin'
     )
     const isAdmin = normalizedUserRoles.includes('admin')
@@ -66,13 +67,14 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
   // Check if current user is admin or staff (not super-admin) - these users cannot deactivate anyone
   const isCurrentUserAdminOrStaff = useMemo(() => {
     if (!currentUser || !currentUser.profile) return false
-    const userRoles = currentUser.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = currentUser.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     const isAdmin = normalizedUserRoles.includes('admin')
@@ -133,13 +135,14 @@ const UserDetailsDialog = ({ open, onOpenChange, userId, canEdit = false, onEdit
   // Check if current user is admin (not super-admin)
   const isCurrentUserAdmin = useMemo(() => {
     if (!currentUser || !currentUser.profile) return false
-    const userRoles = currentUser.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = currentUser.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     const isAdmin = normalizedUserRoles.includes('admin')

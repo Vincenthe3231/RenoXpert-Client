@@ -47,7 +47,7 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     reset,
     formState: { errors, isSubmitting },
   } = useForm<DepartmentFormData>({
-    resolver: zodResolver(departmentSchema),
+    resolver: (zodResolver as any)(departmentSchema),
     defaultValues: {
       name: "",
       shortCode: "",

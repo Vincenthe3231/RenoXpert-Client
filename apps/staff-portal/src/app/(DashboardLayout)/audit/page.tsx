@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOnboardings } from "@/lib/api/onboarding"
 import { useAuth, type User } from "@/lib/api/auth"
-import { useInfiniteActivityLogs } from "@/lib/api/activity-logs"
+import { useInfiniteActivityLogs, type ActivityLog } from "@/lib/api/activity-logs"
 import AuditHeader from "./components/AuditHeader"
 import AuditStatsCards from "./components/AuditStatsCards"
 import AuditTable from "./AuditTable"
@@ -51,13 +51,14 @@ export default function AuditPage() {
   // Check if user is super-admin (for onboarding access only)
   const isSuperAdmin = useMemo(() => {
     if (!currentUser || !currentUser.profile) return false
-    const userRoles = currentUser.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = currentUser.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
-    return normalizedUserRoles.some(role => 
+    return normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
   }, [currentUser])
@@ -65,13 +66,14 @@ export default function AuditPage() {
   // Check if user is admin or super-admin (both have access to staff data)
   const isAdminOrSuperAdmin = useMemo(() => {
     if (!currentUser || !currentUser.profile) return false
-    const userRoles = currentUser.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = currentUser.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
-    return normalizedUserRoles.some(role => 
+    return normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin' || role === 'admin'
     )
   }, [currentUser])
@@ -424,7 +426,7 @@ export default function AuditPage() {
   // Helper function to find matching activity log for a decision
   const findMatchingActivityLog = useCallback((
     decision: typeof decisions[0],
-    activityLogs: typeof activityLogs
+    activityLogs: ActivityLog[]
   ) => {
     // Try to find matching activity log by staff_onboarding_id (handle both formats)
     return activityLogs.find(log => {
@@ -555,11 +557,11 @@ export default function AuditPage() {
     // Sort by date (most recent first)
     const sortedEntries = entries.sort((a, b) => {
       const dateA = a.type === 'onboarding'
-        ? new Date(a.data.reviewedAt || a.data.createdAt).getTime()
-        : new Date(a.data.createdAt).getTime()
+        ? new Date(a.data.reviewedAt || a.data.createdAt || 0).getTime()
+        : new Date(a.data.createdAt || 0).getTime()
       const dateB = b.type === 'onboarding'
-        ? new Date(b.data.reviewedAt || b.data.createdAt).getTime()
-        : new Date(b.data.createdAt).getTime()
+        ? new Date(b.data.reviewedAt || b.data.createdAt || 0).getTime()
+        : new Date(b.data.createdAt || 0).getTime()
       return dateB - dateA
     })
 

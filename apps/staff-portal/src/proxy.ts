@@ -98,16 +98,17 @@ export async function proxy(req: NextRequest) {
 
         // Role-based route protection for authorized users
         if (isAuthorized && user.profile) {
-            const userRoles = user.profile.roles || []
-            const userPermissions = user.profile.permissions || []
+            const profile = user.profile as any
+            const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+            const userPermissions = Array.isArray(profile?.permissions) ? profile.permissions : []
             
             // Normalize roles for comparison
-            const normalizedUserRoles = userRoles.map(role => {
+            const normalizedUserRoles = userRoles.map((role: unknown) => {
                 if (typeof role !== 'string') return ''
                 return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-            }).filter(role => role.length > 0)
+            }).filter((role: string) => role.length > 0)
             
-            const isSuperAdmin = normalizedUserRoles.some(role => 
+            const isSuperAdmin = normalizedUserRoles.some((role: string) => 
                 role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
             )
             
@@ -128,7 +129,7 @@ export async function proxy(req: NextRequest) {
             
             // Protect /audit route - super-admin or admin with "view activity logs" permission
             if (pathname === '/audit' || pathname.startsWith('/audit/')) {
-                const hasViewActivityLogsPermission = userPermissions.some(permission => 
+                const hasViewActivityLogsPermission = userPermissions.some((permission: unknown) => 
                     typeof permission === 'string' && 
                     permission.toLowerCase().trim() === 'view activity logs'
                 )

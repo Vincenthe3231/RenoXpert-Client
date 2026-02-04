@@ -57,7 +57,7 @@ export const validationErrorSchema = z.object({
     error: z.literal('VALIDATION_ERROR'),
     message: z.string(),
     status: z.literal(422),
-    fields: z.record(z.array(z.string())),
+    fields: z.record(z.string(), z.array(z.string())),
 })
 
 export const roleNotFoundErrorSchema = z.object({

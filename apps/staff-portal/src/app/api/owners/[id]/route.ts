@@ -73,8 +73,8 @@ export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
     try {
-        const { id } = await params
         const cookieStore = await cookies()
         const cookieString = cookieStore.getAll()
             .map(c => `${c.name}=${c.value}`)

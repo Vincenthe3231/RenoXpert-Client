@@ -99,7 +99,7 @@ function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntry
 
     const user = decision.user;
     const avatarUrl = getUserAvatarUrl(user, users) || 
-                      (user?.profile?.avatarUrl || null);
+                      ((user?.profile as any)?.avatarUrl || null);
 
     return {
       user: {
@@ -139,7 +139,7 @@ function transformEntryToData(entry: AuditEntry, users: User[] = []): AuditEntry
       return {
         user: {
           name: department?.name || "Unknown Department",
-          email: null,
+          email: "",
           avatarUrl: null,
           department: "", // Departments don't belong to departments
         },

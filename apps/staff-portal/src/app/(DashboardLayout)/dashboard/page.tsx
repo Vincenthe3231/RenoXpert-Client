@@ -21,11 +21,12 @@ export default function Dashboard() {
     if (!requiredRole) return true
     if (!user || !user.profile) return false
 
-    const userRoles = user.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = user.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
     const normalizedRequired = requiredRole.toLowerCase()
 
@@ -34,7 +35,7 @@ export default function Dashboard() {
     }
 
     // Super admin can access everything
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin'
     )
     

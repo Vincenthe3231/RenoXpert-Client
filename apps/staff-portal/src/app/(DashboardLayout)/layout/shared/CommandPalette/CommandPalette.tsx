@@ -69,11 +69,14 @@ const CommandPalette = () => {
     if (!requiredRole) return true
     if (!user || !user.profile) return false
 
-    const userRoles = user.profile.roles || []
-    const normalizedUserRoles = userRoles.map(role => {
+    const profile = user.profile as any
+    const userRoles = Array.isArray((user.profile as any)?.roles)
+      ? (user.profile as any).roles
+      : []
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
     const normalizedRequired = requiredRole.toLowerCase()
 
@@ -82,7 +85,7 @@ const CommandPalette = () => {
     }
 
     // Super admin can access everything
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     
@@ -111,16 +114,19 @@ const CommandPalette = () => {
   const canAccessAudit = useCallback((): boolean => {
     if (!user || !user.profile) return false
     
-    const userRoles = user.profile.roles || []
-    const userPermissions = user.profile.permissions || []
+    const profile = user.profile as any
+    const userRoles = Array.isArray((user.profile as any)?.roles)
+      ? (user.profile as any).roles
+      : []
+    const userPermissions = Array.isArray(profile?.permissions) ? profile.permissions : []
     
-    const normalizedUserRoles = userRoles.map(role => {
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
     // Check if super-admin
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     
@@ -129,7 +135,7 @@ const CommandPalette = () => {
     }
     
     // Check for "view activity logs" permission
-    const hasViewActivityLogsPermission = userPermissions.some(permission => 
+    const hasViewActivityLogsPermission = userPermissions.some((permission: unknown) => 
       typeof permission === 'string' && 
       permission.toLowerCase().trim() === 'view activity logs'
     )

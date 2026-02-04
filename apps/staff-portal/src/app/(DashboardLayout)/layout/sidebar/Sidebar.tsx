@@ -72,13 +72,14 @@ const SidebarLayout = () => {
       return false
     }
 
-    const userRoles = user.profile.roles || []
+    const profile = user.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
     
     // Normalize roles for comparison (convert to lowercase, replace spaces/underscores with hyphens)
-    const normalizedUserRoles = userRoles.map(role => {
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
     const normalizedRequired = requiredRole.toLowerCase()
 
@@ -90,7 +91,7 @@ const SidebarLayout = () => {
     // Super admin can access everything - check normalized roles array
     // After normalization, "Super Admin", "super_admin", "super-admin" all become "super-admin"
     // Also check for "superadmin" (no hyphen) variant
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     
@@ -119,16 +120,17 @@ const SidebarLayout = () => {
   const canAccessAudit = (): boolean => {
     if (!user || !user.profile) return false
     
-    const userRoles = user.profile.roles || []
-    const userPermissions = user.profile.permissions || []
+    const profile = user.profile as any
+    const userRoles = Array.isArray(profile?.roles) ? profile.roles : []
+    const userPermissions = Array.isArray(profile?.permissions) ? profile.permissions : []
     
-    const normalizedUserRoles = userRoles.map(role => {
+    const normalizedUserRoles = userRoles.map((role: unknown) => {
       if (typeof role !== 'string') return ''
       return role.toLowerCase().trim().replace(/\s+/g, '-').replace(/_/g, '-')
-    }).filter(role => role.length > 0)
+    }).filter((role: string) => role.length > 0)
     
     // Check if super-admin
-    const isSuperAdmin = normalizedUserRoles.some(role => 
+    const isSuperAdmin = normalizedUserRoles.some((role: string) => 
       role === 'super-admin' || role === 'superadmin' || role === 'super_admin'
     )
     
@@ -137,7 +139,7 @@ const SidebarLayout = () => {
     }
     
     // Check for "view activity logs" permission
-    const hasViewActivityLogsPermission = userPermissions.some(permission => 
+    const hasViewActivityLogsPermission = userPermissions.some((permission: unknown) => 
       typeof permission === 'string' && 
       permission.toLowerCase().trim() === 'view activity logs'
     )

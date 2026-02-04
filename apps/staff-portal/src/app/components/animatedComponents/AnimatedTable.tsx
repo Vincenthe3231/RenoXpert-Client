@@ -41,7 +41,7 @@ const AnimatedTableWrapper = ({ children, className }: AnimatedTableWrapperProps
       transition={{ duration: 0.4, ease: 'easeOut' }}
       className={className}
     >
-      {children}
+      {children as any}
     </motion.div>
   );
 };
@@ -61,7 +61,7 @@ const AnimatedTableBody = ({ children, className }: AnimatedTableBodyProps) => {
       animate="show"
       className={className}
     >
-      {children}
+      {children as any}
     </motion.tbody>
   );
 };
@@ -94,7 +94,7 @@ const AnimatedTableRow = ({ children, className, index }: AnimatedTableRowProps)
       }}
       className={className}
     >
-      {children}
+      {children as any}
     </motion.tr>
   );
 };

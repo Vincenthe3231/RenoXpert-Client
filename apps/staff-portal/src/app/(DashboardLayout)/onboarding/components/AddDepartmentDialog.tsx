@@ -38,6 +38,15 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
   const { toast } = useToast();
   const addDepartment = useAddDepartment();
 
+  const generateShortCodeFromName = (name: string): string => {
+    if (!name.trim()) return "";
+    const words = name.trim().split(/\s+/);
+    return words
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("")
+      .substring(0, 10);
+  };
+
   const {
     register,
     handleSubmit,
@@ -46,7 +55,7 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     reset,
     formState: { errors, isSubmitting },
   } = useForm<DepartmentFormData>({
-    resolver: zodResolver(departmentSchema),
+    resolver: (zodResolver as any)(departmentSchema),
     defaultValues: {
       name: "",
       colorScheme: "cyan",
@@ -66,6 +75,7 @@ export function AddDepartmentDialog({ open, onOpenChange }: AddDepartmentDialogP
     try {
       await addDepartment.mutateAsync({
         name: data.name,
+        shortCode: generateShortCodeFromName(data.name),
         colorScheme: data.colorScheme,
       });
       toast({
